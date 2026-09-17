@@ -1,0 +1,8 @@
+{
+  "name": "blairforce1-pap",
+  "description": "Personal Agentic Process plugins and tooling",
+  "owner": { "name": "blairforce1" },
+  "plugins": [
+    { "name": "pap", "source": "./plugins/pap", "description": "Personal Agentic Process" }
+  ]
+}
