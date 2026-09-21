@@ -190,7 +190,7 @@ Intent edits made after the spec exists are noted as **intent churn**: the spec 
 
 ### 5.5 Spec review
 
-Run the reviewer perspectives the class requires. Each finding is recorded with reviewer, severity, and the human's disposition. Rejected findings need a one-line reason. Work through flagged areas of concern first. Review specifically against the invariants the intent declared it touches.
+Run the reviewer perspectives the class requires (the `spec-review` plugin in this marketplace provides them; `spec-review-full` runs the whole board). Each finding is recorded with reviewer, severity, and the human's disposition. Rejected findings need a one-line reason. Work through flagged areas of concern first. Review specifically against the invariants the intent declared it touches.
 
 ### 5.6 `plan.md` and `test-plan.md`
 

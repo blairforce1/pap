@@ -1,5 +1,8 @@
 {
   "name": "pap",
+  "version": "0.1.0",
   "description": "Personal Agentic Process: skills, hooks and guards",
-  "author": { "name": "blairforce1" }
+  "author": {
+    "name": "blairforce1"
+  }
 }

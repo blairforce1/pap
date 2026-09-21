@@ -1,8 +1,21 @@
 {
   "name": "blairforce1-pap",
   "description": "Personal Agentic Process plugins and tooling",
-  "owner": { "name": "blairforce1" },
+  "owner": {
+    "name": "blairforce1"
+  },
   "plugins": [
-    { "name": "pap", "source": "./plugins/pap", "description": "Personal Agentic Process" }
+    {
+      "name": "pap",
+      "source": "./plugins/pap",
+      "description": "Personal Agentic Process",
+      "version": "0.1.0"
+    },
+    {
+      "name": "spec-review",
+      "source": "./plugins/spec-review",
+      "description": "Design specification review board",
+      "version": "1.0.0"
+    }
   ]
 }
