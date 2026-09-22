@@ -57,6 +57,13 @@ see its own inputs cannot be measured.
   (resume or refuse).
 - Follow-up: record time from skill completion to PR merge per change so the
   revisit trigger can be evaluated.
+- Recorded 2026-09-22: of the three enforcement layers only the repository
+  ruleset existed; the `PreToolUse` hook and the `lefthook` `pre-push` layer
+  were found missing and were built in change `branch-guard`
+  (`scripts/guard-branch.sh`, `lefthook.yml`, `plugins/pap/hooks/hooks.json`).
+  The hook layer is a no-op in a repo that has no `scripts/guard-branch.sh`
+  and the `pre-push` layer needs `lefthook install`; the ruleset remains the
+  backstop.
 
 ## Where it is taught or enforced
 
