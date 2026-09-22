@@ -50,7 +50,10 @@ Pick a private repository with no templates of its own, for example
 
 Issue forms: open `https://github.com/blairforce1/journal/issues/new/choose`.
 Intent and Escape are listed, and Blank issue appears only to users with
-write access, marked "Maintainers only". No API reports inherited YAML
+write access, marked "Maintainers only". This is how inheritance shows for
+jenkinsci/docker, which has no templates of its own and lists the three
+YAML forms, the contact links, and the security policy from
+jenkinsci/.github (observed 2026-09-22). No API reports inherited YAML
 forms. The REST community profile leaves `issue_template` null for them,
 and GraphQL `issueTemplates` lists Markdown templates only; it returns
 nothing for YAML forms even in the repository that holds them. Observed on
