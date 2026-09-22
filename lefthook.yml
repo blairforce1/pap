@@ -1,0 +1,8 @@
+# lefthook.yml: pre-push layer of decision 0002 (decisions/0002-skills-stop-at-draft-pr.md).
+# Install into .git/hooks with `lefthook install`.
+pre-push:
+  jobs:
+    - name: guard-branch
+      run: scripts/guard-branch.sh push
+      use_stdin: true
+      fail_text: "decision 0002: nothing reaches main except by pull request"
