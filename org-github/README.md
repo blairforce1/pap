@@ -46,33 +46,26 @@ accounts.
 ## Verifying inheritance
 
 Pick a private repository with no templates of its own, for example
-`blairforce1/journal`. Before this repository exists the calls below return
-nothing; once it is pushed they name the inherited files.
+`blairforce1/journal`.
 
-GraphQL reports both kinds of template:
+Issue forms: open `https://github.com/blairforce1/journal/issues/new/choose`.
+Intent and Escape are listed, and Blank issue appears only to users with
+write access, marked "Maintainers only". No API reports inherited YAML
+forms. The REST community profile leaves `issue_template` null for them,
+and GraphQL `issueTemplates` lists Markdown templates only; it returns
+nothing for YAML forms even in the repository that holds them. Observed on
+supabase, jenkinsci, oven-sh/bun and pnpm/pnpm repositories on 2026-09-22.
 
-```sh
-gh api graphql -f query='query{repository(owner:"blairforce1",name:"journal"){issueTemplates{name filename} pullRequestTemplates{filename}}}'
-```
-
-Expected: `issueTemplates` lists Intent and Escape and
-`pullRequestTemplates` lists `PULL_REQUEST_TEMPLATE.md`.
-
-The REST community profile answers on private repositories, but for
-inherited files it reports only the pull request template. Its
-`issue_template` field stays null for inherited templates, as observed on
-supabase and jenkinsci repositories on 2026-09-22.
+Pull request template: the REST community profile answers on private
+repositories and names the inherited file.
 
 ```sh
 gh api repos/blairforce1/journal/community/profile --jq '.files | {issue_template, pull_request_template}'
 ```
 
-Expected: `pull_request_template.html_url` under
-`github.com/blairforce1/.github/`.
-
-In the browser, `https://github.com/blairforce1/journal/issues/new/choose`
-lists Intent and Escape. Blank issue appears only to users with write
-access, marked "Maintainers only".
+Before this repository exists both fields are null. After it is pushed,
+`pull_request_template.html_url` points under
+`github.com/blairforce1/.github/` and `issue_template` stays null.
 
 ## Validating the issue forms
 
