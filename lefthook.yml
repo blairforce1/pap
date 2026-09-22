@@ -1,8 +1,20 @@
 # lefthook.yml: pre-push layer of decision 0002 (decisions/0002-skills-stop-at-draft-pr.md).
 # Install into .git/hooks with `lefthook install`.
+#
+# The guard is wired as a `script`, not a `run` command: lefthook skips `run`
+# jobs on pre-push when HEAD has no diff against its upstream ("no matching
+# push files"), which would let `git push origin HEAD:main` from an
+# already-pushed branch bypass the guard. Scripts are never skipped that way.
+# `source_dir` plus `../` resolves to scripts/guard-branch.sh.
+#
+# Manual runs: `lefthook run pre-push </dev/null`. With use_stdin lefthook
+# waits for stdin to close, so a bare run in a terminal waits for Ctrl-D.
+source_dir: scripts
 pre-push:
   jobs:
     - name: guard-branch
-      run: scripts/guard-branch.sh push
+      script: ../guard-branch.sh
+      runner: sh
+      args: push
       use_stdin: true
       fail_text: "decision 0002: nothing reaches main except by pull request"
