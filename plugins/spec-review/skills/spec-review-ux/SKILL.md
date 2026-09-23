@@ -1,6 +1,6 @@
 ---
 name: spec-review-ux
-description: User experience review of a design specification. Run when the user asks for a UX review, usability assessment, or user-journey check of a design spec, feature spec, or workflow design. Reviews designs only, never code or live UI. For code, use /code-review instead.
+description: User experience review of a written design specification. Run when the user asks for a UX review, usability assessment, or user-journey check of a design spec, feature spec, or workflow design document. Not for feedback on mockups, screenshots, wireframes or live UI, and never code. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact
