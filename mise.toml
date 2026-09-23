@@ -3,3 +3,7 @@ lefthook = "2.1.14"
 uv = "0.12.18"
 yq = "4.53.6"
 "pipx:check-jsonschema" = "0.38.1"
+
+[tasks.test]
+description = "Run the repository test suites"
+run = "sh tests/guard-route.test.sh"

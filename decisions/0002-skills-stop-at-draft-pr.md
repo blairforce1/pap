@@ -64,6 +64,14 @@ see its own inputs cannot be measured.
   The hook layer is a no-op in a repo that has no `scripts/guard-branch.sh`
   and the `pre-push` layer needs `lefthook install`; the ruleset remains the
   backstop.
+- Recorded 2026-09-23: the hook layer checked the branch of the session's
+  repository, not the one a command targets. It blocked commits to
+  unguarded repositories from a session here, let `cd <guarded> && git
+  commit` through from sessions elsewhere, and never matched `git -C <dir>
+  commit`. From pap plugin 0.2.0 the hook runs
+  `plugins/pap/hooks/guard-route.sh` in every session; it follows `cd` and
+  `git -C` and runs `scripts/guard-branch.sh branch` in the target
+  repository. The rule is unchanged, so the three layers still agree.
 
 ## Where it is taught or enforced
 
