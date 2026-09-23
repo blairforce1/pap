@@ -1,0 +1,43 @@
+# Operating system
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+*~
+
+# Editors. Editor state is personal; style lives in .editorconfig, so no
+# editor settings directory is committed.
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*.suo
+*.user
+*.DotSettings.user
+
+# .NET build and test output
+bin/
+obj/
+artifacts/
+TestResults/
+BenchmarkDotNet.Artifacts/
+coverage/
+*.coverage
+*.coveragexml
+*.nupkg
+*.snupkg
+*.binlog
+.dotnet/
+
+# Node
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
