@@ -62,7 +62,7 @@ You are chairing a design review board. Run the relevant `spec-review-*` perspec
 
 1. **Executive verdict**: Pass / Pass with conditions / Fail overall, with the per-perspective verdicts in a one-line-each summary table.
 2. **Top findings**: the 5-10 findings that most affect the decision, ordered by severity, each with its perspective(s) of origin.
-3. **Full findings register**: all findings from all perspectives, deduplicated, with original IDs preserved (SEC-, REL-, OPS-, COST-, PERF-, QA-, UX-, GDPR-, AIA-, SOC-, ISO-, SII-).
+3. **Full findings register**: all findings from all perspectives, deduplicated, with original IDs preserved (SEC-, REL-, OPS-, COST-, PERF-, QA-, UX-, GDPR-, AIA-, SOC-, ISO-).
 4. **Cross-cutting themes**: patterns spanning perspectives (e.g. "observability is underspecified everywhere").
 5. **Trade-off register**: explicit conflicts between perspectives requiring an author decision, with the options and their consequences.
 6. **Gaps and questions**: merged from all perspectives, deduplicated.
