@@ -1,0 +1,72 @@
+# labels.yml: the PAP label set, synced to a repository by
+# `scripts/repo-sync.sh apply`. Sync creates missing labels and updates colour
+# and description; it never deletes a label that is not listed here.
+#
+# Colours carry meaning: class labels are distinct hues, phase labels are one
+# teal ramp in phase order (light = early), reds mark something that needs
+# care, and `return` is a pale warm tone because going backwards is normal.
+# Colours are six hex digits, lower case, no leading #, and always quoted:
+# unquoted, YAML reads 5319e7 as a number.
+
+# Task classes (process section 4). Every change declares exactly one.
+- name: class:feature
+  color: "1d76db"
+  description: New user-facing capability; full spec, review per touched invariants
+- name: class:infra
+  color: "5319e7"
+  description: Pipeline, platform or deployment change; touches protected paths by definition
+- name: class:security-sensitive
+  color: "b60205"
+  description: Touches authn, authz, secrets or PII; full reviewer set, acceptance tests mandatory
+- name: class:bugfix
+  color: "d93f0b"
+  description: Corrects a defect; cites the escape it closes and adds an eval
+- name: class:spike
+  color: "fbca04"
+  description: Time-boxed learning; intent and findings only, no spec, no deploy
+- name: class:docs
+  color: "c5def5"
+  description: Documentation only; intent and human review only
+- name: class:chore
+  color: "bfbfbf"
+  description: Maintenance with no behaviour change, such as tooling or dependency bumps
+
+# Phases (process section 5.1). The phase the change is in now.
+- name: phase:intent
+  color: "e0f7f4"
+  description: "Phase 1: intent.md with class, hypothesis, success measure and invariants"
+- name: phase:specification
+  color: "c2eee8"
+  description: "Phase 2: spec.md covering the sections the class requires"
+- name: phase:spec-review
+  color: "a3e4db"
+  description: "Phase 3: reviewer findings on the spec, each with a disposition"
+- name: phase:planning
+  color: "84d9cd"
+  description: "Phase 4: plan.md and test-plan.md matching the class matrix"
+- name: phase:generation
+  color: "66cfc0"
+  description: "Phase 5: code, tests and design notes for the planned increments"
+- name: phase:self-check
+  color: "47c4b3"
+  description: "Phase 6: build green, tests pass, agent has reviewed its diff against spec"
+- name: phase:code-review
+  color: "2fb3a1"
+  description: "Phase 7: review passes run, findings ranked, human approval"
+- name: phase:verification
+  color: "23998a"
+  description: "Phase 8: mandatory test tiers pass in a production-like environment"
+- name: phase:operation
+  color: "1a7f73"
+  description: "Phase 9: released; operation window running"
+- name: phase:findings
+  color: "12665c"
+  description: "Phase 10: findings.md; success measure evaluated, escapes attributed"
+
+# Flags.
+- name: protected-path
+  color: "e11d21"
+  description: Changes a protected path; needs explicit human approval recorded on the change
+- name: return
+  color: "f9d0c4"
+  description: Carries a phase return; record from, to and trigger (process section 5.10)
