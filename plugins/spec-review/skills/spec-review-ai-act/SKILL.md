@@ -108,7 +108,7 @@ Do not repeat security, reliability, qa, ux, operations or gdpr findings. Where 
 
 ## Relaxed under
 
-Every finding carries a **Relaxed under** column: `UK`, `not yet in application until <date>`, `no EU exposure`, or `neither`, with one line saying why. Severity is set by the strict reading as if the obligation were in application; the column is what lets an owner accept a finding knowingly.
+Every finding carries a **Relaxed under** column with one of the values the regulatory perspectives share, `UK`, `EU`, `no EU exposure`, `not yet in application until <date>`, `proposal` or `neither`, then a colon and one line naming the rule (this review uses `UK`, `no EU exposure`, `not yet in application until <date>` and `neither`). Severity is set by the strict reading as if the obligation were in application; the column is what lets an owner accept a finding knowingly.
 
 ## Severity definitions
 
