@@ -1,6 +1,6 @@
 ---
 name: spec-review-iso27001
-description: ISO 27001 ISMS fit review of a design specification. Run when the user asks whether a design supports ISO 27001, ISO/IEC 27001:2022, Annex A controls, a Statement of Applicability, or fits inside an existing ISMS. Reviews designs only, never code, and does not perform a certification audit. For code, use a code-review-* skill.
+description: ISO 27001 ISMS fit review of a design specification. Run when the user asks whether a design supports ISO 27001, ISO/IEC 27001:2022, Annex A controls, a Statement of Applicability, or fits inside an existing ISMS. Reviews designs only, never code, and does not perform a certification audit. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact
@@ -43,9 +43,9 @@ disallowed-tools:
   - Workflow
   - Write
 metadata:
-  generated-by: Claude Fable 5.1
-  skills: not recorded
-  prompt: not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day)
+  generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
+  skills: not recorded (2026-09-21); none (2026-09-23 revision)
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
 ---
 
 # ISO 27001 ISMS Fit Review (Design Specification)
@@ -79,12 +79,16 @@ Do not repeat security, reliability or SOC 2 findings. Where one of those review
 - **Minor**: worth fixing, low risk if deferred.
 - **Observation**: not a defect; a suggestion or note.
 
+## PAP context
+
+If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/<id>/intent.md` and `product/invariants.md` first. Review against the invariants the intent lists under `invariants-touched`, and work through the spec's Areas of concern section before anything else. In the findings table, put the invariant a finding bears on (`INV-00N`) in the Invariant column, or `-` if none. Leave the Disposition column empty: the human fills it with accepted, rejected (with a one-line reason) or deferred. Outside a PAP repository, keep both columns, with `-` for Invariant.
+
 ## Output format
 
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is an ISMS fit review, not a certification audit.
-2. **Findings table**: columns ID (ISO-001...), Severity, Clause or Annex A control, Spec section, Finding, Recommendation.
+2. **Findings table**: columns ID (ISO-001...), Severity, Clause or Annex A control, Spec section, Finding, Recommendation, Invariant, Disposition.
 3. **SoA impact**: table of Annex A controls the design implements, relies on from the platform or a supplier, or newly brings into scope, each with the spec section that shows it.
 4. **Risk register inputs**: risks the design implies but does not state, for the risk owner to assess.
 5. **Gaps**: clauses or control themes the spec does not address at all.
