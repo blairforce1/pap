@@ -59,7 +59,7 @@ Assess whether the specification adequately addresses:
 1. **Availability targets** - Are SLOs/SLAs stated as numbers? Is the error budget concept present or implied? Do targets match the stated business criticality?
 2. **Failure modes** - Is there a failure mode analysis? What happens when each dependency (database, queue, third-party API, identity provider) is slow, down, or returning garbage?
 3. **Single points of failure** - Identify any component whose loss takes the system down. Is that acceptable and acknowledged, or unexamined?
-4. **Timeouts, retries, idempotency** - Are retry policies specified with backoff? Are retried operations idempotent by design? Are timeout budgets coherent end to end (caller timeout > sum of downstream timeouts is a classic inversion to catch)?
+4. **Timeouts, retries, idempotency** - Are retry policies specified with backoff? Are retried operations idempotent by design? Are timeout budgets coherent end to end? Each hop's budget must fit inside its caller's; a caller that times out before the downstream calls it waits on (including their retries) is the classic inversion to catch, because it abandons work that keeps running and its own retries multiply the load.
 5. **Backpressure and overload** - What happens at 10x expected load? Queuing, shedding, rate limiting, or unbounded growth?
 6. **Data durability and consistency** - What consistency model is assumed? Is it stated or accidental? Backup, restore, and corruption recovery covered? RPO/RTO stated as numbers?
 7. **Disaster recovery** - Region or zone failure behaviour. Is the DR plan testable as designed?
