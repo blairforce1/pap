@@ -1,6 +1,6 @@
 ---
 name: spec-review-ai-act
-description: EU AI Act (Regulation (EU) 2024/1689) review of a design specification. Run when the user asks whether a design supports the EU AI Act, AI Act, Regulation 2024/1689, high-risk AI, Annex III, GPAI, AI transparency obligations, or whether something counts as an AI system. Reviews designs only, never code, and is not legal advice or a conformity assessment. For code, use a code-review-* skill.
+description: EU AI Act (Regulation (EU) 2024/1689) review of a design specification. Run when the user asks whether a design supports the EU AI Act, AI Act, Regulation 2024/1689, high-risk AI, Annex III, GPAI, AI transparency obligations, or whether something counts as an AI system. Reviews designs only, never code, and is not legal advice or a conformity assessment. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact

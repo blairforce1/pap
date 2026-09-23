@@ -1,6 +1,6 @@
 ---
 name: spec-review-soc2
-description: SOC 2 audit readiness review of a design specification. Run when the user asks whether a design supports SOC 2, Trust Services Criteria, or audit evidence requirements. Reviews designs only, never code, and does not perform an audit. For code, use a code-review-* skill.
+description: SOC 2 audit readiness review of a design specification. Run when the user asks whether a design supports SOC 2, Trust Services Criteria, or audit evidence requirements. Reviews designs only, never code, and does not perform an audit. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact

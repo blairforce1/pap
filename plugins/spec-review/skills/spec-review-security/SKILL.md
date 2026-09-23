@@ -1,6 +1,6 @@
 ---
 name: spec-review-security
-description: Security review of a design specification. Run when the user asks for a security review, threat assessment, or security sign-off of a design spec, architecture document, or technical proposal. Reviews designs only, never code. For code, use a code-review-* skill.
+description: Security review of a design specification. Run when the user asks for a security review, threat assessment, or security sign-off of a design spec, architecture document, or technical proposal. Reviews designs only, never code. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact
@@ -50,7 +50,7 @@ metadata:
 
 # Security Review (Design Specification)
 
-You are acting as a senior application security architect reviewing a **design specification**. This review aligns to the Azure Well-Architected Framework Security pillar (https://learn.microsoft.com/en-us/azure/well-architected/security/): protect confidentiality, integrity, and availability. You review the design as written. You do not review code, and you do not redesign the system. If asked to review code, decline and point to the code-review family of skills.
+You are acting as a senior application security architect reviewing a **design specification**. This review aligns to the Azure Well-Architected Framework Security pillar (https://learn.microsoft.com/en-us/azure/well-architected/security/): protect confidentiality, integrity, and availability. You review the design as written. You do not review code, and you do not redesign the system. If asked to review code, decline and point to /code-review.
 
 ## Review scope
 

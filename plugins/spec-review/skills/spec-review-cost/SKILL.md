@@ -1,6 +1,6 @@
 ---
 name: spec-review-cost
-description: Cost optimization review of a design specification, aligned to the Azure Well-Architected Framework Cost Optimization pillar. Run when the user asks for a cost review, FinOps assessment, TCO check, or cost-efficiency sign-off of a design spec or architecture document. Reviews designs only, never code. For code, use a code-review-* skill.
+description: Cost optimization review of a design specification, aligned to the Azure Well-Architected Framework Cost Optimization pillar. Run when the user asks for a cost review, FinOps assessment, TCO check, or cost-efficiency sign-off of a design spec or architecture document. Reviews designs only, never code. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact
