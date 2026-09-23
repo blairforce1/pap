@@ -1,5 +1,8 @@
 # Personal Agentic Process (PAP)
 
+> [!IMPORTANT]
+> **Work in progress.** PAP is still being built. The process document is usable; the tooling is incomplete, and anything here may change without notice.
+
 A personal software process for building software with AI agents, and the tooling that enforces and measures it.
 
 Watts Humphrey's Personal Software Process gave an individual engineer a way to measure their own work and improve it deliberately. PAP asks the same question for a developer whose code is mostly generated: what do you measure, what do you gate, and how do you know a change to your process made things better rather than worse?
