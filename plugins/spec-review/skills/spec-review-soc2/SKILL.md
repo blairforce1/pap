@@ -84,6 +84,6 @@ Produce a report with these sections, in order:
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is a readiness review, not an audit or attestation.
 2. **Findings table**: columns ID (SOC-001...), Severity, Criteria reference, Spec section, Finding, Recommendation, Invariant, Disposition.
 3. **Gaps**: criteria areas the spec does not address at all.
-4. **Questions for the author**: including which TSC categories are intended to be in scope, if unstated.
+4. **Questions for the author**: including which TSC categories are intended to be in scope, and whether a Type 1 (design at a point in time) or Type 2 (operating effectiveness over a period) report is intended and over what observation window, if unstated. Type 2 raises the bar for evidence continuity throughout this review.
 
 Anchor every finding to spec text and a criteria reference. Favour findings about evidenceability; that is this review's unique contribution.
