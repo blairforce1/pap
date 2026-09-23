@@ -1,0 +1,21 @@
+# test.yml: runs the repository test suites on every pull request and on main.
+# Same command as `mise run test`. Decision 0002 relies on required status
+# checks; this workflow provides the check named "tests". Making it required
+# is a ruleset change and is done separately.
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sh tests/guard-route.test.sh
