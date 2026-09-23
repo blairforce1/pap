@@ -60,7 +60,7 @@ You are chairing a design review board. Run the relevant `spec-review-*` perspec
 
 ## Output format
 
-1. **Executive verdict**: Pass / Pass with conditions / Fail overall, with the per-perspective verdicts in a one-line-each summary table.
+1. **Executive verdict**: Pass / Pass with conditions / Fail overall, with the per-perspective verdicts in a one-line-each summary table. If any regulatory perspective ran (gdpr, ai-act, soc2, iso27001), add one line saying the verdict comes from a design review and is not legal advice, an audit or a conformity assessment.
 2. **Top findings**: the 5-10 findings that most affect the decision, ordered by severity, each with its perspective(s) of origin.
 3. **Full findings register**: all findings from all perspectives, deduplicated, with original IDs preserved (SEC-, REL-, OPS-, COST-, PERF-, QA-, UX-, GDPR-, AIA-, SOC-, ISO-) and every column the perspectives produced, including Relaxed under, Invariant and Disposition. Leave Disposition empty for the human.
 4. **Cross-cutting themes**: patterns spanning perspectives (e.g. "observability is underspecified everywhere").
