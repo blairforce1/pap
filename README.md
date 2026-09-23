@@ -16,6 +16,7 @@ This repository is the process definition and the toolkit. It is being built in 
 | `process/personal-agentic-process.md` | The process itself. Tool-agnostic. Says what must happen, not how. |
 | `decisions/` | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited. |
 | `plugins/pap/` | A Claude Code plugin: one skill per process phase (`/envision` so far), plus hooks that enforce the rules an agent must not be able to talk its way around. |
+| `plugins/spec-review/` | A Claude Code plugin for phase 3, spec review: eleven reviewer perspectives, from security to the EU AI Act, plus `spec-review-full` to run the whole board. Works on any design document, with or without the `pap` plugin. |
 | `scripts/` | Guards shared by the git hooks and the Claude Code hooks. |
 | `.github/rulesets/` | The branch ruleset applied to every repo that adopts the process. |
 | `lefthook.yml`, `mise.toml` | Pinned local tooling. `mise install && lefthook install` is the whole setup. |
