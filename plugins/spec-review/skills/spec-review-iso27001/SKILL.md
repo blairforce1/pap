@@ -79,12 +79,16 @@ Do not repeat security, reliability or SOC 2 findings. Where one of those review
 - **Minor**: worth fixing, low risk if deferred.
 - **Observation**: not a defect; a suggestion or note.
 
+## PAP context
+
+If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/<id>/intent.md` and `product/invariants.md` first. Review against the invariants the intent lists under `invariants-touched`, and work through the spec's Areas of concern section before anything else. In the findings table, put the invariant a finding bears on (`INV-00N`) in the Invariant column, or `-` if none. Leave the Disposition column empty: the human fills it with accepted, rejected (with a one-line reason) or deferred. Outside a PAP repository, keep both columns, with `-` for Invariant.
+
 ## Output format
 
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is an ISMS fit review, not a certification audit.
-2. **Findings table**: columns ID (ISO-001...), Severity, Clause or Annex A control, Spec section, Finding, Recommendation.
+2. **Findings table**: columns ID (ISO-001...), Severity, Clause or Annex A control, Spec section, Finding, Recommendation, Invariant, Disposition.
 3. **SoA impact**: table of Annex A controls the design implements, relies on from the platform or a supplier, or newly brings into scope, each with the spec section that shows it.
 4. **Risk register inputs**: risks the design implies but does not state, for the risk owner to assess.
 5. **Gaps**: clauses or control themes the spec does not address at all.

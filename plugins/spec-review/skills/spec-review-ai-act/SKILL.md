@@ -117,13 +117,17 @@ Every finding carries a **Relaxed under** column: `UK`, `not yet in application 
 - **Minor**: worth fixing, low risk if deferred.
 - **Observation**: not a defect; a suggestion or note.
 
+## PAP context
+
+If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/<id>/intent.md` and `product/invariants.md` first. Review against the invariants the intent lists under `invariants-touched`, and work through the spec's Areas of concern section before anything else. In the findings table, put the invariant a finding bears on (`INV-00N`) in the Invariant column, or `-` if none. Leave the Disposition column empty: the human fills it with accepted, rejected (with a one-line reason) or deferred. Outside a PAP repository, keep both columns, with `-` for Invariant.
+
 ## Output format
 
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is a design review, not legal advice or a conformity assessment.
 2. **Classification statement**: AI system yes or no with the Article 3(1) reasoning; role of each party; prohibited-practice check; tier with the Annex reference or the Article 6(3) derogation relied on; EU exposure; the dates from the table that apply.
-3. **Findings table**: columns ID (AIA-001...), Severity, Article or Annex, Spec section, Finding, Recommendation, Relaxed under.
+3. **Findings table**: columns ID (AIA-001...), Severity, Article or Annex, Spec section, Finding, Recommendation, Relaxed under, Invariant, Disposition.
 4. **Documentation readiness**: for high-risk, an Annex IV section-by-section table of what the spec already supplies and what is missing; for other tiers, an Article 50 checklist.
 5. **Obligations calendar**: which obligations bite for this system's tier and role, and from when.
 6. **Gaps**: obligation areas the spec does not address at all.

@@ -89,12 +89,16 @@ Do not repeat security, SOC 2 or ISO 27001 findings. Where one of those reviews 
 - **Minor**: worth fixing, low risk if deferred.
 - **Observation**: not a defect; a suggestion or note.
 
+## PAP context
+
+If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/<id>/intent.md` and `product/invariants.md` first. Review against the invariants the intent lists under `invariants-touched`, and work through the spec's Areas of concern section before anything else. In the findings table, put the invariant a finding bears on (`INV-00N`) in the Invariant column, or `-` if none. Leave the Disposition column empty: the human fills it with accepted, rejected (with a one-line reason) or deferred. Outside a PAP repository, keep both columns, with `-` for Invariant.
+
 ## Output format
 
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is a design review, not legal advice, and the jurisdictions and role assumed.
-2. **Findings table**: columns ID (GDPR-001...), Severity, Article, Spec section, Finding, Recommendation, Relaxed under.
+2. **Findings table**: columns ID (GDPR-001...), Severity, Article, Spec section, Finding, Recommendation, Relaxed under, Invariant, Disposition.
 3. **RoPA inputs**: per processing activity, the data categories, subjects, purpose, lawful basis, recipients, transfers and retention the spec supports, with gaps marked.
 4. **DPIA trigger assessment**: which triggers the design meets, and whether a DPIA is required or recommended.
 5. **Gaps**: obligation areas the spec does not address at all.
