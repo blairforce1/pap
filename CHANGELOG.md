@@ -10,9 +10,9 @@ Each plugin is versioned independently.
 
 #### Added
 
-- Thirteen `spec-review-*` skills moved from the blairforce1 dotfiles:
+- Twelve `spec-review-*` skills moved from the blairforce1 dotfiles:
   `full`, `security`, `reliability`, `operations`, `cost`, `performance`,
-  `qa`, `ux`, `gdpr`, `ai-act`, `soc2`, `iso27001`, `solvency2`.
+  `qa`, `ux`, `gdpr`, `ai-act`, `soc2`, `iso27001`.
 
 #### Changed
 

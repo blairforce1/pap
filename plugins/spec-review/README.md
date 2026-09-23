@@ -27,7 +27,6 @@ does not depend on the `pap` plugin and works on any design document.
 | `spec-review-ai-act` | EU AI Act (Regulation (EU) 2024/1689) obligations |
 | `spec-review-soc2` | SOC 2 Trust Services Criteria audit readiness |
 | `spec-review-iso27001` | ISO/IEC 27001:2022 ISMS fit and Annex A controls |
-| `spec-review-solvency2` | Solvency II / Solvency UK for insurance systems |
 
 ## Usage
 
@@ -38,4 +37,4 @@ where the environment allows subagents), and returns one consolidated findings
 table with duplicates merged and severities reconciled.
 
 The orchestrator locates the perspective skills through `${CLAUDE_PLUGIN_ROOT}`,
-so all thirteen must ship together in this plugin.
+so all twelve must ship together in this plugin.
