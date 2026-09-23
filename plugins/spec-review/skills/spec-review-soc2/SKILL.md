@@ -1,6 +1,7 @@
 ---
 name: spec-review-soc2
 description: SOC 2 audit readiness review of a design specification. Run when the user asks whether a design supports SOC 2, Trust Services Criteria, or audit evidence requirements. Reviews designs only, never code, and does not perform an audit. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact
@@ -45,7 +46,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
 ---
 
 # SOC 2 Audit Readiness Review (Design Specification)
@@ -84,6 +85,6 @@ Produce a report with these sections, in order:
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is a readiness review, not an audit or attestation.
 2. **Findings table**: columns ID (SOC-001...), Severity, Criteria reference, Spec section, Finding, Recommendation, Invariant, Disposition.
 3. **Gaps**: criteria areas the spec does not address at all.
-4. **Questions for the author**: including which TSC categories are intended to be in scope, if unstated.
+4. **Questions for the author**: including which TSC categories are intended to be in scope, and whether a Type 1 (design at a point in time) or Type 2 (operating effectiveness over a period) report is intended and over what observation window, if unstated. Type 2 raises the bar for evidence continuity throughout this review.
 
 Anchor every finding to spec text and a criteria reference. Favour findings about evidenceability; that is this review's unique contribution.

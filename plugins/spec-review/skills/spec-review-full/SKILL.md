@@ -1,6 +1,7 @@
 ---
 name: spec-review-full
 description: Full multi-perspective review board for a design specification. Run when the user asks for a full review, design sign-off, review board, Well-Architected review, or does not specify a single perspective. Orchestrates the spec-review-* skills (security, reliability, operations, cost, performance, qa, ux, gdpr, ai-act, soc2, iso27001) and consolidates findings. Reviews designs only, never code.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Artifact
   - AskUserQuestion
@@ -44,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
 ---
 
 # Full Design Specification Review (Review Board)
@@ -60,7 +61,7 @@ You are chairing a design review board. Run the relevant `spec-review-*` perspec
 
 ## Output format
 
-1. **Executive verdict**: Pass / Pass with conditions / Fail overall, with the per-perspective verdicts in a one-line-each summary table.
+1. **Executive verdict**: Pass / Pass with conditions / Fail overall, with the per-perspective verdicts in a one-line-each summary table. If any regulatory perspective ran (gdpr, ai-act, soc2, iso27001), add one line saying the verdict comes from a design review and is not legal advice, an audit or a conformity assessment.
 2. **Top findings**: the 5-10 findings that most affect the decision, ordered by severity, each with its perspective(s) of origin.
 3. **Full findings register**: all findings from all perspectives, deduplicated, with original IDs preserved (SEC-, REL-, OPS-, COST-, PERF-, QA-, UX-, GDPR-, AIA-, SOC-, ISO-) and every column the perspectives produced, including Relaxed under, Invariant and Disposition. Leave Disposition empty for the human.
 4. **Cross-cutting themes**: patterns spanning perspectives (e.g. "observability is underspecified everywhere").

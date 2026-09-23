@@ -1,6 +1,7 @@
 ---
 name: spec-review-ai-act
 description: EU AI Act (Regulation (EU) 2024/1689) review of a design specification. Run when the user asks whether a design supports the EU AI Act, AI Act, Regulation 2024/1689, high-risk AI, Annex III, GPAI, AI transparency obligations, or whether something counts as an AI system. Reviews designs only, never code, and is not legal advice or a conformity assessment. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact
@@ -45,7 +46,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
 ---
 
 # EU AI Act Review (Design Specification)
@@ -65,7 +66,7 @@ These dates have moved once already (Digital Omnibus on AI, Regulation (EU) 2026
 | Annex III high-risk (Chapter III) | 2 December 2027 |
 | Annex I high-risk (product legislation) | 2 August 2028 |
 
-At the verification date above, the UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column.
+At the verification date above, the UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column, and point to the ICO's guidance on automated decision-making and profiling, which is being updated during 2026. SI 2026/425 obliges the ICO to write a statutory code of practice on AI and automated decision-making, but no code had been published at the verification date: do not cite one as in force.
 
 ## Gates
 
@@ -108,7 +109,7 @@ Do not repeat security, reliability, qa, ux, operations or gdpr findings. Where 
 
 ## Relaxed under
 
-Every finding carries a **Relaxed under** column: `UK`, `not yet in application until <date>`, `no EU exposure`, or `neither`, with one line saying why. Severity is set by the strict reading as if the obligation were in application; the column is what lets an owner accept a finding knowingly.
+Every finding carries a **Relaxed under** column with one of the values the regulatory perspectives share, `UK`, `EU`, `no EU exposure`, `not yet in application until <date>`, `proposal` or `neither`, then a colon and one line naming the rule (this review uses `UK`, `no EU exposure`, `not yet in application until <date>` and `neither`). Severity is set by the strict reading as if the obligation were in application; the column is what lets an owner accept a finding knowingly.
 
 ## Severity definitions
 

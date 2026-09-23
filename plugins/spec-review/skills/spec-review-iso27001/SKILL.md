@@ -1,6 +1,7 @@
 ---
 name: spec-review-iso27001
 description: ISO 27001 ISMS fit review of a design specification. Run when the user asks whether a design supports ISO 27001, ISO/IEC 27001:2022, Annex A controls, a Statement of Applicability, or fits inside an existing ISMS. Reviews designs only, never code, and does not perform a certification audit. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact
@@ -45,7 +46,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
 ---
 
 # ISO 27001 ISMS Fit Review (Design Specification)

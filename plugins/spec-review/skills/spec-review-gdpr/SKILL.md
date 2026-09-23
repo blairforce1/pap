@@ -1,6 +1,7 @@
 ---
 name: spec-review-gdpr
 description: GDPR data protection review of a design specification, against the strictest union of EU GDPR and UK GDPR as amended by the Data (Use and Access) Act 2025. Run when the user asks whether a design supports GDPR, UK GDPR, data protection by design, data-subject rights, DPIA readiness, records of processing, or international transfers. Reviews designs only, never code, and is not legal advice. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact
@@ -45,7 +46,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
 ---
 
 # GDPR Data Protection Review (Design Specification)
@@ -56,7 +57,7 @@ You are acting as a privacy-literate architect reviewing a **design specificatio
 
 Review against the **strictest union** of EU GDPR and UK GDPR (UK GDPR and the Data Protection Act 2018, both as amended by the Data (Use and Access) Act 2025, whose data-protection provisions commenced in February and June 2026). Use the EU text as the common core and add the UK-only obligations: a complaints procedure at the controller, and children's higher protection in design. UK PECR breaches now carry UK GDPR-level fines; that raises the stakes of marketing and cookie findings, not the strict reading. A design that passes this review has no design-level obstacle to meeting either regime; that is not a finding that it complies.
 
-Set severity by the strict reading. Then, for every finding, fill the **Relaxed under** column: `UK`, `EU`, or `neither`, with one line naming the rule that relaxes it (for example "UK: Articles 22A to 22D permit solely automated decisions that use no special-category data on any lawful basis, with the Article 22C safeguards"). The column lets an owner in one jurisdiction accept a finding knowingly instead of fixing it. Where the EU Digital Omnibus proposal on data would relax a finding if adopted, say so in the same column and mark it "proposal". It was not law when this skill was last verified (2026-09-23), and this review cannot re-check it: never cite it as law, and ask the author to confirm its status in Questions for the author.
+Set severity by the strict reading. Then, for every finding, fill the **Relaxed under** column with one of the values the regulatory perspectives share, `UK`, `EU`, `no EU exposure`, `not yet in application until <date>`, `proposal` or `neither`, then a colon and one line naming the rule (this review uses `UK`, `EU`, `proposal` and `neither`; for example "UK: Articles 22A to 22D permit solely automated decisions that use no special-category data on any lawful basis, with the Article 22C safeguards"). The column lets an owner in one jurisdiction accept a finding knowingly instead of fixing it. Where the EU Digital Omnibus proposal on data would relax a finding if adopted, say so in the same column with the value `proposal`. It was not law when this skill was last verified (2026-09-23), and this review cannot re-check it: never cite it as law, and ask the author to confirm its status in Questions for the author.
 
 Known divergences, UK looser: recognised legitimate interests without a balancing test; Articles 22A to 22D in place of Article 22; subject access limited to reasonable and proportionate searches with a clock stop; transfers judged by a "not materially lower" data protection test; a compatible-purposes list; a wider research definition with broad consent; PECR regulation 6 consent exemptions for first-party analytics, website appearance and emergency-assistance cookies, where users get clear information and a simple way to object. UK stricter: the two additions above. Decisions taken before 5 February 2026 stay under the old Article 22.
 

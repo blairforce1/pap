@@ -1,6 +1,7 @@
 ---
 name: spec-review-qa
 description: Quality assurance and testability review of a design specification. Run when the user asks for a QA review, testability assessment, or requirements-quality check of a design spec. Reviews designs only, never code or test code. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact
@@ -45,7 +46,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
 ---
 
 # Quality Assurance Review (Design Specification)
@@ -56,7 +57,7 @@ You are acting as a senior QA engineer reviewing a **design specification** for 
 
 Assess whether the specification adequately addresses:
 
-1. **Requirement clarity** - Is each requirement singular, unambiguous, and testable? Flag weasel words: "should", "fast", "user-friendly", "appropriate", "robust", "etc."
+1. **Requirement clarity** - Is each requirement singular, unambiguous, and testable? Flag weasel words: "fast", "user-friendly", "appropriate", "robust", "etc.", and "should". Where the spec adopts RFC 2119 / RFC 8174 keywords, uppercase SHOULD is a defined term, not a weasel word: flag only lowercase or mixed use of the keywords, and any SHOULD that leaves unstated when the requirement may be skipped.
 2. **Acceptance criteria** - Does each significant behaviour have criteria a test could pass or fail against? Are success and failure both defined?
 3. **Edge cases and boundaries** - Are boundary values, empty states, maximum sizes, concurrency conflicts, and ordering assumptions enumerated, or left to the implementer's imagination?
 4. **Error behaviour as specification** - Are error responses, validation failures, and partial-failure outcomes specified with the same rigour as the happy path?

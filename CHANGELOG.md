@@ -6,6 +6,32 @@ Each plugin is versioned independently.
 
 ## spec-review
 
+### [1.3.0] - 2026-09-23
+
+#### Added
+
+- Every skill has an `argument-hint` of `<spec path>`.
+- `spec-review-full` states in its executive verdict that it is not legal
+  advice, an audit or a conformity assessment whenever a regulatory
+  perspective ran.
+- `spec-review-soc2` asks whether a Type 1 or Type 2 report is intended,
+  and over what window.
+- `spec-review-ai-act` points UK-only deployments to the ICO's automated
+  decision-making and profiling guidance, and notes that the statutory AI
+  and ADM code required by SI 2026/425 had not been published.
+
+#### Changed
+
+- `spec-review-gdpr` and `spec-review-ai-act` share one Relaxed under
+  vocabulary.
+- `spec-review-ux` reviews for the users the spec names and states its
+  professional-user assumption only when the spec names none.
+
+#### Fixed
+
+- `spec-review-qa` no longer flags RFC 2119 uppercase SHOULD as a weasel
+  word in specs that adopt the keywords.
+
 ### [1.2.0] - 2026-09-23
 
 #### Added
