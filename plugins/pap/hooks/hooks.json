@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "g=\"${CLAUDE_PROJECT_DIR:-.}/scripts/guard-branch.sh\"; if [ -x \"$g\" ]; then exec \"$g\" hook; fi"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/guard-route.sh\""
           }
         ]
       }

@@ -9,9 +9,12 @@
 #   push    Run the branch check, then read the git pre-push ref list from
 #           stdin (<local ref> <local sha> <remote ref> <remote sha> per
 #           line) and exit 1 if any ref targets refs/heads/main.
-#   hook    Claude Code PreToolUse hook. Reads the tool-call JSON from stdin;
-#           when the Bash command contains `git commit` or `git push`, runs
-#           the branch check and exits 2 so the call is blocked.
+#   hook    Deprecated: the pap plugin's PreToolUse hook before 0.2.0.
+#           Reads the tool-call JSON from stdin and runs the branch check in
+#           the session's repository when the command contains `git commit`
+#           or `git push`. From 0.2.0 the plugin routes each command to the
+#           repository it targets (plugins/pap/hooks/guard-route.sh), which
+#           calls `branch` mode there. Kept until installed plugins update.
 #
 # Outside a git work tree every mode exits 0: there is nothing to guard.
 
