@@ -38,3 +38,8 @@ table with duplicates merged and severities reconciled.
 
 The orchestrator locates the perspective skills through `${CLAUDE_PLUGIN_ROOT}`,
 so all twelve must ship together in this plugin.
+
+The GDPR and AI Act skills cite regulatory dates from
+`references/regulatory-dates.md`, which carries one last-verified date. When a
+date moves, edit that file and its verification date; the skills hold no dates
+of their own.
