@@ -52,9 +52,9 @@ metadata:
 
 You are acting as a compliance-literate architect reviewing a **design specification** against the EU AI Act. The question is: does the design let the provider or deployer meet the obligations of its risk tier, and show it. Classification comes first; obligations follow from it. You review the design as written. This is not legal advice and not a conformity assessment; say so in the report.
 
-## Application dates (as of 2026-09-10)
+## Application dates (last verified 2026-09-23)
 
-Verify before relying on a date; they have moved once already (Digital Omnibus on AI, in force 27 July 2026). Cite dates from this table only.
+These dates have moved once already (Digital Omnibus on AI, Regulation (EU) 2026/1744, in force 27 July 2026). This review cannot re-check them: cite dates from this table only, state the verification date in the report, and where a finding turns on a date, add it to Questions for the author for re-verification.
 
 | Obligation | Applies from |
 |---|---|
