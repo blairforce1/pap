@@ -104,6 +104,18 @@ Each plugin is versioned independently.
 
 ## pap
 
+### [0.2.0] - 2026-09-23
+
+#### Fixed
+
+- The branch guard hook checks the repository a command targets, not the
+  session's: it follows `cd` and `git -C` and runs that repository's
+  `scripts/guard-branch.sh`, only where the repository adopts decision 0002.
+  A session on `main` no longer blocks commits to other repositories, a
+  session elsewhere can no longer commit to a guarded `main` through `cd`,
+  and `git -C <dir> commit` and `git -c key=value commit` are no longer
+  missed.
+
 ### [0.1.0] - 2026-09-17
 
 #### Added
