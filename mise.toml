@@ -1,3 +1,4 @@
 [tools]
 lefthook = "latest"
 yq = "latest"
+"pipx:check-jsonschema" = "0.38.1"
