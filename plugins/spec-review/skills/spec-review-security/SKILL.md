@@ -68,7 +68,7 @@ Assess whether the specification adequately addresses:
 
 ## Severity definitions
 
-- **Blocker**: design as specified creates an exploitable weakness or omits a control the system cannot ship without.
+- **Blocker**: the design, if built as specified, would leave an exploitable weakness, or it omits a control the system cannot ship without.
 - **Major**: significant gap likely to cause rework or a finding in a later audit or pen test.
 - **Minor**: worth fixing, low risk if deferred.
 - **Observation**: not a defect; a suggestion or note.
