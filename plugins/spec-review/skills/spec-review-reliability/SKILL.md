@@ -86,4 +86,4 @@ Produce a report with these sections, in order:
 3. **Gaps**: reliability topics the spec does not address at all.
 4. **Questions for the author**: ambiguities that block assessment.
 
-Anchor every finding to spec text. Prefer "the spec says X, which fails when Y" over generic resilience advice.
+Anchor every finding to spec text. Prefer "the spec says X, which fails when Y" over generic resilience advice. Coordinate with the performance review: capacity and load belong to this review when the question is what fails or degrades under load, to performance when it is whether throughput and latency targets are met.

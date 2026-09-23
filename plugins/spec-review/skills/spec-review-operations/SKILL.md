@@ -61,7 +61,7 @@ Assess whether the specification adequately addresses:
 3. **Deployment and rollback** - Deployment strategy stated (rolling, blue/green, canary)? Is rollback designed, including database migrations that must roll back or roll forward safely? GitOps-compatible?
 4. **Configuration and environments** - Where does config live, how does it differ per environment, how are drift and secrets handled? Environment parity assumptions stated?
 5. **Runbooks and failure handling** - Do foreseeable operational tasks (restore, re-index, replay, key rotation, certificate renewal) have a designed procedure, or will they be invented during an incident?
-6. **Capacity and cost** - Resource footprint estimated? Cost drivers identified (egress, storage growth, per-request compute)? Is anything unbounded?
+6. **Capacity and limits** - Resource footprint estimated? Is anything unbounded (queues, storage growth, log volume, per-tenant usage), and does something alert before it runs out? Leave cost drivers to the cost review.
 7. **Upgrades and lifecycle** - Dependency upgrade path, breaking-change strategy, data migration approach, deprecation story.
 8. **Access for operators** - How do operators get in, with what privileges, leaving what audit trail? Break-glass procedure?
 9. **On-call burden** - Honest read: how much toil does this design generate, and is any of it designed out?

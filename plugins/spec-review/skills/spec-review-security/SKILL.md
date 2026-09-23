@@ -64,7 +64,7 @@ Assess whether the specification adequately addresses:
 6. **Multi-tenancy and isolation** - If multi-tenant, is isolation enforced at data, compute, and identity layers? What is the blast radius of a tenant compromise?
 7. **Audit and detection** - Are security-relevant events logged? Tamper resistance? Retention aligned to policy?
 8. **Supply chain and dependencies** - Assumptions about third-party components, images, and packages stated?
-9. **Privacy and regulatory hooks** - Personal data flows identified? UK GDPR touchpoints flagged for follow-up (do not perform a full DPIA)?
+9. **Privacy and regulatory hooks** - Personal data flows identified? Flag GDPR and UK GDPR touchpoints for spec-review-gdpr and leave the Article-level review to it (do not perform a DPIA).
 
 ## Severity definitions
 
