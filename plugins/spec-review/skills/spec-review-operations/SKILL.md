@@ -82,7 +82,7 @@ If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification.
-2. **Findings table**: columns ID (OPS-001...), Severity, Spec section, Finding, Recommendation, Invariant, Disposition.
+2. **Findings table**: columns ID (OPS-001...), Severity, WAF principle, Spec section, Finding, Recommendation, Invariant, Disposition. WAF principle is the pillar design principle the finding falls under, by its exact name (Embrace DevOps culture; Establish development standards; Evolve operations with observability; Automate for efficiency; Adopt safe deployment practices), or `-` where none fits.
 3. **Gaps**: operational topics the spec does not address at all.
 4. **Questions for the author**: ambiguities that block assessment.
 
