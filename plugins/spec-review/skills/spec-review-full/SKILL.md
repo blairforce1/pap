@@ -41,6 +41,10 @@ disallowed-tools:
   - WebSearch
   - Workflow
   - Write
+metadata:
+  generated-by: Claude Fable 5.1
+  skills: not recorded
+  prompt: not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day)
 ---
 
 # Full Design Specification Review (Review Board)
