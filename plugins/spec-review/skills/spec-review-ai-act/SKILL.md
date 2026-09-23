@@ -66,7 +66,7 @@ These dates have moved once already (Digital Omnibus on AI, Regulation (EU) 2026
 | Annex III high-risk (Chapter III) | 2 December 2027 |
 | Annex I high-risk (product legislation) | 2 August 2028 |
 
-At the verification date above, the UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column.
+At the verification date above, the UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column, and point to the ICO's guidance on automated decision-making and profiling, which is being updated during 2026. SI 2026/425 obliges the ICO to write a statutory code of practice on AI and automated decision-making, but no code had been published at the verification date: do not cite one as in force.
 
 ## Gates
 
