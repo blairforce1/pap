@@ -8,6 +8,12 @@ The skills review designs only, never code. They are read-only: every skill
 disallows editing, shell, and network tools. None of the compliance skills is
 legal advice or a conformity assessment.
 
+The skills run inline in the conversation. `context: fork` was tried on
+2026-09-23 and rejected: the forked review came back as the parent model's
+paraphrase without the findings table, at about 70% more per run. The eval
+cases `security-report-inline` and `security-report-path` hold the graders
+that showed it.
+
 This plugin is phase 3 (spec review) of the Personal Agentic Process, but it
 does not depend on the `pap` plugin and works on any design document.
 
