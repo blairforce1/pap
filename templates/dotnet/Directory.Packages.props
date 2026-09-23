@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Directory.Packages.props: central package management. A PackageReference
+    in a project names the package and nothing else; the version is set once
+    here, and NuGet refuses a Version on the reference itself (NU1008). One
+    PackageVersion line per package the repository uses, alphabetical.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Analyzers. StyleCop's last stable release, 1.1.118, predates
+         file-scoped namespaces and later syntax; the beta line is the one
+         that understands current C#. -->
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
+  </ItemGroup>
+</Project>

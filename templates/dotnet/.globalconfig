@@ -1,0 +1,28 @@
+# .globalconfig: the severity the build enforces that a formatter cannot fix.
+#
+# The split. .editorconfig, in the base layer, holds every rule dotnet format
+# can apply, each at the severity dotnet format fixes; it is the single source
+# of style. This file holds what only the compiler can check. The compiler
+# reads both on build (EnforceCodeStyleInBuild), and so do the IDE and dotnet
+# format. Where both files set the same key, .editorconfig wins, so nothing
+# here restates an .editorconfig key: it sets a diagnostic severity, a
+# different key, which the compiler applies to what the rule reports. With
+# TreatWarningsAsErrors, warning here is a build failure.
+is_global = true
+
+# IDE1006 naming. The eight naming rules in .editorconfig sit at suggestion
+# because dotnet format cannot rename a symbol. The rules still run; this line
+# raises what they report to a warning, so a misnamed symbol fails the build
+# and the IDE offers the rename. dotnet format --verify-no-changes lists the
+# violation (exit 2); dotnet format says it cannot fix IDE1006, applies every
+# other fix and exits 0. Measured on SDK 10.0.401.
+dotnet_diagnostic.IDE1006.severity = warning
+
+# IDE0130 namespace matches folder is not here, on evidence. On build the rule
+# takes its severity from its option line alone
+# (dotnet_style_namespace_match_folder = true:suggestion in .editorconfig):
+# dotnet_diagnostic.IDE0130.severity is ignored, and the option line cannot be
+# raised from this file because .editorconfig wins on a shared key. Measured
+# on SDK 10.0.401. Enforcing it means raising the severity on the .editorconfig
+# line, a base-layer decision, and at warning dotnet format fails with an
+# unhandled exception on a mismatch instead of rewriting it.
