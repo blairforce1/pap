@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: ux-on-mockup
+description: Feedback on a visual mockup is not a design-spec review.
+tags: [triggering]
+runs: 3
+execution:
+  max_turns: 3
+  timeout_seconds: 180
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |
+    What do you think of this design?
+
+    Our new settings page mockup: a left-hand nav with Profile, Billing and
+    Notifications; the main panel has a big avatar, three toggles for email
+    alerts, and a red "Delete account" button at the top right in the same style
+    as "Save".
+graders:
+  - name: spec-ux-does-not-fire
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?spec-review-ux"'
+    min: 0
+    max: 0
+  - name: board-does-not-fire
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?spec-review-full"'
+    min: 0
+    max: 0

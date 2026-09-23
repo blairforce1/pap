@@ -6,6 +6,32 @@ Each plugin is versioned independently.
 
 ## spec-review
 
+### [1.2.0] - 2026-09-23
+
+#### Added
+
+- `spec-review-security` reviews AI and agent components (prompt
+  injection, excessive agency, unvalidated output, retrieval stores,
+  supply chain, unbounded consumption, agent-specific threats), anchored
+  to the OWASP LLM and Agentic Top 10 lists by risk name and MITRE ATLAS.
+- A triggering eval suite under `evals/` for `claude plugin eval`.
+
+#### Changed
+
+- All five Well-Architected perspectives carry a `WAF principle` column,
+  filled with the pillar's design principles by exact name.
+- `spec-review-soc2` cites Trust Services Criteria IDs on every item; the
+  column is now `Criteria reference`, since boundary definition sits in the
+  Description Criteria.
+
+#### Fixed
+
+- `spec-review-ux` no longer fires on requests for feedback on mockups or
+  screenshots.
+- Operations, security and reliability no longer duplicate the cost, gdpr
+  and performance perspectives.
+- `spec-review-iso27001` names CC9.2 as the nearest match to A.5.23.
+
 ### [1.1.0] - 2026-09-23
 
 #### Added

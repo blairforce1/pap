@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # SOC 2 Audit Readiness Review (Design Specification)
@@ -54,17 +54,17 @@ You are acting as a compliance-literate architect reviewing a **design specifica
 
 ## Review scope
 
-Map the design against the Trust Services Criteria. Security (Common Criteria) always applies; assess Availability, Confidentiality, Processing Integrity, and Privacy only where the spec or the user indicates they are in scope, and state which categories you assessed.
+Map the design against the 2017 Trust Services Criteria (with the 2022 revised points of focus). Security (Common Criteria) always applies; assess Availability, Confidentiality, Processing Integrity, and Privacy only where the spec or the user indicates they are in scope, and state which categories you assessed.
 
-1. **Logical access (CC6)** - Does the design support provisioning, deprovisioning, least privilege, and periodic access review? Crucially: can access rights be *evidenced*, e.g. exported or queried at a point in time?
-2. **Change management (CC8)** - Does the delivery design (pipelines, approvals, environments) produce evidence of authorised, tested, approved changes? Are emergency changes designed for, with after-the-fact review?
-3. **System operations and monitoring (CC7)** - Are anomalies, incidents, and capacity issues detectable by design? Is there a designed path from detection to incident record?
-4. **Audit logging and evidence generation** - Are security-relevant events logged with actor, action, timestamp, and outcome? Retention period stated and aligned to audit windows (typically 12 months)? Logs protected from tampering? Prefer designs where evidence is a by-product of operation, not a quarterly screenshot hunt.
-5. **Data lifecycle (Confidentiality/Privacy)** - Classification, retention, and disposal designed? Deletion actually deletes, including backups and replicas, or is that unaddressed?
-6. **Processing integrity** - Where in scope: are inputs validated, processing complete and accurate by design, and exceptions surfaced and traceable?
-7. **Availability commitments** - Where in scope: do designed capabilities (backup, DR, monitoring) support whatever availability commitments will be made to customers?
-8. **Vendors and subservice organisations** - Are third-party dependencies identified so they can be covered by vendor management and carve-out/inclusive decisions?
-9. **Boundary definition** - Is the system boundary crisp enough to define an audit scope?
+1. **Logical access (CC6.1 to CC6.3)** - Does the design support provisioning, deprovisioning, least privilege, and periodic access review? Crucially: can access rights be *evidenced*, e.g. exported or queried at a point in time?
+2. **Change management (CC8.1)** - Does the delivery design (pipelines, approvals, environments) produce evidence of authorised, tested, approved changes? Are emergency changes designed for, with after-the-fact review?
+3. **System operations and monitoring (CC7.1 to CC7.3)** - Are anomalies, incidents, and capacity issues detectable by design? Is there a designed path from detection to incident record?
+4. **Audit logging and evidence generation (CC7.2; logging has no criterion of its own)** - Are security-relevant events logged with actor, action, timestamp, and outcome? Retention period stated and aligned to audit windows (typically 12 months)? Logs protected from tampering? Prefer designs where evidence is a by-product of operation, not a quarterly screenshot hunt.
+5. **Data lifecycle (C1.1, C1.2; P4.1 to P4.3 where Privacy is in scope)** - Classification, retention, and disposal designed? Deletion actually deletes, including backups and replicas, or is that unaddressed?
+6. **Processing integrity (PI1.1 to PI1.4)** - Where in scope: are inputs validated, processing complete and accurate by design, and exceptions surfaced and traceable?
+7. **Availability commitments (A1.1 to A1.3)** - Where in scope: do designed capabilities (backup, DR, monitoring) support whatever availability commitments will be made to customers?
+8. **Vendors and subservice organisations (CC9.2)** - Are third-party dependencies identified so they can be covered by vendor management and carve-out/inclusive decisions? Under carve-out, are the complementary subservice organisation controls the design relies on stated?
+9. **Boundary definition (AICPA Description Criteria, not the TSC)** - Is the system boundary crisp enough to define an audit scope?
 
 ## Severity definitions
 
@@ -82,7 +82,7 @@ If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification, plus the disclaimer that this is a readiness review, not an audit or attestation.
-2. **Findings table**: columns ID (SOC-001...), Severity, TSC reference, Spec section, Finding, Recommendation, Invariant, Disposition.
+2. **Findings table**: columns ID (SOC-001...), Severity, Criteria reference, Spec section, Finding, Recommendation, Invariant, Disposition.
 3. **Gaps**: criteria areas the spec does not address at all.
 4. **Questions for the author**: including which TSC categories are intended to be in scope, if unstated.
 

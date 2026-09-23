@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # ISO 27001 ISMS Fit Review (Design Specification)
@@ -64,7 +64,7 @@ Use ISO/IEC 27001:2022 numbering only: 93 Annex A controls in four themes (5 Org
 4. **Measurability (clause 9.1)** - For each control the design relies on, is there a designed measure: a metric, a query, a report? Evidenced (the SOC 2 question) is not the same as measured; ISO asks for both.
 5. **Nonconformity and improvement (clauses 10.1, 10.2)** - When a control fails, does the design surface the failure so it can become a recorded nonconformity with a corrective action, rather than a silently retried job or a dashboard nobody owns?
 6. **Deletion, masking and leakage (A.8.10, A.8.11, A.8.12)** - Where PII or confidential data is present: is deletion designed end to end, including backups and replicas; is masking designed for non-production and analytics copies; is data leakage prevention considered at the egress points the design creates?
-7. **Cloud services and suppliers (A.5.19 to A.5.23)** - Are cloud services and other suppliers named, with the information each receives, the controls the design depends on them for, and an exit path? A.5.23 is specific to cloud services and has no Trust Services Criteria equivalent; give it explicit attention.
+7. **Cloud services and suppliers (A.5.19 to A.5.23)** - Are cloud services and other suppliers named, with the information each receives, the controls the design depends on them for, and an exit path? A.5.23 is specific to cloud services and has no dedicated Trust Services Criteria equivalent: the nearest, CC9.2, treats a cloud provider as one kind of vendor and does not cover the cloud lifecycle, shared responsibility or exit; give it explicit attention.
 8. **Secure development and environments (A.8.25 to A.8.29, A.8.31, A.8.32)** - Does the delivery design show a secure development lifecycle, separation of development, test and production, and change management? Note only what the security review would not: the lifecycle and the separation, not the vulnerabilities.
 9. **Logging, monitoring and time (A.8.15, A.8.16, A.8.17)** - Assume the security and SOC 2 reviews cover logging and monitoring. Add only the ISO specifics: protection of logs from modification, clock synchronisation across components, and whether monitoring is designed to detect anomalous behaviour rather than only failures.
 10. **ICT readiness for business continuity (A.5.29, A.5.30)** - Are recovery objectives stated and owned, and does the design support them? Cross-reference the reliability review rather than repeat it; the ISO question is whether continuity requirements are stated, not whether the architecture is resilient.

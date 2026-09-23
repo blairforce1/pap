@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # Performance Efficiency Review (Design Specification)
@@ -83,7 +83,7 @@ If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification.
-2. **Findings table**: columns ID (PERF-001...), Severity, WAF principle, Spec section, Finding, Recommendation, Invariant, Disposition.
+2. **Findings table**: columns ID (PERF-001...), Severity, WAF principle, Spec section, Finding, Recommendation, Invariant, Disposition. WAF principle is the pillar design principle the finding falls under, by its exact name (Negotiate realistic performance targets; Design to meet capacity requirements; Achieve and sustain performance; Optimize for long-term improvement), or `-` where none fits.
 3. **Gaps**: performance topics the spec does not address at all.
 4. **Questions for the author**: including expected load and growth assumptions, if unstated.
 

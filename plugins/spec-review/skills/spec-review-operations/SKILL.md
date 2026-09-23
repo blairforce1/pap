@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # Operations Review (Design Specification)
@@ -61,7 +61,7 @@ Assess whether the specification adequately addresses:
 3. **Deployment and rollback** - Deployment strategy stated (rolling, blue/green, canary)? Is rollback designed, including database migrations that must roll back or roll forward safely? GitOps-compatible?
 4. **Configuration and environments** - Where does config live, how does it differ per environment, how are drift and secrets handled? Environment parity assumptions stated?
 5. **Runbooks and failure handling** - Do foreseeable operational tasks (restore, re-index, replay, key rotation, certificate renewal) have a designed procedure, or will they be invented during an incident?
-6. **Capacity and cost** - Resource footprint estimated? Cost drivers identified (egress, storage growth, per-request compute)? Is anything unbounded?
+6. **Capacity and limits** - Resource footprint estimated? Is anything unbounded (queues, storage growth, log volume, per-tenant usage), and does something alert before it runs out? Leave cost drivers to the cost review.
 7. **Upgrades and lifecycle** - Dependency upgrade path, breaking-change strategy, data migration approach, deprecation story.
 8. **Access for operators** - How do operators get in, with what privileges, leaving what audit trail? Break-glass procedure?
 9. **On-call burden** - Honest read: how much toil does this design generate, and is any of it designed out?
@@ -82,7 +82,7 @@ If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification.
-2. **Findings table**: columns ID (OPS-001...), Severity, Spec section, Finding, Recommendation, Invariant, Disposition.
+2. **Findings table**: columns ID (OPS-001...), Severity, WAF principle, Spec section, Finding, Recommendation, Invariant, Disposition. WAF principle is the pillar design principle the finding falls under, by its exact name (Embrace DevOps culture; Establish development standards; Evolve operations with observability; Automate for efficiency; Adopt safe deployment practices), or `-` where none fits.
 3. **Gaps**: operational topics the spec does not address at all.
 4. **Questions for the author**: ambiguities that block assessment.
 

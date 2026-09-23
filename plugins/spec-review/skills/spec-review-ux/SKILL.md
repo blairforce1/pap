@@ -1,6 +1,6 @@
 ---
 name: spec-review-ux
-description: User experience review of a design specification. Run when the user asks for a UX review, usability assessment, or user-journey check of a design spec, feature spec, or workflow design. Reviews designs only, never code or live UI. For code, use /code-review instead.
+description: User experience review of a written design specification. Run when the user asks for a UX review, usability assessment, or user-journey check of a design spec, feature spec, or workflow design document. Not for feedback on mockups, screenshots, wireframes or live UI, and never code. For code, use /code-review instead.
 disallowed-tools:
   - Agent
   - Artifact
@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # User Experience Review (Design Specification)

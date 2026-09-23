@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # Security Review (Design Specification)
@@ -64,7 +64,10 @@ Assess whether the specification adequately addresses:
 6. **Multi-tenancy and isolation** - If multi-tenant, is isolation enforced at data, compute, and identity layers? What is the blast radius of a tenant compromise?
 7. **Audit and detection** - Are security-relevant events logged? Tamper resistance? Retention aligned to policy?
 8. **Supply chain and dependencies** - Assumptions about third-party components, images, and packages stated?
-9. **Privacy and regulatory hooks** - Personal data flows identified? UK GDPR touchpoints flagged for follow-up (do not perform a full DPIA)?
+9. **Privacy and regulatory hooks** - Personal data flows identified? Flag GDPR and UK GDPR touchpoints for spec-review-gdpr and leave the Article-level review to it (do not perform a DPIA).
+10. **AI and agent components** - Where the design includes an LLM, a model API or an agent, treat everything entering and leaving the model as crossing a trust boundary. Prompt injection, direct and indirect (through retrieved documents, tool results, email or web content)? Excessive agency: which tools and permissions the model or agent holds, whether it acts as the user or a service identity, and which actions need human approval? Sensitive data reaching the model, or leaking through its output or hidden context such as system prompts? Model output rendered, executed or passed on without validation? Retrieval and embedding stores: per-tenant access control, and poisoning of indexed content? Model, dataset and plugin supply chain? Unbounded consumption: token, cost and rate limits? For agents, also goal hijack, memory and context poisoning, inter-agent communication, and cascading failures across agents.
+
+Anchor findings to a named reference where one fits: STRIDE for the threat model, OWASP ASVS 5.0 for general controls, and for item 10 the OWASP Top 10 for LLM Applications and the OWASP Top 10 for Agentic Applications, by risk name, with MITRE ATLAS for attacker techniques. Cite risk names rather than list numbers; the numbering changes between editions.
 
 ## Severity definitions
 
@@ -82,7 +85,7 @@ If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification.
-2. **Findings table**: columns ID (SEC-001...), Severity, Spec section, Finding, Recommendation, Invariant, Disposition.
+2. **Findings table**: columns ID (SEC-001...), Severity, WAF principle, Spec section, Finding, Recommendation, Invariant, Disposition. WAF principle is the pillar design principle the finding falls under, by its exact name (Plan your security readiness; Design to protect confidentiality; Design to protect integrity; Design to protect availability; Sustain and evolve your security posture), or `-` where none fits.
 3. **Gaps**: security topics the spec does not address at all.
 4. **Questions for the author**: ambiguities that block assessment.
 

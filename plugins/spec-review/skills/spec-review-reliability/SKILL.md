@@ -45,7 +45,7 @@ disallowed-tools:
 metadata:
   generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B" (fixes from the review of PR #9)'
 ---
 
 # Reliability Review (Design Specification)
@@ -82,8 +82,8 @@ If the spec sits in a PAP change folder (`changes/<id>/spec.md`), read `changes/
 Produce a report with these sections, in order:
 
 1. **Verdict**: Pass / Pass with conditions / Fail, with a two-sentence justification.
-2. **Findings table**: columns ID (REL-001...), Severity, Spec section, Finding, Recommendation, Invariant, Disposition.
+2. **Findings table**: columns ID (REL-001...), Severity, WAF principle, Spec section, Finding, Recommendation, Invariant, Disposition. WAF principle is the pillar design principle the finding falls under, by its exact name (Design for business requirements; Design for resilience; Design for recovery; Design for operations; Keep it simple), or `-` where none fits.
 3. **Gaps**: reliability topics the spec does not address at all.
 4. **Questions for the author**: ambiguities that block assessment.
 
-Anchor every finding to spec text. Prefer "the spec says X, which fails when Y" over generic resilience advice.
+Anchor every finding to spec text. Prefer "the spec says X, which fails when Y" over generic resilience advice. Coordinate with the performance review: capacity and load belong to this review when the question is what fails or degrades under load, to performance when it is whether throughput and latency targets are met.
