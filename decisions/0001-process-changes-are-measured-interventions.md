@@ -51,10 +51,13 @@ is the whole point of measuring, and attribution needs a boundary.
   expect a case that forces a sharper line.
 - Follow-up: define "enough changes on each side" before the first
   `measured:` transition, not after.
+- Recorded 2026-09-23: neither enforcement named below exists yet. The
+  register at `rules.md` carries 1.1 and 1.2 as enforced by nothing, so the
+  gap is on the record until `pap emit` and the title check are built.
 
 ## Where it is taught or enforced
 
-Backs `rules.md` 1.1 (interventions are tagged) and 1.2 (records carry
+Backs [`rules.md`](../rules.md) 1.1 (interventions are tagged) and 1.2 (records carry
 expected effect). Introduced at repo founding. Enforced by the PR title check
 (`process:` type requires a `Record:` footer) and by `pap emit`, which
 refuses to run against an untagged process version.

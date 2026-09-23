@@ -72,14 +72,17 @@ see its own inputs cannot be measured.
   `plugins/pap/hooks/guard-route.sh` in every session; it follows `cd` and
   `git -C` and runs `scripts/guard-branch.sh branch` in the target
   repository. The rule is unchanged, so the three layers still agree.
+- Recorded 2026-09-23: `rules.md`, cited by this record and by 0001 since
+  the founding commit, did not exist. Written in change `rules-register` as
+  an index from each rule to its record and its enforcement.
 
 ## Where it is taught or enforced
 
-Backs `rules.md` 2.1 (main changes only via PR) and 2.2 (skills stop at a
+Backs [`rules.md`](../rules.md) 2.1 (main changes only via PR) and 2.2 (skills stop at a
 draft PR). Introduced at the intent stage; applies to every stage that
 produces an artefact. Enforced by `.github/rulesets/main.json` (`pull_request`,
 `non_fast_forward`, `required_linear_history`), by
 `plugins/pap/hooks/hooks.json` routing `PreToolUse` on Bash to
 `scripts/guard-branch.sh`, and by `lefthook.yml` `pre-push`. The intervention
 boundary and status lifecycle follow
-[0001](0001-treat-process-changes-as-measured-interventions.md).
+[0001](0001-process-changes-are-measured-interventions.md).
