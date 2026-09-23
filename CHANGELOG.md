@@ -27,6 +27,15 @@ Each plugin is versioned independently.
 - `spec-review-gdpr` and `spec-review-ai-act` no longer ask for checks their
   disallowed web tools cannot perform; both carry a last-verified date.
 - `spec-review-full` no longer lists the removed `SII-` prefix.
+- `spec-review-full` keeps the highest single-perspective severity instead of
+  raising it by vote, sets the overall verdict by rule, and passes each
+  subagent the perspective's full text, the PAP context and its read-only
+  restrictions.
+- `spec-review-ai-act` continues past a prohibition not yet in application,
+  and ties its UK statement to the verification date.
+- `spec-review-security` words a Blocker as a design-level judgement.
+- Descriptions point code requests at `/code-review`; no `code-review-*`
+  skills exist.
 
 ### [1.0.0] - 2026-09-21
 
