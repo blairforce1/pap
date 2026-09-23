@@ -56,7 +56,7 @@ You are acting as a senior QA engineer reviewing a **design specification** for 
 
 Assess whether the specification adequately addresses:
 
-1. **Requirement clarity** - Is each requirement singular, unambiguous, and testable? Flag weasel words: "should", "fast", "user-friendly", "appropriate", "robust", "etc."
+1. **Requirement clarity** - Is each requirement singular, unambiguous, and testable? Flag weasel words: "fast", "user-friendly", "appropriate", "robust", "etc.", and "should". Where the spec adopts RFC 2119 / RFC 8174 keywords, uppercase SHOULD is a defined term, not a weasel word: flag only lowercase or mixed use of the keywords, and any SHOULD that leaves unstated when the requirement may be skipped.
 2. **Acceptance criteria** - Does each significant behaviour have criteria a test could pass or fail against? Are success and failure both defined?
 3. **Edge cases and boundaries** - Are boundary values, empty states, maximum sizes, concurrency conflicts, and ordering assumptions enumerated, or left to the implementer's imagination?
 4. **Error behaviour as specification** - Are error responses, validation failures, and partial-failure outcomes specified with the same rigour as the happy path?
