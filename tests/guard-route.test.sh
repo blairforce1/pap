@@ -1,0 +1,121 @@
+#!/bin/sh
+# guard-route.test.sh: regression tests for the decision 0002 hook layer
+# (plugins/pap/hooks/guard-route.sh routing to scripts/guard-branch.sh).
+#
+# Usage: sh tests/guard-route.test.sh
+#
+# Builds throwaway repositories in a temporary directory, feeds the router
+# synthetic PreToolUse input, and checks its exit code: 2 blocks the call,
+# 0 lets it through. Prints one TAP-style line per case and exits 1 if any
+# case fails. Needs git and jq; touches nothing outside the temporary
+# directory.
+#
+#   G     adopts decision 0002, on main
+#   G2    adopts decision 0002, on change/x
+#   G sp  adopts decision 0002, on main, path contains a space
+#   D     adopts decision 0002, detached HEAD
+#   U     does not adopt decision 0002, on main
+
+set -u
+
+here="$(cd "$(dirname "$0")/.." && pwd)"
+router="$here/plugins/pap/hooks/guard-route.sh"
+guard="$here/scripts/guard-branch.sh"
+
+for tool in git jq; do
+  command -v "$tool" >/dev/null 2>&1 || { printf 'Bail out! %s not found\n' "$tool"; exit 1; }
+done
+
+T="$(mktemp -d)"
+trap 'rm -rf "$T"' EXIT INT TERM
+
+mkrepo() {
+  git init -q -b main "$1"
+  git -C "$1" -c user.name=test -c user.email=test@example.invalid \
+    -c commit.gpgsign=false commit -q --allow-empty -m init
+}
+adopt() {
+  mkdir -p "$1/scripts"
+  cp "$guard" "$1/scripts/guard-branch.sh"
+}
+
+mkrepo "$T/G"    && adopt "$T/G"
+mkrepo "$T/G2"   && adopt "$T/G2" && git -C "$T/G2" switch -q -c change/x
+mkrepo "$T/G sp" && adopt "$T/G sp"
+mkrepo "$T/D"    && adopt "$T/D"  && git -C "$T/D" switch -q --detach
+mkrepo "$T/U"
+
+n=0
+failed=0
+
+# check <expected exit> <cwd> <command> [tool name]
+check() {
+  n=$((n + 1))
+  input="$(jq -nc --arg c "$3" --arg d "$2" --arg t "${4:-Bash}" \
+    '{tool_name: $t, cwd: $d, tool_input: {command: $c}}')"
+  printf '%s' "$input" | "$router" >/dev/null 2>&1
+  rc=$?
+  label="cwd=${2#"$T"/} ${4:+[$4] }$3"
+  if [ "$rc" = "$1" ]; then
+    printf 'ok %d - %s\n' "$n" "$label"
+  else
+    printf 'not ok %d - %s (exit %s, expected %s)\n' "$n" "$label" "$rc" "$1"
+    failed=$((failed + 1))
+  fi
+}
+
+# The session's own repository.
+check 2 "$T/G"  'git commit -m x'
+check 0 "$T/G2" 'git commit -m x'
+check 2 "$T/D"  'git commit -m x'
+check 0 "$T/U"  'git commit -m x'
+
+# A session in a guarded repository must not block others (the dotfiles case).
+check 0 "$T/G"  "cd $T/U && git commit -m x"
+check 0 "$T/G"  "git -C $T/U commit -m x"
+
+# A session elsewhere must not reach a guarded main.
+check 2 "$T/U"  "cd $T/G && git commit -m x"
+check 2 "$T/U"  "git -C $T/G commit -m x"
+check 2 "$T/G2" "git -C $T/G push origin main"
+check 2 "$T/U"  "git -c user.name=x -C $T/G commit"
+check 2 "$T/G2" "cd ../G && GIT_AUTHOR_NAME=x git commit -m y"
+check 2 "$T/U"  "cd \"$T/G sp\" && git commit -m x"
+
+# Separators, subshells and sequences.
+check 2 "$T/G"  "cd $T/U; git commit -m a && cd $T/G && git push"
+check 2 "$T/U"  "(cd $T/G && git commit -m x)"
+check 2 "$T/U"  "echo start | cat && cd $T/G && git commit -m x"
+check 0 "$T/U"  "cd $T/G && git status && cd $T/U && git commit -m x"
+check 0 "$T/G2" "cd ../G2 && git commit -m x"
+
+# Not a commit or push, or not a Bash call.
+check 0 "$T/U"  'git status'
+check 0 "$T/G"  'git log --oneline | grep commit'
+check 0 "$T/U"  "git -C $T/G log"
+check 0 "$T/G"  'git commit -m x' Edit
+
+# Targets that are not repositories.
+check 0 "$T/U"  'cd ~/does-not-exist && git commit -m x'
+
+# Without jq the router cannot parse; it complains only where the session's
+# own repository is guarded, and never blocks.
+mkdir -p "$T/bin"
+for b in git cat; do ln -s "$(command -v "$b")" "$T/bin/$b"; done
+for repo in G U; do
+  n=$((n + 1))
+  printf '{}' | env -i HOME="$HOME" PATH="$T/bin" CLAUDE_PROJECT_DIR="$T/$repo" \
+    /bin/sh "$router" >/dev/null 2>&1
+  rc=$?
+  want=0
+  [ "$repo" = G ] && want=1
+  if [ "$rc" = "$want" ]; then
+    printf 'ok %d - no jq, session in %s\n' "$n" "$repo"
+  else
+    printf 'not ok %d - no jq, session in %s (exit %s, expected %s)\n' "$n" "$repo" "$rc" "$want"
+    failed=$((failed + 1))
+  fi
+done
+
+printf '1..%d\n' "$n"
+[ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }
