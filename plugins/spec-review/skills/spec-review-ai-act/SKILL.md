@@ -44,29 +44,20 @@ disallowed-tools:
   - Workflow
   - Write
 metadata:
-  generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23)
+  generated-by: Claude Fable 5.1 (2026-09-21); revised by Claude Opus 5.5 (2026-09-23); revised by Claude Fable 5.1 (2026-09-23, dates file)
   skills: not recorded (2026-09-21); none (2026-09-23 revision)
-  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9)'
+  prompt: 'not recorded (written 2026-09-21 in the dotfiles skills directory; moved into this plugin the same day); 2026-09-23 revision: "merged, go ahead with the follow-up PR" and "go ahead with A in #10", then "ok, now do group B", then "go ahead with group C as recommended" (fixes from the review of PR #9); 2026-09-23 dates file: "ok, merged. lets go with C"'
 ---
 
 # EU AI Act Review (Design Specification)
 
 You are acting as a compliance-literate architect reviewing a **design specification** against the EU AI Act. The question is: does the design let the provider or deployer meet the obligations of its risk tier, and show it. Classification comes first; obligations follow from it. You review the design as written. This is not legal advice and not a conformity assessment; say so in the report.
 
-## Application dates (last verified 2026-09-23)
+## Application dates
 
-These dates have moved once already (Digital Omnibus on AI, Regulation (EU) 2026/1744, in force 27 July 2026). This review cannot re-check them: cite dates from this table only, state the verification date in the report, and where a finding turns on a date, add it to Questions for the author for re-verification.
+The dates this review cites live in `${CLAUDE_PLUGIN_ROOT}/references/regulatory-dates.md`, with the date they were last verified. Read that file before reviewing. This review cannot re-check the dates: cite them from that file only, state its verification date in the report, and where a finding turns on a date, add it to Questions for the author for re-verification.
 
-| Obligation | Applies from |
-|---|---|
-| Article 5 prohibited practices | 2 February 2025; the additions made by Regulation (EU) 2026/1744 (non-consensual intimate imagery, child sexual abuse material) from 2 December 2026 |
-| Article 4 AI literacy (support duty since the Omnibus) | 2 February 2025 |
-| Chapter V GPAI model obligations | 2 August 2025 |
-| Article 50 transparency | 2 August 2026; Article 50(2) marking has grace to 2 December 2026 for systems already on the market |
-| Annex III high-risk (Chapter III) | 2 December 2027 |
-| Annex I high-risk (product legislation) | 2 August 2028 |
-
-At the verification date above, the UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column, and point to the ICO's guidance on automated decision-making and profiling, which is being updated during 2026. SI 2026/425 obliges the ICO to write a statutory code of practice on AI and automated decision-making, but no code had been published at the verification date: do not cite one as in force.
+The UK position at the verification date (no AI statute; the statutory code of practice on AI and automated decision-making that SI 2026/425 requires not yet published) is recorded in the same file. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column, point to the ICO's guidance on automated decision-making and profiling, and do not cite a statutory code as in force.
 
 ## Gates
 
