@@ -1,6 +1,7 @@
 ---
 name: spec-review-operations
 description: Operations and operability review of a design specification. Run when the user asks for an operations review, operability assessment, or day-2 readiness check of a design spec or architecture document. Reviews designs only, never code. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact

@@ -1,6 +1,7 @@
 ---
 name: spec-review-performance
 description: Performance efficiency review of a design specification, aligned to the Azure Well-Architected Framework Performance Efficiency pillar. Run when the user asks for a performance review, scalability assessment, capacity check, or latency sign-off of a design spec or architecture document. Reviews designs only, never code. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact

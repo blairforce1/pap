@@ -1,6 +1,7 @@
 ---
 name: spec-review-full
 description: Full multi-perspective review board for a design specification. Run when the user asks for a full review, design sign-off, review board, Well-Architected review, or does not specify a single perspective. Orchestrates the spec-review-* skills (security, reliability, operations, cost, performance, qa, ux, gdpr, ai-act, soc2, iso27001) and consolidates findings. Reviews designs only, never code.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Artifact
   - AskUserQuestion

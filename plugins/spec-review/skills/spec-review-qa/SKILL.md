@@ -1,6 +1,7 @@
 ---
 name: spec-review-qa
 description: Quality assurance and testability review of a design specification. Run when the user asks for a QA review, testability assessment, or requirements-quality check of a design spec. Reviews designs only, never code or test code. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact

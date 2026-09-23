@@ -1,6 +1,7 @@
 ---
 name: spec-review-reliability
 description: Reliability and resilience review of a design specification. Run when the user asks for a reliability review, resilience assessment, or availability sign-off of a design spec or architecture document. Reviews designs only, never code. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact

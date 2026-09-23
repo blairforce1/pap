@@ -1,6 +1,7 @@
 ---
 name: spec-review-security
 description: Security review of a design specification. Run when the user asks for a security review, threat assessment, or security sign-off of a design spec, architecture document, or technical proposal. Reviews designs only, never code. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact

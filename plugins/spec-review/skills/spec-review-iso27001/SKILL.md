@@ -1,6 +1,7 @@
 ---
 name: spec-review-iso27001
 description: ISO 27001 ISMS fit review of a design specification. Run when the user asks whether a design supports ISO 27001, ISO/IEC 27001:2022, Annex A controls, a Statement of Applicability, or fits inside an existing ISMS. Reviews designs only, never code, and does not perform a certification audit. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact

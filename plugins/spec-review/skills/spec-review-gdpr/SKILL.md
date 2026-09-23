@@ -1,6 +1,7 @@
 ---
 name: spec-review-gdpr
 description: GDPR data protection review of a design specification, against the strictest union of EU GDPR and UK GDPR as amended by the Data (Use and Access) Act 2025. Run when the user asks whether a design supports GDPR, UK GDPR, data protection by design, data-subject rights, DPIA readiness, records of processing, or international transfers. Reviews designs only, never code, and is not legal advice. For code, use /code-review instead.
+argument-hint: "<spec path>"
 disallowed-tools:
   - Agent
   - Artifact
