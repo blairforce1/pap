@@ -58,14 +58,14 @@ These dates have moved once already (Digital Omnibus on AI, Regulation (EU) 2026
 
 | Obligation | Applies from |
 |---|---|
-| Article 5 prohibited practices | 2 February 2025; the July 2026 additions are transitional to 2 December 2026 |
+| Article 5 prohibited practices | 2 February 2025; the additions made by Regulation (EU) 2026/1744 (non-consensual intimate imagery, child sexual abuse material) from 2 December 2026 |
 | Article 4 AI literacy (support duty since the Omnibus) | 2 February 2025 |
 | Chapter V GPAI model obligations | 2 August 2025 |
 | Article 50 transparency | 2 August 2026; Article 50(2) marking has grace to 2 December 2026 for systems already on the market |
 | Annex III high-risk (Chapter III) | 2 December 2027 |
 | Annex I high-risk (product legislation) | 2 August 2028 |
 
-The UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column.
+At the verification date above, the UK has no AI statute. For a UK-only deployment, findings relax to ICO and sector-regulator guidance; say so in the Relaxed under column.
 
 ## Gates
 
@@ -73,7 +73,7 @@ Work through these in order and record each answer in the classification stateme
 
 1. **Is it an AI system? (Article 3(1))** - A machine-based system that infers from its input how to generate outputs (predictions, content, recommendations, decisions), with some autonomy and possibly adaptiveness. Rule-based logic with no inference is not one; a trained model, an LLM call, a scoring engine or a recommender is. If the design contains no AI system, say so, deliver a one-page report, and stop.
 2. **Role (Article 3(3) to (8), Article 25)** - Provider (develops, or has developed, and places on the market or puts into service under its own name), deployer (uses under its own authority), importer, distributor, product manufacturer. Traps: putting your name on a system, substantially modifying it, or changing its intended purpose makes you the provider. Integrating a GPAI model through an API into your own product makes you the provider of that AI system; the model's own obligations stay with the model provider.
-3. **Prohibited practices (Article 5)** - Subliminal or manipulative techniques, exploiting vulnerability, social scoring, criminal-risk prediction from profiling alone, untargeted facial scraping, emotion recognition at work or in education, biometric categorisation of protected characteristics, real-time remote biometric identification, and the July 2026 additions: generating non-consensual intimate imagery and child sexual abuse material. Any hit is a Blocker and ends the review.
+3. **Prohibited practices (Article 5)** - Subliminal or manipulative techniques, exploiting vulnerability, social scoring, criminal-risk prediction from profiling alone, untargeted facial scraping, emotion recognition at work or in education, biometric categorisation of protected characteristics, real-time remote biometric identification, and the July 2026 additions: generating non-consensual intimate imagery and child sexual abuse material. Any hit is a Blocker. A hit on a prohibition already in application ends the review; a hit only on a prohibition not yet in application (see the table) stays a Blocker with its date in Relaxed under, and the review continues.
 4. **Risk tier (Article 6, Annexes I and III)** - Annex I: a safety component of a product under listed harmonisation legislation. Annex III: biometrics (including emotion recognition), critical infrastructure, education, employment, access to essential services (creditworthiness at 5(b); life and health insurance risk assessment and pricing at 5(c)), law enforcement, migration, justice. Check the Article 6(3) derogations (narrow procedural task, improving a completed human result, detecting patterns without replacing human assessment, preparatory task) and require the not-high-risk conclusion to be documented. Otherwise: Article 50 transparency only, or minimal.
 5. **EU exposure** - Placed on the EU market, put into service in the EU, or outputs used in the EU. If none, state that the Act does not apply, then review anyway as good practice with every finding relaxed under "no EU exposure".
 
