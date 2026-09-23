@@ -346,7 +346,7 @@ else
     ($want | map(.name | ascii_downcase)) as $names
     | map(select((.name | ascii_downcase) as $n | $names | index($n) | not) | .name)
     | join(", ")' <<<"$labels_live")"
-  [ -z "$extras" ] || note "not in labels.yml, kept: $extras"
+  [ -z "$extras" ] || [ "$cmd" != status ] || note "not in labels.yml, kept: $extras"
 fi
 
 # --- Report -----------------------------------------------------------------
@@ -382,6 +382,7 @@ done
 printf 'Intended changes to %s (%s):\n' "$repo" "$visibility"
 [ "${#plan_cmd[@]}" -gt 0 ] || printf '  none\n'
 for i in "${!plan_desc[@]}"; do printf '  %s\n' "${plan_desc[$i]}"; done
+[ -z "${extras:-}" ] || printf '  = labels not in labels.yml, kept: %s\n' "$extras"
 
 if [ "$dry_run" = false ]; then
   printf '\nApplying:\n'
