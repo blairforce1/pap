@@ -7,8 +7,9 @@ framework version or a person.
 | File | What it does |
 |---|---|
 | `.editorconfig` | The single source of style. The `[*]` section sets encoding, line endings, final newline, trailing whitespace and two-space indentation for every file. The `[*.cs]` section sets four-space indentation and the full set of `dotnet_` and `csharp_` style rules, each with a severity, so `dotnet format` applies them and `dotnet format --verify-no-changes` fails when they are broken. Rules at `suggestion` are taste calls the IDE offers and nothing enforces. |
-| `.gitattributes` | Makes git agree with the editor: LF on every platform, binary types marked so they are never normalised, lock files marked generated so GitHub collapses them, `CHANGELOG.md` merged as a union so parallel entries do not conflict, and `.devcontainer` and `.github` left out of archives. |
+| `.gitattributes` | Makes git agree with the editor: LF on every platform, C# hunks headed by the enclosing method, binary types marked so they are never normalised, lock files marked generated so GitHub collapses them, `CHANGELOG.md` merged as a union so parallel entries do not conflict, and `.devcontainer` and `.github` left out of archives. |
 | `.gitignore` | OS, editor, .NET and node artefacts, in commented sections. Editor settings directories are ignored whole. |
+| `.git-blame-ignore-revs` | Formatting-only commits, one hash per line, that `git blame` and GitHub skip. Starts empty; the first repository-wide `dotnet format` commit goes in first. Needs `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone. |
 
 ## What other tools must not duplicate
 
@@ -36,4 +37,5 @@ the drift is found by the next person whose editor disagrees with CI.
 ```sh
 dotnet format --verify-no-changes   # exit 2 lists every file and rule that would change
 dotnet format                       # applies them
+git config blame.ignoreRevsFile .git-blame-ignore-revs   # once per clone
 ```

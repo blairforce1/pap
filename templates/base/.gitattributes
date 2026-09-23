@@ -2,6 +2,10 @@
 # every platform. .editorconfig tells editors the same; this makes git agree.
 * text=auto eol=lf
 
+# Hunk headers name the enclosing method instead of the nearest line that
+# starts at column one, so a small diff reads in context.
+*.cs diff=csharp
+
 # Binary files: never normalised, never diffed as text.
 # Images
 *.png binary
