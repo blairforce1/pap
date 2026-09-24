@@ -29,6 +29,23 @@ the contract every layer builds on. A language that needs different
 indentation, as Go and make do, says so in its own section, where the
 exception is visible and scoped to its files.
 
+## Hook speed
+
+A hook that is slow gets skipped, and a skipped hook checks nothing. So:
+
+- **pre-commit** runs formatter checks and file-local checks on staged files
+  only: nothing that compiles, restores packages, resolves dependencies or
+  analyses more than the file in front of it. The hook as a whole finishes in
+  under two seconds. The base jobs qualify: dprint, editorconfig-checker and
+  shellcheck read one file at a time, and gitleaks reads the staged diff and
+  must run before a secret is in a commit.
+- **pre-push** runs anything that compiles or analyses a program: builds,
+  analyzers, linters that type-check, vulnerability scans.
+- **CI is the gate.** Hooks can be skipped (`--no-verify`, `LEFTHOOK=0`) and
+  run only on what changed; CI runs `mise run check` on everything.
+
+A language layer's pre-commit job that needs a build is in the wrong hook.
+
 ## What other tools must not duplicate
 
 Style is set once, here. A second copy of any of these values drifts, and

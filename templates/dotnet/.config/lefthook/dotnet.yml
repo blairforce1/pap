@@ -1,6 +1,16 @@
 # .NET layer's git hooks, pulled in by the base lefthook.yml `extends`.
+# pre-commit formats only: `whitespace --folder` reads .editorconfig and
+# checks whitespace and charset without loading a project, so it needs no
+# restore or build. The full `dotnet format`, which loads the solution and
+# runs the style and analyzer rules, is on pre-push (base README, "Hook
+# speed").
 pre-commit:
+  jobs:
+    - name: dotnet-format-whitespace
+      glob: "*.cs"
+      run: dotnet format whitespace --folder --verify-no-changes --include {staged_files}
+pre-push:
   jobs:
     - name: dotnet-format
       glob: "*.cs"
-      run: dotnet format --verify-no-changes --include {staged_files}
+      run: dotnet format --verify-no-changes
