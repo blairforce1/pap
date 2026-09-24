@@ -1,0 +1,24 @@
+# Go layer's git hooks, pulled in by the base lefthook.yml `extends`.
+# pre-commit formats only; everything that type-checks or resolves modules
+# is on pre-push (base README, "Hook speed"). gofmt -l lists files and exits
+# 0 either way, so the job fails on any output, and on a syntax error.
+pre-commit:
+  jobs:
+    - name: gofmt
+      glob: "*.go"
+      run: >-
+        out=$(gofmt -l {staged_files}) || exit 1;
+        [ -z "$out" ] || { printf 'not gofmt-formatted, run mise run fmt:\n%s\n' "$out"; exit 1; }
+pre-push:
+  jobs:
+    - name: go-vet
+      glob: "*.go"
+      run: go vet ./...
+    - name: golangci-lint
+      glob: "*.go"
+      run: golangci-lint run
+    # go.mod and go.sum too: a version bump with no Go change can bring a
+    # vulnerable dependency in.
+    - name: govulncheck
+      glob: ["*.go", "*go.mod", "*go.sum"]
+      run: govulncheck ./...

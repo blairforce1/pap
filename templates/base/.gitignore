@@ -30,6 +30,17 @@ coverage/
 *.binlog
 .dotnet/
 
+# Go. A binary has no fixed extension, so build into bin/ (go build -o bin/),
+# which the .NET section above already ignores. Test binaries from
+# go test -c, coverage profiles, and pprof output have fixed names.
+*.test
+coverage.out
+cover.out
+*.coverprofile
+*.pprof
+cpu.prof
+mem.prof
+
 # Node
 node_modules/
 .npm/

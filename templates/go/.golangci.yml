@@ -1,0 +1,45 @@
+# golangci-lint v2 configuration. Every linter is named here, so the set
+# changes only when this file does, not when a golangci-lint release
+# changes its defaults. No formatters: gofmt is the one formatter, run by
+# the pre-commit hook and `mise run fmt` (templates/go/README.md).
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Correctness: golangci-lint's standard set. Unchecked errors, the
+    # go vet analysers, assignments never read, staticcheck's bug and
+    # simplification checks, and unused code.
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # Security: injection, weak crypto, unsafe file permissions, integer
+    # overflow on conversion, and the rest of gosec's rule set.
+    - gosec
+    # Error handling: errors compared or type-asserted without errors.Is or
+    # errors.As, and a nil error returned where the error was just checked.
+    - errorlint
+    - nilerr
+    # Resource leaks: HTTP response bodies and database rows left open.
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    # Context: HTTP requests built without one.
+    - noctx
+    # Hygiene: conversions to the type a value already has, and misspelt
+    # English in comments and strings.
+    - unconvert
+    - misspell
+  exclusions:
+    rules:
+      # Tests may use weak randomness, fixed paths and literal credentials.
+      - path: _test\.go
+        linters:
+          - gosec
+
+issues:
+  # Report every finding, not the first few per linter.
+  max-issues-per-linter: 0
+  max-same-issues: 0

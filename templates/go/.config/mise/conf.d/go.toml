@@ -1,0 +1,30 @@
+# Go layer: the toolchain and analysers, and this layer's steps in check
+# and fmt. mise reads this beside the base layer's conf.d/base.toml; nothing
+# is merged (decision 0003). The go line must name the same version as the
+# go directive in each go.mod, or the go command downloads another toolchain.
+#
+# Every Go command here runs from the repository root, so the root holds
+# go.mod, or a go.work that lists every module.
+[tools]
+go = "1.27.1"
+# Built with go1.27.0; golangci-lint refuses a module whose go directive is
+# newer than the Go it was built with, so raise it with go.
+golangci-lint = "2.14.0"
+# Not in mise's registry; built from source by the go backend.
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+
+[tasks."check:go"]
+# One script, not a task per tool, so check:* does not pick the parts up
+# twice; every step runs and the exit code reports any failure.
+run = '''
+rc=0
+out=$(gofmt -l .) || rc=1
+if [ -n "$out" ]; then printf 'not gofmt-formatted:\n%s\n' "$out"; rc=1; fi
+go vet ./... || rc=1
+golangci-lint run || rc=1
+govulncheck ./... || rc=1
+exit $rc
+'''
+
+[tasks."fmt:go"]
+run = "gofmt -w ."
