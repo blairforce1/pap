@@ -72,6 +72,14 @@ judgement.
   rule; the second language is where the rule earns or loses its keep.
 - Follow-up: the sync tool (change `template-sync`) must refuse a layer that
   writes a file another layer owns, and must merge `mise.toml`.
+- 2026-09-24: the sync tool no longer needs to merge `mise.toml`. mise
+  2026.5.12 reads every file in `.config/mise/conf.d/`, and lefthook 2.1.14's
+  `extends` takes a glob, so each layer ships its own
+  `.config/mise/conf.d/<layer>.toml` and `.config/lefthook/<layer>.yml`, and
+  its own `check:<layer>` and `fmt:<layer>` tasks. Measured in a repository
+  built from `base` plus `dotnet` (change `template-tooling`). Of the two
+  shared files rule 2 names, a language layer now touches only
+  `.editorconfig`; the collision check is unchanged.
 
 ## Where it is taught or enforced
 
