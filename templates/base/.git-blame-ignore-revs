@@ -2,9 +2,13 @@
 # git blame and GitHub's blame view skip them, so a line is attributed to the
 # change that gave it meaning, not to the reformat that moved it.
 #
-# Add the hash of the commit that first ran dotnet format across the
+# Add the hash of the commit that first ran a formatter across the
 # repository, and of any later formatting-only commit. Keep everything else
 # out: a commit that changed behaviour must stay visible in blame.
+#
+# A formatting-only change goes in its own pull request. Under squash
+# merging the branch's commits never reach main; the hash to record is the
+# squash commit that lands there, so the next pull request adds it.
 #
 # GitHub reads this file by name. Locally, run once per clone:
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
