@@ -4,7 +4,7 @@
 # (decision 0003).
 #
 # Once per clone: `mise trust && mise install && mise run setup`. `pap init`
-# will run that sequence when it exists.
+# runs that sequence; `pap doctor` checks it.
 #
 # check and fmt run every task named check:* and fmt:*. A language layer adds
 # its steps by defining check:<lang> and fmt:<lang> in its own file.
