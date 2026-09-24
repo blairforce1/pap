@@ -4,6 +4,9 @@
 
 [tools]
 yq = "4.53.6"
+# scratch: the pins pap had before #38, to reproduce the cache bug.
+uv = "0.12.18"
+"pipx:check-jsonschema" = "0.38.1"
 
 [tasks.test]
 description = "Run the repository test suites"
