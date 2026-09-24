@@ -16,6 +16,7 @@ run = [
   "sh tests/pap.test.sh",
   "sh tests/repo-sync.test.sh",
   "sh tests/tidy.test.sh",
+  "sh tests/revisits.test.sh",
 ]
 
 [tasks.release]
