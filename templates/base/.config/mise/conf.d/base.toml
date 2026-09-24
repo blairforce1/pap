@@ -54,6 +54,16 @@ run = "editorconfig-checker"
 [tasks."check:gitleaks"]
 run = "gitleaks git --redact --no-banner"
 
+[tasks."check:codeowners"]
+description = "Fail if .github/CODEOWNERS is not what product/invariants.md generates"
+# Compares without writing: `-` sends the generated file to stdout. A
+# repository with no product/invariants.md yet (before envision) passes.
+run = '''
+[ -f product/invariants.md ] || { echo "check:codeowners: no product/invariants.md; nothing to check"; exit 0; }
+scripts/gen-codeowners.sh - | diff -u .github/CODEOWNERS - \
+  || { echo "check:codeowners: .github/CODEOWNERS is stale; run scripts/gen-codeowners.sh" >&2; exit 1; }
+'''
+
 [tasks."check:shellcheck"]
 run = "git ls-files -z '*.sh' | xargs -0 -r shellcheck"
 

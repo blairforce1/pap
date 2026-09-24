@@ -1,0 +1,1 @@
+../../../scripts/gen-codeowners.sh
