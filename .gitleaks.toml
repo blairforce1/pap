@@ -1,0 +1,14 @@
+# gitleaks: the default rules, plus an allowlist for files whose content is
+# hashes and fingerprints by design. Allow a path here only when every line
+# in it is generated and public; a single false positive in a hand-written
+# file takes a `gitleaks:allow` comment on that line instead.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated hashes and certificate fingerprints"
+paths = [
+  '''(^|/)packages\.lock\.json$''',
+  '''(^|/)[^/]*-lock\.json$''',
+  '''(^|/)\.git-blame-ignore-revs$''',
+]

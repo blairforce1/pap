@@ -1,0 +1,11 @@
+# .semgrepignore: paths Semgrep does not scan, in .gitignore syntax. Semgrep
+# already skips what git does not track; this file replaces Semgrep's own
+# default ignore list, which also skips test code, and test code is scanned
+# here. Left out: build output, should any be tracked, and test fixtures,
+# which hold vulnerable or malformed input on purpose. trivy.yaml skips the
+# same paths.
+artifacts/
+bin/
+obj/
+testdata/
+fixtures/

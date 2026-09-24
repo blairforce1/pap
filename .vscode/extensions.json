@@ -1,0 +1,14 @@
+{
+  // Every supported language's extensions, in base: this file cannot be split
+  // per layer, and a recommendation for an absent language is harmless (base
+  // README). Keep in step with .devcontainer/devcontainer.json.
+  "recommendations": [
+    "EditorConfig.EditorConfig",
+    "ms-dotnettools.csdevkit",
+    "golang.go",
+    "dprint.dprint",
+    "redhat.vscode-yaml",
+    "DavidAnson.vscode-markdownlint",
+    "timonwong.shellcheck"
+  ]
+}

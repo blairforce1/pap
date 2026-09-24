@@ -1,0 +1,23 @@
+# pap's own tools and tasks, beside the base layer's conf.d/base.toml. This
+# file is the repository's, not the template's: pap sync leaves it alone.
+# Not pap.toml, which is the name `pap init` gives the pin of pap itself.
+
+[tools]
+uv = "0.12.18"
+yq = "4.53.6"
+"pipx:check-jsonschema" = "0.38.1"
+
+[tasks.test]
+description = "Run the repository test suites"
+run = [
+  "sh tests/guard-route.test.sh",
+  "sh tests/gen-codeowners.test.sh",
+  "sh tests/assemble.test.sh",
+  "sh tests/change-worktree.test.sh",
+  "sh tests/renovate-copy.test.sh",
+  "sh tests/pap.test.sh",
+]
+
+[tasks.release]
+description = "Cut a pap release: mise run release <version> [--dry-run]"
+run = "sh scripts/release.sh"

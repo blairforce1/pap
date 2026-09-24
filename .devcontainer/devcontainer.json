@@ -1,0 +1,57 @@
+// devcontainer.json: one container for every language layer. mise installs
+// every toolchain from .config/mise/conf.d/, so there is no language image
+// and no language feature; adding a layer adds nothing here (decision 0003).
+//
+// Everything is pinned: the image and the features by digest, with the
+// version beside each, and mise by the sha256 of its versioned install
+// script, which carries the checksum of every mise binary it can fetch.
+// Renovate reads each feature's version from the comment above it, in the
+// form "// <name> <version>.", and moves the comment and the digest together
+// (.github/renovate.jsonc); keep that form.
+{
+  "name": "pap",
+  // mcr.microsoft.com/devcontainers/base:2.2.1-trixie: plain Debian 13 with
+  // a non-root vscode user, no language toolchain.
+  "image": "mcr.microsoft.com/devcontainers/base:2.2.1-trixie@sha256:1f851004adcd3dff3776b4a1da86727cf52280b0fdc9d5b0568c9c7d74274286",
+  "features": {
+    // git 1.3.8. os-provided keeps the git the pinned image ships.
+    "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2": {
+      "version": "os-provided"
+    },
+    // github-cli 1.1.2.
+    "ghcr.io/devcontainers/features/github-cli@sha256:7c409bf6316ffd85f04fd92fba85a744282639e603417dd4796409866bdb6805": {
+      "version": "2.101.0"
+    }
+  },
+  "containerUser": "vscode",
+  "remoteUser": "vscode",
+  // mise's binary and shims, for terminals, lifecycle commands and
+  // extensions alike. The git hooks add the shims themselves (.lefthookrc).
+  "remoteEnv": {
+    "PATH": "/home/vscode/.local/bin:/home/vscode/.local/share/mise/shims:${containerEnv:PATH}"
+  },
+  "forwardPorts": [],
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  // First, /tmp: the base image has it 1777, but a feature build under
+  // podman leaves it root 0755, and mise, dotnet and go all write there.
+  // A no-op under Docker. Then mise 2026.5.12: no official mise feature
+  // exists, and the community one fetches unpinned helpers at build time.
+  "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh",
+  "postCreateCommand": "mise trust && mise install && mise run setup",
+  "customizations": {
+    "vscode": {
+      // The same list as .vscode/extensions.json; see the base README.
+      "extensions": [
+        "EditorConfig.EditorConfig",
+        "ms-dotnettools.csdevkit",
+        "golang.go",
+        "dprint.dprint",
+        "redhat.vscode-yaml",
+        "DavidAnson.vscode-markdownlint",
+        "timonwong.shellcheck"
+      ]
+    }
+  }
+}

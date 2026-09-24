@@ -1,0 +1,59 @@
+# Operating system
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+*~
+
+# Editors. Editor state is personal; style lives in .editorconfig, so no
+# editor settings are committed. .vscode/ is ignored by content, not whole,
+# so its one tracked file, the extension recommendations, can be let back in.
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.vs/
+*.swp
+*.swo
+*.suo
+*.user
+*.DotSettings.user
+
+# .NET build and test output
+bin/
+obj/
+artifacts/
+TestResults/
+BenchmarkDotNet.Artifacts/
+coverage/
+*.coverage
+*.coveragexml
+*.nupkg
+*.snupkg
+*.binlog
+.dotnet/
+
+# Go. A binary has no fixed extension, so build into bin/ (go build -o bin/),
+# which the .NET section above already ignores. Test binaries from
+# go test -c, coverage profiles, and pprof output have fixed names.
+*.test
+coverage.out
+cover.out
+*.coverprofile
+*.pprof
+cpu.prof
+mem.prof
+
+# Node
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# pap: bin/pap is the CLI, not build output.
+!/bin/

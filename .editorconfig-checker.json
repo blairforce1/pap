@@ -1,0 +1,9 @@
+{
+  "Exclude": [
+    "\\.(json|jsonc|ya?ml|md|toml)$",
+    "(^|/)Dockerfile[^/]*$"
+  ],
+  "Disable": {
+    "IndentSize": true
+  }
+}
