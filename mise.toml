@@ -7,3 +7,7 @@ yq = "4.53.6"
 [tasks.test]
 description = "Run the repository test suites"
 run = ["sh tests/guard-route.test.sh", "sh tests/gen-codeowners.test.sh", "sh tests/assemble.test.sh", "sh tests/change-worktree.test.sh", "sh tests/renovate-copy.test.sh", "sh tests/pap.test.sh"]
+
+[tasks.release]
+description = "Cut a pap release: mise run release <version> [--dry-run]"
+run = "sh scripts/release.sh"
