@@ -1,12 +1,12 @@
 # 0006. Carry every change with /change, assemble.sh and CLAUDE.md
 
-- **Status:** accepted
+- **Status:** measured:refuted (2026-09-24); the skill is kept
 - **Date:** 2026-09-24
 - **Deciders:** blairforce1, with Claude Code
 - **Supersedes:** none
 - **PIP:** the 2026-09-24 session-speed analysis: of about 230 active minutes over seven sessions, 57% was model time and 43% tool time; every brief re-sent the same per-change preamble and asked for a full read-and-summarise before work and a long verification list after it
 - **Expected effect:** brief-to-draft-PR wall time ↓ from the 8.8 min median of #25 to #29; fix-up rounds per pull request not ↑ from a median of 0; findings per pull request not ↓ from a median of 6
-- **Introduced in:** unreleased
+- **Introduced in:** v0.5.0
 - **Revisit:** after the next five change pull requests; keep or revert on the three numbers
 
 ## Context
@@ -59,6 +59,41 @@ a bullet under "Decisions and tradeoffs to review" in the body.
 | #29    | 9.0 min   | 1             | 5        |
 | Median | 8.8 min   | 0             | 6        |
 
+## Result
+
+Measured the same way as the baseline, over the first five change pull
+requests after #30. The scratch previews (#32, #40), Renovate's #34 and
+#39, split out of #38 by a fix-up prompt, are not change pull requests.
+
+| PR     | Wall time | Fix-up rounds | Findings |
+| ------ | --------- | ------------- | -------- |
+| #31    | 9.6 min   | 1             | 8        |
+| #33    | 21.5 min  | 2             | 6        |
+| #35    | 3.7 min   | 0             | 2        |
+| #37    | 12.4 min  | 0             | 6        |
+| #38    | 8.2 min   | 1             | 8        |
+| Median | 9.6 min   | 1             | 6        |
+
+Against 8.8 min, 0 and 6: wall time rose, fix-up rounds rose, findings
+held. Refuted on two of the three numbers.
+
+Confounds, recorded and not used to adjust the result:
+
+- #31's fix-up was an approval the pull request asked for, not a repair.
+- #33's second fix-up was a merge conflict from running in parallel with
+  #31, which the worktrees of this decision make possible.
+- Task mix: #33 (security scanning) and #37 (`pap init`, `sync`,
+  `doctor` and two records) are larger than most of the baseline.
+- #41 to #43 ran in 3.6, 4.0 and 3.7 min with no fix-up rounds. They fall
+  outside the pre-registered window and are not counted.
+- The first brief of a session fell from about 3,200 to 4,100 characters
+  before #30 to a median of about 1,800 over the five. Not
+  pre-registered, so not evidence for the effect.
+
+The skill is kept. The result says the wall time is in the work, not the
+ceremony; reverting would restore the per-change preamble for no measured
+gain.
+
 ## Considered options
 
 - **Keep the preamble in each brief.** Lost: it is the measured cost, and
@@ -82,6 +117,16 @@ a bullet under "Decisions and tradeoffs to review" in the body.
   the mean, is the number compared.
 - Follow-up: record the three numbers for each of the next five change
   pull requests, and decide at the fifth.
+- Recorded 2026-09-24: done; see Result. Measured from the session
+  transcripts and pull requests, as the baseline was: no dashboard exists
+  yet.
+- Recorded 2026-09-24: this was the first `measured:` transition, and
+  [0001](0001-process-changes-are-measured-interventions.md)'s "enough
+  changes on each side" is still undefined. Five a side proved too few to
+  separate the effect from the task mix.
+- Recorded 2026-09-24: under 0001 this was arguably a toolkit change, not
+  an intervention: it moved ceremony out of the brief without changing
+  what the process asks of a human.
 
 ## Where it is taught or enforced
 
