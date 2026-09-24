@@ -31,11 +31,21 @@
 #         pin. Each item is ok, missing, drift or skipped; exits 1 unless
 #         every item is ok or skipped.
 #
-# <v> defaults to this pap's own version, the VERSION file a release
-# carries. A template version other than its own is fetched as tag v<v> from
-# $PAP_SOURCE (default https://github.com/blairforce1/pap.git; a local path
-# works). init and sync refuse a working tree with uncommitted changes, so
-# every change they make is one `git diff` away from being undone.
+# <v> defaults to this pap's own version: the VERSION file a release
+# carries or, run from a git checkout of pap, the v<x.y.z> tag on the
+# checked-out commit. A template version other than its own is fetched as tag
+# v<v> from $PAP_SOURCE (default https://github.com/blairforce1/pap.git; a
+# local path works). init and sync refuse a working tree with uncommitted
+# changes, so every change they make is one `git diff` away from being undone.
+#
+# Unreleased: run from a checkout whose commit carries no release tag, with
+# no --version, pap applies that commit's templates, records
+# version = "unreleased" and commit = "<sha>", and writes no pin for itself.
+# sync treats the recorded commit as the three-way base exactly as it would a
+# version: it reads the commit from this checkout if it has it, else fetches
+# it from $PAP_SOURCE, and refuses if neither has it (a commit that was never
+# pushed). Syncing to --version <v> leaves the unreleased state; syncing from
+# a newer unreleased checkout records the newer commit.
 
 set -eu
 
@@ -49,6 +59,15 @@ while [ -L "$self" ]; do
 done
 root="$(cd "$(dirname "$self")/.." && pwd)"
 own_version="$(cat "$root/VERSION" 2>/dev/null || true)"
+own_commit=""
+if [ -z "$own_version" ] && git -C "$root" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+  tag="$(git -C "$root" describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' HEAD 2>/dev/null || true)"
+  if [ -n "$tag" ]; then
+    own_version="${tag#v}"
+  else
+    own_commit="$(git -C "$root" rev-parse HEAD)"
+  fi
+fi
 source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
@@ -63,35 +82,66 @@ trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
 workdir() { [ -n "$work" ] || work="$(mktemp -d)"; }
 
-# tree_for <v>: prints a directory holding pap at tag v<v>.
+# A template ref is v<x.y.z> for a release or a full commit sha for an
+# unreleased checkout. own_ref is this pap's own.
+own_ref=""
+if [ -n "$own_version" ]; then own_ref="v$own_version"; else own_ref="$own_commit"; fi
+
+# tree_for <ref>: prints a directory holding pap at <ref>.
 tree_for() {
-  if [ "$1" = "$own_version" ]; then printf '%s\n' "$root"; return; fi
+  if [ "$1" = "$own_ref" ]; then printf '%s\n' "$root"; return; fi
   if [ -d "$work/src-$1" ]; then printf '%s\n' "$work/src-$1"; return; fi
   src="$source"
   case "$src" in /*) src="file://$src" ;; esac
-  git clone --quiet --depth 1 --branch "v$1" -c advice.detachedHead=false \
-    "$src" "$work/src-$1" 2>"$work/clone.err" ||
-    die "cannot fetch template v$1 from $source: $(tail -n 1 "$work/clone.err")"
+  case "$1" in
+    v*)
+      git clone --quiet --depth 1 --branch "$1" -c advice.detachedHead=false \
+        "$src" "$work/src-$1" 2>"$work/clone.err" ||
+        die "cannot fetch template $1 from $source: $(tail -n 1 "$work/clone.err")"
+      ;;
+    *)
+      mkdir "$work/src-$1"
+      if git -C "$root" cat-file -e "$1^{commit}" 2>/dev/null; then
+        git -C "$root" archive "$1" | tar -x -C "$work/src-$1"
+      else
+        { git init -q "$work/src-$1" &&
+          git -C "$work/src-$1" fetch -q --depth 1 "$src" "$1" &&
+          git -C "$work/src-$1" -c advice.detachedHead=false checkout -q FETCH_HEAD; } 2>"$work/clone.err" ||
+          die "cannot fetch template commit $1 from $source: $(tail -n 1 "$work/clone.err"); an unreleased record needs its commit pushed"
+      fi
+      ;;
+  esac
   printf '%s\n' "$work/src-$1"
 }
 
-# build <v> <dest> <layer>...: the layers at v, assembled by that version's
+# build <ref> <dest> <layer>...: the layers at ref, assembled by that ref's
 # own assemble.sh, which dereferences symlinks, leaves out layer READMEs and
 # refuses a collision (decision 0003 rule 1).
 build() {
-  b_v="$1" b_dest="$2"
+  b_ref="$1" b_dest="$2"
   shift 2
-  b_tree="$(tree_for "$b_v")" || exit 1
-  sh "$b_tree/scripts/assemble.sh" "$@" "$b_dest" >/dev/null || die "cannot assemble v$b_v: $*"
+  b_tree="$(tree_for "$b_ref")" || exit 1
+  sh "$b_tree/scripts/assemble.sh" "$@" "$b_dest" >/dev/null || die "cannot assemble $b_ref: $*"
 }
 
 # --- The record ------------------------------------------------------------
 
 rec_version() { sed -n 's/^version = "\(.*\)"$/\1/p' "$record"; }
+rec_ref() {
+  r="$(rec_version)"
+  [ -n "$r" ] || return 0
+  if [ "$r" = unreleased ]; then sed -n 's/^commit = "\(.*\)"$/\1/p' "$record"; else printf 'v%s\n' "$r"; fi
+}
+# describe <ref>: v0.1.0, or "unreleased <short sha>".
+describe() { case "$1" in v*) printf '%s\n' "$1" ;; *) printf 'unreleased %.12s\n' "$1" ;; esac; }
 rec_layers() { sed -n 's/^layers = \[\(.*\)\]$/\1/p' "$record" | tr -d '",'; }
 
-write_record() { # write_record <v> <layer>...
-  r_v="$1"
+write_record() { # write_record <ref> <layer>...
+  case "$1" in
+    v*) r_lines="version = \"${1#v}\"" ;;
+    *) r_lines="version = \"unreleased\"
+commit = \"$1\"" ;;
+  esac
   shift
   list="$(printf '"%s", ' "$@")"
   mkdir -p "$(dirname "$record")"
@@ -99,7 +149,7 @@ write_record() { # write_record <v> <layer>...
 # Written by \`pap init\` and \`pap sync\`; do not edit by hand. The template
 # version and layers applied to this repository (decision 0008): pap sync
 # merges from this version, and the event emitter reports it.
-version = "$r_v"
+$r_lines
 layers = [${list%, }]
 EOF
 }
@@ -163,10 +213,15 @@ require_clean() {
     die "the working tree has uncommitted changes; commit or stash them first"
 }
 
-target_version() {
-  v="${opt_version:-$own_version}"
-  [ -n "$v" ] || die "this pap is not a release and has no version of its own; pass --version <v>"
-  printf '%s\n' "$v"
+# target_ref: v<--version>, else this pap's own ref.
+target_ref() {
+  if [ -n "$opt_version" ]; then printf 'v%s\n' "$opt_version"; return; fi
+  [ -n "$own_ref" ] || die "this pap is neither a release nor a git checkout; pass --version <v>"
+  if [ -n "$own_commit" ] && [ "$root" != "$(pwd)" ] &&
+    [ -n "$(git -C "$root" status --porcelain -- templates scripts/assemble.sh)" ]; then
+    die "$root has uncommitted template changes, so no commit describes them; commit them or pass --version <v>"
+  fi
+  printf '%s\n' "$own_ref"
 }
 
 cmd_init() {
@@ -183,22 +238,22 @@ cmd_init() {
   case " $layers " in *" base "*) ;; *) die "every repository adopts base; name it first: pap init base$layers" ;; esac
   to_top
   require_clean
-  v="$(target_version)" || exit 1
+  ref="$(target_ref)" || exit 1
   workdir
   old_label="none"
   if [ -f "$record" ]; then
-    old_v="$(rec_version)"
+    old_ref="$(rec_ref)"
     # shellcheck disable=SC2046 # the recorded layers are words
-    build "$old_v" "$work/old" $(rec_layers)
-    old_label="v$old_v"
+    build "$old_ref" "$work/old" $(rec_layers)
+    old_label="$(describe "$old_ref")"
   else
     mkdir "$work/old"
   fi
   # shellcheck disable=SC2086 # the layers are words
-  build "$v" "$work/new" $layers
-  apply "$work/old" "$work/new" "$old_label" "v$v"
+  build "$ref" "$work/new" $layers
+  apply "$work/old" "$work/new" "$old_label" "$(describe "$ref")"
   # shellcheck disable=SC2086
-  write_record "$v" $layers
+  write_record "$ref" $layers
   if [ -n "$own_version" ] && [ ! -e "$pin" ]; then
     cat > "$pin" <<EOF
 # pap itself, at the tag this repository applies (decision 0001: app
@@ -208,7 +263,7 @@ cmd_init() {
 "github:blairforce1/pap" = { version = "$own_version", asset_pattern = "pap-*.tar.gz" }
 EOF
   fi
-  say "Recorded v$v with layers:$layers in $record"
+  say "Recorded $(describe "$ref") with layers:$layers in $record"
   if [ "$conflicts" -gt 0 ]; then
     say "" "$conflicts file(s) have conflict markers. Resolve them, commit, then run pap init$layers again to finish setup."
     exit 1
@@ -249,23 +304,23 @@ cmd_sync() {
   to_top
   [ -f "$record" ] || die "no $record: this repository has not adopted the template; run pap init"
   require_clean
-  v="$(target_version)" || exit 1
-  old_v="$(rec_version)"
+  ref="$(target_ref)" || exit 1
+  old_ref="$(rec_ref)"
   layers="$(rec_layers)"
-  [ -n "$old_v" ] && [ -n "$layers" ] || die "$record has no version or no layers"
-  if [ "$old_v" = "$v" ]; then
-    say "Already at v$v."
+  [ -n "$old_ref" ] && [ -n "$layers" ] || die "$record has no version, no commit or no layers"
+  if [ "$old_ref" = "$ref" ]; then
+    say "Already at $(describe "$ref")."
     return
   fi
   workdir
   # shellcheck disable=SC2086
-  build "$old_v" "$work/old" $layers
+  build "$old_ref" "$work/old" $layers
   # shellcheck disable=SC2086
-  build "$v" "$work/new" $layers
-  apply "$work/old" "$work/new" "v$old_v" "v$v"
+  build "$ref" "$work/new" $layers
+  apply "$work/old" "$work/new" "$(describe "$old_ref")" "$(describe "$ref")"
   # shellcheck disable=SC2086
-  write_record "$v" $layers
-  say "Synced v$old_v -> v$v (layers: $layers)."
+  write_record "$ref" $layers
+  say "Synced $(describe "$old_ref") -> $(describe "$ref") (layers: $layers)."
   if [ "$conflicts" -gt 0 ]; then
     say "$conflicts file(s) have conflict markers: resolve them, then commit."
     exit 1
@@ -378,6 +433,6 @@ case "$cmd" in
   repo) exec bash "$root/scripts/repo-sync.sh" "$@" ;;
   codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
   doctor) cmd_doctor "$@" ;;
-  version) say "${own_version:-unreleased ($root)}" ;;
+  version) if [ -n "$own_version" ]; then say "$own_version"; else say "unreleased ${own_commit:-} ($root)"; fi ;;
   *) usage ;;
 esac

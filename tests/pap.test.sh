@@ -146,6 +146,42 @@ grep -qx 'version = "0.3.0"' "$T/app/.config/pap.toml"
 result $? "conflict: the new version is recorded, so the next sync merges from it"
 g -C "$T/app" checkout -q -- .
 
+# --- unreleased: pap run from a checkout with no release tag ----------------
+
+printf '# Added after v0.3.0, unreleased.\n' >> "$T/src/templates/base/.gitignore"
+g -C "$T/src" commit -qam unreleased
+sha_u="$(git -C "$T/src" rev-parse HEAD)"
+git init -q -b main "$T/unrel"
+out="$(cd "$T/unrel" && sh "$T/src/bin/pap" init base 2>&1)"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'version = "unreleased"' "$T/unrel/.config/pap.toml" &&
+  grep -qx "commit = \"$sha_u\"" "$T/unrel/.config/pap.toml" &&
+  grep -qx '# Added after v0.3.0, unreleased.' "$T/unrel/.gitignore"
+result $? "unreleased: init applies the checkout's commit and records it" "$out$(cat "$T/unrel/.config/pap.toml" 2>&1)"
+[ ! -e "$T/unrel/.config/mise/conf.d/pap.toml" ] && printf '%s\n' "$out" | grep -q "Recorded unreleased ${sha_u%"${sha_u#????????????}"}"
+result $? "unreleased: says so, and writes no pin" "$out"
+
+g -C "$T/unrel" add -A && g -C "$T/unrel" commit -qm init
+out="$(cd "$T/unrel" && sh "$pap" sync --version 0.3.0 2>&1)"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'version = "0.3.0"' "$T/unrel/.config/pap.toml" &&
+  ! grep -q '^commit' "$T/unrel/.config/pap.toml" &&
+  ! grep -q 'unreleased' "$T/unrel/.gitignore"
+result $? "unreleased: sync fetches the recorded commit as the base and leaves the unreleased state" \
+  "$out$(cat "$T/unrel/.config/pap.toml" 2>&1)"
+
+g -C "$T/unrel" add -A && g -C "$T/unrel" commit -qm sync
+printf 'version = "unreleased"\ncommit = "%s"\nlayers = ["base"]\n' 0123456789012345678901234567890123456789 > "$T/unrel/.config/pap.toml"
+g -C "$T/unrel" commit -qam "a commit never pushed"
+out="$(cd "$T/unrel" && sh "$pap" sync --version 0.2.0 2>&1)"; rc=$?
+[ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'needs its commit pushed'
+result $? "unreleased: sync refuses a recorded commit it cannot fetch" "$out"
+
+echo dirty >> "$T/src/templates/base/.editorconfig"
+git init -q -b main "$T/unrel2"
+out="$(cd "$T/unrel2" && sh "$T/src/bin/pap" init base 2>&1)"; rc=$?
+[ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'uncommitted template changes'
+result $? "unreleased: init refuses a checkout with uncommitted template changes" "$out"
+g -C "$T/src" checkout -q -- .
+
 # --- doctor ------------------------------------------------------------------
 
 # ls.json <installed> <active version>: a fixture in mise's --json shape,
