@@ -5,6 +5,9 @@
 // Everything is pinned: the image and the features by digest, with the
 // version beside each, and mise by the sha256 of its versioned install
 // script, which carries the checksum of every mise binary it can fetch.
+// Renovate reads each feature's version from the comment above it, in the
+// form "// <name> <version>.", and moves the comment and the digest together
+// (.github/renovate.jsonc); keep that form.
 {
   "name": "pap",
   // mcr.microsoft.com/devcontainers/base:2.2.1-trixie: plain Debian 13 with

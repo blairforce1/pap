@@ -11,7 +11,7 @@ overrides anything in `templates/base/`: rule 3.1 of
 | File | What it does |
 |---|---|
 | `global.json` | Pins the SDK to 10.0.401, the current LTS release, with `rollForward: latestPatch`: a later patch of the 10.0.4xx feature band is accepted, nothing else is. A machine with only a 10.0.3xx or an 11.0 SDK fails at once instead of building with a compiler the repository was not written against. Raise the version here when the feature band moves. `global.json` is authoritative for the SDK version. |
-| `.config/mise/conf.d/dotnet.toml` | The same SDK version as a mise tool pin, so `mise install` provides the SDK `global.json` asks for. The two must agree; when they differ, `global.json` is right and this line is the bug. Also `check:dotnet` (`dotnet format --verify-no-changes`) and `fmt:dotnet` (`dotnet format`), which the base `check` and `fmt` tasks pick up. mise reads it beside the base layer's file; nothing is merged. |
+| `.config/mise/conf.d/dotnet.toml` | The same SDK version as a mise tool pin, so `mise install` provides the SDK `global.json` asks for. The two must agree; when they differ, `global.json` is right and this line is the bug. Renovate moves both in one pull request. Also `check:dotnet` (`dotnet format --verify-no-changes`) and `fmt:dotnet` (`dotnet format`), which the base `check` and `fmt` tasks pick up. mise reads it beside the base layer's file; nothing is merged. |
 | `.config/lefthook/dotnet.yml` | Two jobs, pulled in by the base `lefthook.yml`, split by the base README's hook speed rule. pre-commit: `dotnet format whitespace --folder --verify-no-changes --include` on staged `.cs` files, which reads `.editorconfig` and checks whitespace and charset without loading a project, so no restore or build; 0.9 to 1.5 s on one staged file. Plain `whitespace` without `--folder` loads the project and took 1.8 to 2.3 s, over the two-second limit. pre-push: the full `dotnet format --verify-no-changes` on the solution, which runs the style and analyzer rules (IDE0161 and the rest) and needs the project loaded; 4.0 to 4.8 s on a one-project solution. A style-only violation therefore passes the commit and is refused on push. |
 | `Directory.Build.props` | The build settings every project inherits. Nullable reference types and implicit usings on. Every warning is a build failure: the compiler's, the SDK analyzers' at `latest-recommended`, the third-party analyzers', and the `.editorconfig` style rules, which `EnforceCodeStyleInBuild` runs in the compiler. The XML documentation file is generated so IDE0005 runs on build, with CS1591 off so that does not become a documentation mandate. MA0007, the trailing comma in a multi-line initialiser, raised to an error here rather than in `.globalconfig` because `dotnet format` reads severities from compilation options and `.editorconfig` only; set here, the build refuses a missing comma and the formatter adds it. Provenance, for process principle 6 (every artefact records what produced it): deterministic output, `ContinuousIntegrationBuild` when the `CI` variable is set, SourceLink (built into the SDK for GitHub, so no package reference), `PublishRepositoryUrl` and `EmbedUntrackedSources`. All build output under `artifacts/` (`UseArtifactsOutput`), so no `bin/` or `obj/` in project folders. `packages.lock.json` written on every restore and enforced with `RestoreLockedMode` when `CI` is set. Restore audit of every package, direct and transitive, at every severity (`NuGetAuditMode=all`, `NuGetAuditLevel=low`), so an advisory fails restore. NU3018 kept a warning; see "Package source". Projects whose name ends in `.Tests` are never packed and have CA1707 and CA1816 off. Meziantou.Analyzer and Roslynator.Analyzers referenced in every project. |
 | `Directory.Packages.props` | Central package management: a project references a package by name and the version is set once here. Holds the two analyzer versions. Every other package an adopting repository uses gets a `PackageVersion` line here; a project scaffolded by `dotnet new` arrives with versions on its references, and restore refuses them (NU1008) until they move. |
@@ -108,6 +108,9 @@ controls here address the risks a proxy is usually bought for:
   altered after it, is refused.
 - **Source mapping**: a package id resolves from one source only, which
   closes dependency confusion between feeds.
+- **Cooldown**: Renovate proposes a package or SDK version only once it is
+  seven days old (the base `.github/renovate.jsonc`, decision 0007), so a
+  version is not adopted the day it is published.
 
 Signature publishers, checked with `dotnet nuget verify --all` on the
 packages this template and a `dotnet new xunit` project restore:
@@ -157,8 +160,6 @@ Packages hosts packages but does not proxy nuget.org.
 
 Planned hardening:
 
-- Dependabot with a cooldown, so a version is not adopted the day it is
-  published: the dependency-updates layer.
 - Trivy and SonarAnalyzer.CSharp: the security-scanning layer.
 - The sync tool verifying that `global.json` and `dotnet.toml` name the same
   SDK version.
