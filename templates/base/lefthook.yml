@@ -1,4 +1,8 @@
 # lefthook.yml: the base layer's git hooks. `mise run setup` installs them.
+# `rc` sources .lefthookrc before each job, which puts mise's shims on PATH,
+# so the pinned tools are found whether or not the committing shell has
+# activated mise. The ./ matters: the hook script runs `. <rc>`, and POSIX
+# `.` looks a slash-less name up on PATH, not in the working directory.
 # A language layer adds its jobs in .config/lefthook/<lang>.yml, which
 # `extends` pulls in, so this file is never edited per language (decision
 # 0003).
@@ -11,6 +15,7 @@
 # scripts/guard-branch.sh.
 extends:
   - .config/lefthook/*.yml
+rc: ./.lefthookrc
 source_dir: scripts
 pre-commit:
   parallel: true

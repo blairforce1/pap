@@ -1,0 +1,7 @@
+# .lefthookrc: sourced by lefthook before every hook job (the `rc` key in
+# lefthook.yml). Puts mise's shims first on PATH so the pinned tools are
+# found from a shell, GUI client or agent session that has not activated
+# mise. A shim resolves the version this repository pins, and works without
+# mise itself on PATH. Where mise is activated this changes nothing.
+PATH="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims:$PATH"
+export PATH
