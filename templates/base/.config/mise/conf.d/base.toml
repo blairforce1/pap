@@ -1,0 +1,61 @@
+# Base layer: the tools every repository's git hooks run, and the setup,
+# check and fmt tasks. mise reads every file in .config/mise/conf.d/, so a
+# language layer ships its own file beside this one and nothing is merged
+# (decision 0003).
+#
+# Once per clone: `mise trust && mise install && mise run setup`. `pap init`
+# will run that sequence when it exists.
+#
+# check and fmt run every task named check:* and fmt:*. A language layer adds
+# its steps by defining check:<lang> and fmt:<lang> in its own file.
+
+[tools]
+lefthook = "2.1.14"
+dprint = "0.57.4"
+gitleaks = "8.30.1"
+shellcheck = "0.11.0"
+# ubi, not aqua or github: the aqua entry asks for an asset the release does
+# not ship, and the github backend fails its attestation check (mise
+# 2026.5.12). ubi is deprecated and removed in mise 2027.1.0; move before then.
+"ubi:editorconfig-checker/editorconfig-checker" = "4.0.2"
+
+[tasks.setup]
+description = "Install the git hooks and point git blame at the ignore list"
+run = [
+  "lefthook install",
+  "git config blame.ignoreRevsFile .git-blame-ignore-revs",
+]
+
+[tasks.check]
+description = "Run every check the hooks run, on the whole repository"
+# A subtask, not depends: depends stops the siblings at the first failure,
+# and one run should report every failure.
+run = "mise run --continue-on-error 'check:*'"
+
+[tasks.fmt]
+description = "Apply every formatter the hooks check"
+# First, strip a UTF-8 byte-order mark from every text file git tracks or
+# would track: .editorconfig's [*] sets charset = utf-8 for all of them, and
+# tools such as `dotnet new` write one. Before the fan-out, so no formatter
+# rewrites a file this step is also rewriting. grep -I skips binary files;
+# grep exits non-zero when no file has a mark, hence `|| true` on that stage
+# only. perl, not sed -i, because sed -i differs between GNU and BSD.
+run = [
+  '''(git ls-files -z --cached --others --exclude-standard | LC_ALL=C xargs -0 -r grep -lIsZ "$(printf '^\357\273\277')" -- || true) | xargs -0 -r perl -pi -e 's/\A\xEF\xBB\xBF// if $. == 1; close ARGV if eof' ''',
+  "mise run --continue-on-error 'fmt:*'",
+]
+
+[tasks."check:dprint"]
+run = "dprint check"
+
+[tasks."check:editorconfig"]
+run = "editorconfig-checker"
+
+[tasks."check:gitleaks"]
+run = "gitleaks git --redact --no-banner"
+
+[tasks."check:shellcheck"]
+run = "git ls-files -z '*.sh' | xargs -0 -r shellcheck"
+
+[tasks."fmt:dprint"]
+run = "dprint fmt"

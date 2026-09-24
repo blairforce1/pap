@@ -1,0 +1,39 @@
+# lefthook.yml: the base layer's git hooks. `mise run setup` installs them.
+# `rc` sources .lefthookrc before each job, which puts mise's shims on PATH,
+# so the pinned tools are found whether or not the committing shell has
+# activated mise. The ./ matters: the hook script runs `. <rc>`, and POSIX
+# `.` looks a slash-less name up on PATH, not in the working directory.
+# A language layer adds its jobs in .config/lefthook/<lang>.yml, which
+# `extends` pulls in, so this file is never edited per language (decision
+# 0003).
+#
+# pre-commit checks staged files only and fixes nothing: `mise run fmt`
+# does that. The guard is a `script`, not a `run` command, because lefthook
+# v2 skips `run` jobs on pre-push when HEAD has no diff against its upstream,
+# which would let `git push origin HEAD:main` from an already-pushed branch
+# through (decision 0002). `source_dir` plus `../` resolves to
+# scripts/guard-branch.sh.
+extends:
+  - .config/lefthook/*.yml
+rc: ./.lefthookrc
+source_dir: scripts
+pre-commit:
+  parallel: true
+  jobs:
+    - name: dprint
+      run: dprint check --allow-no-files {staged_files}
+    - name: editorconfig-checker
+      run: editorconfig-checker {staged_files}
+    - name: gitleaks
+      run: gitleaks git --pre-commit --staged --redact --no-banner --verbose
+    - name: shellcheck
+      glob: "*.sh"
+      run: shellcheck {staged_files}
+pre-push:
+  jobs:
+    - name: guard-branch
+      script: ../guard-branch.sh
+      runner: sh
+      args: push
+      use_stdin: true
+      fail_text: "decision 0002: nothing reaches main except by pull request"
