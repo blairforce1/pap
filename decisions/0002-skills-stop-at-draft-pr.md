@@ -84,6 +84,13 @@ see its own inputs cannot be measured.
   hook and the missing register. The ruleset remains the backstop for main
   only; pre-commit checks have no server-side backstop until the CI
   scanning layer exists.
+- Recorded 2026-09-24: the follow-up on an existing `change/<id>` branch
+  is settled by the `/change` skill (#30): resume, never refuse or reset.
+  An existing branch, local or on origin, is checked out in a new
+  worktree as it stands; if a worktree for it is already open, the skill
+  stops and prints that path instead of working in it. Implemented and
+  tested in `plugins/pap/skills/change/worktree.sh`
+  (`tests/change-worktree.test.sh`).
 
 ## Where it is taught or enforced
 

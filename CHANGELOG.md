@@ -6,6 +6,13 @@ Each plugin is versioned independently.
 
 ## spec-review
 
+### [1.3.1] - 2026-09-23
+
+#### Changed
+
+- The GDPR and AI Act dates live in one shared reference,
+  `references/regulatory-dates.md`, instead of in each skill (#15).
+
 ### [1.3.0] - 2026-09-23
 
 #### Added
@@ -103,6 +110,17 @@ Each plugin is versioned independently.
   instead of the user skills directory.
 
 ## pap
+
+### [0.4.0] - 2026-09-24
+
+#### Added
+
+- `/change <slug> <class> [Record: NNNN]`: the per-change ceremony of
+  decision 0002 as a skill. A worktree on `change/<slug>` from a fresh
+  main, or the existing branch resumed (`skills/change/worktree.sh`), a
+  contradictions-only read, background waits, `mise run check` and
+  `mise run test`, a draft pull request with the class label read back
+  after creation and every Checks box answered, and a fixed-shape report.
 
 ### [0.3.0] - 2026-09-24
 
