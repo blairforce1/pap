@@ -29,7 +29,9 @@
 #         activated, this configuration trusted, the git hooks installed,
 #         blame.ignoreRevsFile set, and every pinned tool installed at its
 #         pin. Each item is ok, missing, drift or skipped; exits 1 unless
-#         every item is ok or skipped.
+#         every item is ok or skipped. Also counts local branches whose
+#         upstream is gone, as of the last fetch, and suggests mise run
+#         tidy; a stale branch is housekeeping and never fails doctor.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -360,7 +362,7 @@ cmd_sync() {
 d_bad=0
 item() { # item <state> <what> [detail]
   printf '  %-8s %s%s\n' "$1" "$2" "${3:+  ($3)}"
-  case "$1" in ok | skipped) ;; *) d_bad=$((d_bad + 1)) ;; esac
+  case "$1" in ok | skipped | stale) ;; *) d_bad=$((d_bad + 1)) ;; esac
 }
 
 cmd_doctor() {
@@ -406,6 +408,12 @@ cmd_doctor() {
     item ok "blame.ignoreRevsFile set"
   else
     item missing "blame.ignoreRevsFile set" "run mise run setup"
+  fi
+  gone="$(git for-each-ref --format='%(upstream:track)' refs/heads | grep -c '^\[gone\]$' || true)"
+  if [ "$gone" -eq 0 ]; then
+    item ok "no branch with a gone upstream"
+  else
+    item stale "$gone branch(es) with a gone upstream" "run mise run tidy"
   fi
 
   say "" "tool pins"

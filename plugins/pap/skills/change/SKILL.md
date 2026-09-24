@@ -99,6 +99,7 @@ Deviations from the brief:
   one line each, or "none"
 Decisions left to you:
   one line each, or "none"
+Once the pull request has merged, run `mise run tidy` to remove this worktree and branch.
 ```
 
 Stop. Do not merge, do not mark the pull request ready, do not start the next change. One pull request per session; the human runs `/clear` before the next.

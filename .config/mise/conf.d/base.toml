@@ -1,5 +1,5 @@
 # Base layer: the tools every repository's git hooks run, and the setup,
-# check and fmt tasks. mise reads every file in .config/mise/conf.d/, so a
+# check, fmt and tidy tasks. mise reads every file in .config/mise/conf.d/, so a
 # language layer ships its own file beside this one and nothing is merged
 # (decision 0003).
 #
@@ -44,6 +44,10 @@ run = [
   '''(git ls-files -z --cached --others --exclude-standard | LC_ALL=C xargs -0 -r grep -lIsZ "$(printf '^\357\273\277')" -- || true) | xargs -0 -r perl -pi -e 's/\A\xEF\xBB\xBF// if $. == 1; close ARGV if eof' ''',
   "mise run --continue-on-error 'fmt:*'",
 ]
+
+[tasks.tidy]
+description = "Remove the worktrees and branches of merged changes (upstream gone)"
+run = "sh scripts/tidy.sh"
 
 [tasks."check:dprint"]
 run = "dprint check"
