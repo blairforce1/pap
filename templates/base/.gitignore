@@ -6,8 +6,10 @@ Desktop.ini
 *~
 
 # Editors. Editor state is personal; style lives in .editorconfig, so no
-# editor settings directory is committed.
-.vscode/
+# editor settings are committed. .vscode/ is ignored by content, not whole,
+# so its one tracked file, the extension recommendations, can be let back in.
+.vscode/*
+!.vscode/extensions.json
 .idea/
 .vs/
 *.swp
