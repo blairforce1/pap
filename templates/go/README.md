@@ -54,6 +54,7 @@ push` skips it for one push; CI still runs it.
 writes them, and the `go` directive it writes is the Go version installed,
 which mise pins. The two must agree; when they differ, the go command
 downloads the toolchain `go.mod` names instead of using the pinned one.
+Renovate moves the directive and the mise `go` pin in one pull request.
 
 Every Go command in the hooks and tasks runs from the repository root, so
 the root holds `go.mod`, or a `go.work` that lists every module. A
