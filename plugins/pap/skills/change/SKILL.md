@@ -99,7 +99,10 @@ Deviations from the brief:
   one line each, or "none"
 Decisions left to you:
   one line each, or "none"
+Revisits due: <record numbers, or "none">
 Once the pull request has merged, run `mise run tidy` to remove this worktree and branch.
 ```
+
+The Revisits line is the records `pap revisits` prints as due (decision 0010): `pap revisits | awk '$2 == "due" { print $1 }'`, run as `bin/pap` in pap itself. If it cannot run, say so on that line.
 
 Stop. Do not merge, do not mark the pull request ready, do not start the next change. One pull request per session; the human runs `/clear` before the next.
