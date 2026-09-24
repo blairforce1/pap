@@ -54,6 +54,16 @@ run = "editorconfig-checker"
 [tasks."check:gitleaks"]
 run = "gitleaks git --redact --no-banner"
 
+[tasks."check:codeowners"]
+description = "Fail if .github/CODEOWNERS is not what product/invariants.md generates"
+# --check writes nothing and compares with the index copy, as the
+# pre-commit job does. A repository with no product/invariants.md yet
+# (before envision) passes.
+run = '''
+[ -f product/invariants.md ] || { echo "check:codeowners: no product/invariants.md; nothing to check"; exit 0; }
+scripts/gen-codeowners.sh --check
+'''
+
 [tasks."check:shellcheck"]
 run = "git ls-files -z '*.sh' | xargs -0 -r shellcheck"
 
