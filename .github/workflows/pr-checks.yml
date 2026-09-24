@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   pr-checks:
-    uses: blairforce1/.github/.github/workflows/pr-checks.yml@358806a488bc43ae62ba978892c7d3055ca5c1b7 # change/pr-checks; @main after blairforce1/.github#2 merges
+    uses: blairforce1/.github/.github/workflows/pr-checks.yml@main
