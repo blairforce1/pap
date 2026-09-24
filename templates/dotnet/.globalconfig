@@ -1,0 +1,134 @@
+# .globalconfig: what the build enforces beyond .editorconfig.
+#
+# The split. .editorconfig, in the base layer, holds every style rule dotnet
+# format can apply, each at the severity dotnet format fixes; it is the single
+# source of style. This file holds the rest: the one IDE severity a formatter
+# cannot act on, and the configuration of the third-party analyzers that
+# Directory.Build.props references. The compiler reads both files on build
+# (EnforceCodeStyleInBuild), and so do the IDE and dotnet format. Where both
+# set the same key, .editorconfig wins, so nothing here restates an
+# .editorconfig key. With TreatWarningsAsErrors, warning here is a build
+# failure; none switches a rule off for the build and the IDE. One reader
+# does not consult this file: the third-party analyzer pass of dotnet format
+# takes severities from .editorconfig and the compilation options only
+# (measured on SDK 10.0.401). A third-party severity that must reach the
+# formatter therefore goes in Directory.Build.props; MA0007 is the one.
+is_global = true
+
+# ---------------------------------------------------------------------------
+# IDE rules
+# ---------------------------------------------------------------------------
+
+# IDE1006 naming. The eight naming rules in .editorconfig sit at suggestion
+# because dotnet format cannot rename a symbol. The rules still run; this line
+# raises what they report to a warning, so a misnamed symbol fails the build
+# and the IDE offers the rename. dotnet format --verify-no-changes lists the
+# violation (exit 2); dotnet format says it cannot fix IDE1006, applies every
+# other fix and exits 0. Measured on SDK 10.0.401.
+dotnet_diagnostic.IDE1006.severity = warning
+
+# IDE0130 namespace matches folder is not here, on evidence. On build the rule
+# takes its severity from its option line alone
+# (dotnet_style_namespace_match_folder = true:suggestion in .editorconfig):
+# dotnet_diagnostic.IDE0130.severity is ignored, and the option line cannot be
+# raised from this file because .editorconfig wins on a shared key. Measured
+# on SDK 10.0.401. Enforcing it means raising the severity on the .editorconfig
+# line, a base-layer decision, and at warning dotnet format fails with an
+# unhandled exception on a mismatch instead of rewriting it.
+
+# ---------------------------------------------------------------------------
+# Trailing comma in multi-line initialisers
+# ---------------------------------------------------------------------------
+
+# Meziantou MA0007 reports a multi-line initialiser, collection expression or
+# switch expression whose last item has no trailing comma, and leaves
+# single-line ones alone. It is raised to an error in Directory.Build.props
+# (WarningsAsErrors), not here, so that dotnet format applies its fix as well
+# as the build refusing it; see the note at the top. Roslynator RCS1260
+# covers the same ground behind a required option and stays at its default,
+# off.
+
+# ---------------------------------------------------------------------------
+# Analyzer rules off because an IDE rule already covers each
+# ---------------------------------------------------------------------------
+# Every rule below is on by default at info or warning and restates, or
+# contradicts, a rule .editorconfig already sets with a severity. Left on, it
+# would report the same thing twice in the IDE, or the opposite thing. Each
+# group names the IDE rule and the .editorconfig setting behind it. Rules
+# hidden by default are not listed: they never report.
+
+# IDE0011 csharp_prefer_braces
+dotnet_diagnostic.RCS1001.severity = none
+dotnet_diagnostic.RCS1003.severity = none
+
+# IDE0053 csharp_style_expression_bodied_lambdas
+dotnet_diagnostic.RCS1021.severity = none
+
+# IDE0048 dotnet_style_parentheses_* = always_for_clarity. RCS1032 removes
+# the parentheses IDE0048 adds; RCS1123 adds the ones it already adds.
+dotnet_diagnostic.RCS1032.severity = none
+dotnet_diagnostic.RCS1123.severity = none
+
+# IDE0100 remove unnecessary equality operator (x == true, x == false)
+dotnet_diagnostic.RCS1033.severity = none
+dotnet_diagnostic.RCS1049.severity = none
+dotnet_diagnostic.MA0073.severity = none
+
+# IDE0055 formatting, trim_trailing_whitespace in [*]
+dotnet_diagnostic.RCS1037.severity = none
+
+# IDE0054 dotnet_style_prefer_compound_assignment
+dotnet_diagnostic.RCS1058.severity = none
+
+# IDE0046 dotnet_style_prefer_conditional_expression_over_return, and
+# IDE0045 dotnet_style_prefer_conditional_expression_over_assignment: both a
+# taste call the base offers at suggestion and does not enforce
+dotnet_diagnostic.RCS1073.severity = none
+dotnet_diagnostic.RCS1103.severity = none
+
+# IDE0029 dotnet_style_coalesce_expression
+dotnet_diagnostic.RCS1084.severity = none
+dotnet_diagnostic.RCS1128.severity = none
+
+# IDE0032 dotnet_style_prefer_auto_properties
+dotnet_diagnostic.RCS1085.severity = none
+
+# IDE0075 dotnet_style_prefer_simplified_boolean_expressions
+dotnet_diagnostic.RCS1104.severity = none
+
+# IDE0031 dotnet_style_null_propagation
+dotnet_diagnostic.RCS1146.severity = none
+dotnet_diagnostic.RCS1206.severity = none
+
+# IDE0060 dotnet_code_quality_unused_parameters
+dotnet_diagnostic.RCS1163.severity = none
+
+# IDE0044 dotnet_style_readonly_field
+dotnet_diagnostic.RCS1169.severity = none
+
+# IDE0019 csharp_style_pattern_matching_over_as_with_null_check
+dotnet_diagnostic.RCS1172.severity = none
+dotnet_diagnostic.RCS1221.severity = none
+
+# IDE0020 csharp_style_pattern_matching_over_is_with_cast_check
+dotnet_diagnostic.RCS1220.severity = none
+
+# IDE0059 csharp_style_unused_value_assignment_preference
+dotnet_diagnostic.RCS1212.severity = none
+
+# IDE0051 unused private member: a deletion the base offers at suggestion
+dotnet_diagnostic.RCS1213.severity = none
+
+# IDE0080 remove unnecessary suppression operator
+dotnet_diagnostic.RCS1249.severity = none
+
+# IDE0251 csharp_style_prefer_readonly_struct_member
+dotnet_diagnostic.MA0102.severity = none
+
+# Deprecated by their author in favour of an SDK analyzer rule that
+# AnalysisLevel latest-recommended already runs
+# CA1000 do not declare static members on generic types
+dotnet_diagnostic.MA0018.severity = none
+# CA1822 mark members as static
+dotnet_diagnostic.MA0038.severity = none
+dotnet_diagnostic.MA0041.severity = none

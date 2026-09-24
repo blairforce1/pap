@@ -1,0 +1,6 @@
+# mise.toml, .NET layer: the SDK pin. global.json is authoritative; this
+# line must name the same version so `mise install` provides the SDK that
+# global.json asks for. The sync tool merges this into the repository's
+# mise.toml (decision 0003) and will check the two agree.
+[tools]
+dotnet = "10.0.401"

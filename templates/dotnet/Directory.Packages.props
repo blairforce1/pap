@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    Directory.Packages.props: central package management. A PackageReference
+    in a project names the package and nothing else; the version is set once
+    here, and NuGet refuses a Version on the reference itself (NU1008). One
+    PackageVersion line per package the repository uses, alphabetical.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Analyzers, referenced by Directory.Build.props in every project -->
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.290" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="5.0.0" />
+  </ItemGroup>
+</Project>
