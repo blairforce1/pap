@@ -17,4 +17,4 @@ permissions:
 
 jobs:
   security:
-    uses: blairforce1/.github/.github/workflows/security.yml@main
+    uses: blairforce1/.github/.github/workflows/security.yml@change/security-cache-isolation
