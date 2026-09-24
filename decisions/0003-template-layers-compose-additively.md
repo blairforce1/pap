@@ -7,7 +7,7 @@
 - **PIP:** none; this is a structural record, not an intervention under 0001
 - **Expected effect:** not applicable
 - **Introduced in:** v0.2.0
-- **Revisit:** if a third language needs a change to `templates/base/` that is not a new `[*.ext]` section, or if two layers ever need to own the same file
+- **Revisit:** when a third language needs a change to `templates/base/` that is not a new `[*.ext]` section, or two layers ever need to own the same file
 
 ## Context
 

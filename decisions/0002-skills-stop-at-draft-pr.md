@@ -7,7 +7,7 @@
 - **PIP:** #1 (intent.md committed directly to main, 2026-09-16)
 - **Expected effect:** humanReview coverage ↑ to 100%; unreviewed changes on main ↓ to 0
 - **Introduced in:** v0.1.0
-- **Revisit:** if the draft-PR step adds more than five minutes per change with no rejections in 20 changes
+- **Revisit:** after 20 change PRs from #1: if the draft-PR step adds more than five minutes per change with no rejections among them. No v0.1.0 tag exists and the record predates pull requests, so the count starts after #1
 
 ## Context
 

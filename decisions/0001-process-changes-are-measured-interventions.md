@@ -7,7 +7,7 @@
 - **PIP:** none (founding)
 - **Expected effect:** none (founding)
 - **Introduced in:** v0.1.0
-- **Revisit:** after three process interventions have shipped, if none shows a detectable effect
+- **Revisit:** when three process interventions have shipped: if none shows a detectable effect
 
 ## Context
 
@@ -63,6 +63,48 @@ is the whole point of measuring, and attribution needs a boundary.
   `mise run release` refuses a version that
   `plugins/pap/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
   do not both carry. spec-review keeps its own version.
+- Recorded 2026-09-24, by [0010](0010-revisits-are-typed-and-counted.md):
+  a Revisit line starts with a typed trigger, `after <n> change PRs`
+  (from the Introduced-in tag, or `from #<pr>`), `on <YYYY-MM-DD>` or
+  `when <condition>`, and its prose reason follows after a colon. A change
+  PR is a pull request merged to main from a `change/` branch. Every record
+  was converted without changing its meaning; 0002, 0004 and 0005 predate
+  the first tag and count from a pull request, and 0006 counts from #30,
+  where its window was registered. `pap revisits` reports which are due.
+- Recorded 2026-09-24, by 0010: the status lifecycle is `accepted`, `due`,
+  then one of `measured:confirmed`, `measured:refuted` or
+  `measured:inconclusive`, with `superseded` open at any point. `due` is set
+  by a human when they take up the revisit, never by a tool; `pap revisits`
+  only reports. Status carries the outcome and its date and nothing else,
+  `measured:refuted (2026-09-24)`; what was done about it goes in a
+  `Disposition:` header added at the transition: `kept`,
+  `reverted in v<x.y.z>` or `superseded by NNNN`, with the reason in the
+  record's Result.
+- Recorded 2026-09-24, by 0010, settling the follow-up above: enough is ten
+  change PRs a side, the last ten merged before the pull request that
+  introduced the intervention and the first ten after it, with the
+  metrics and each one's direction pre-registered in the record; every
+  row of the baseline and result tables carries its class. The verdict is
+  per metric, on medians: a directional effect is confirmed when the
+  result median lies beyond the baseline's interquartile range (the 3rd
+  and 8th of the ten sorted values) in the predicted direction, refuted
+  when beyond it the other way, inconclusive inside it; a bound (not ↑,
+  not ↓) holds unless the result median lies beyond the range in the
+  forbidden direction. Any refuted metric makes the record
+  `measured:refuted`; every effect confirmed and every bound held makes it
+  `measured:confirmed`; anything else is `measured:inconclusive`. A record
+  may extend its window once, by ten more a side, when the verdict is
+  inconclusive or one side lacks a class the other has, and never across
+  another intervention's tag. Not retroactive: 0006, at five a side,
+  stands as recorded.
+- Recorded 2026-09-24, by 0010: "toolkit changes are not interventions"
+  is amended. 0006 changed no process text yet claimed a measured effect,
+  and was recorded and measured as an intervention. Read the rule as:
+  toolkit changes (skills, hooks, CLI, templates) need no record unless
+  they change what the process asks of a human or are shipped to move a
+  measured number; either makes the change an intervention, whatever it
+  touches, and it then carries a record and ships under a tag. Since 0.5.0
+  the toolkit shares the tag series, so the boundary exists for them.
 
 ## Where it is taught or enforced
 
