@@ -21,3 +21,4 @@ jobs:
       - run: sh tests/guard-route.test.sh
       - run: sh tests/gen-codeowners.test.sh
       - run: sh tests/assemble.test.sh
+      - run: sh tests/change-worktree.test.sh

@@ -22,12 +22,17 @@ Anything missing or invalid: ask once, in one question, then proceed.
 Always a worktree; never switch the main checkout's branch, because parallel sessions share it.
 
 ```sh
-root="$(git rev-parse --show-toplevel)"; repo="$(basename "$root")"
-git -C "$root" fetch -q origin main
-git -C "$root" worktree add -b "change/<slug>" "$root/../$repo-<slug>" origin/main
+sh "${CLAUDE_PLUGIN_ROOT}/skills/change/worktree.sh" <slug>
 ```
 
-If `change/<slug>` already exists, resume it: use the worktree `git worktree list` shows for it, or add one without `-b`. Never recreate or reset an existing change branch. Every later command runs in the worktree (`cd` into it, or `git -C`).
+It prints one line:
+
+- `created <path>`: no `change/<slug>` existed; a new branch from a freshly fetched `origin/main`.
+- `resumed <path>`: `change/<slug>` existed, locally or on origin; it is checked out as it was, never recreated or reset. Say so in the report.
+- `exists <path>` (exit 3): a worktree for the branch is already open, probably another session's. Stop and print the path; do not work in it.
+- Exit 1: a bad slug, no `origin/main`, or the path taken by something else. Report the message and stop.
+
+Every later command runs in the printed path (`cd` into it, or `git -C`).
 
 ## 2. Read, then report only contradictions
 
