@@ -15,12 +15,12 @@ golangci-lint = "2.14.0"
 
 [tasks."check:go"]
 # One script, not a task per tool, so check:* does not pick the parts up
-# twice; every step runs and the exit code reports any failure.
+# twice; every step runs and the exit code reports any failure. No go vet:
+# golangci-lint's govet runs the same analysers, configured in .golangci.yml.
 run = '''
 rc=0
 out=$(gofmt -l .) || rc=1
 if [ -n "$out" ]; then printf 'not gofmt-formatted:\n%s\n' "$out"; rc=1; fi
-go vet ./... || rc=1
 golangci-lint run || rc=1
 govulncheck ./... || rc=1
 exit $rc

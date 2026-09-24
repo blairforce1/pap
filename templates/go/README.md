@@ -10,11 +10,11 @@ This layer adds files and never replaces, edits or overrides anything in
 Its shared-file entries live in base, as the decision requires: the `[*.go]`
 tab section of `.editorconfig` and the Go section of `.gitignore`.
 
-| File                          | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.config/mise/conf.d/go.toml` | Pins Go 1.27.1, golangci-lint 2.14.0 and govulncheck 1.8.0. govulncheck is not in mise's registry, so the `go` backend builds it from `golang.org/x/vuln/cmd/govulncheck`. golangci-lint 2.14.0 is built with go1.27.0 and refuses a module whose `go` directive is newer than that, so it is raised with Go. `check:go` runs `gofmt -l`, `go vet ./...`, `golangci-lint run` and `govulncheck ./...`, every step even after one fails, as one script so `check:*` does not pick the parts up twice. `fmt:go` runs `gofmt -w .`. The base `check` and `fmt` tasks pick both up. |
-| `.config/lefthook/go.yml`     | pre-commit: `gofmt -l` on staged `.go` files, failing on any file it lists or on a syntax error (`gofmt -l` itself exits 0 when it lists files). pre-push: `golangci-lint run` when the push changes a `.go` file (it runs `govet`, so there is no separate `go vet` job), and `govulncheck ./...` when it changes a `.go` file, `go.mod` or `go.sum`, since a version bump alone can bring a vulnerable dependency in.                                                                                                                                                         |
-| `.golangci.yml`               | golangci-lint v2 configuration, `default: none` and every linter named, so the set changes only when this file does. Groups, each commented in the file: correctness (errcheck, govet, ineffassign, staticcheck, unused, which is golangci-lint's standard set), security (gosec, off in `_test.go`), error handling (errorlint, nilerr), resource leaks (bodyclose, rowserrcheck, sqlclosecheck), context (noctx), hygiene (unconvert, misspell). No formatters. Every finding is reported, not the first few per linter.                                                      |
+| File                          | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.config/mise/conf.d/go.toml` | Pins Go 1.27.1, golangci-lint 2.14.0 and govulncheck 1.8.0. govulncheck is not in mise's registry, so the `go` backend builds it from `golang.org/x/vuln/cmd/govulncheck`. golangci-lint 2.14.0 is built with go1.27.0 and refuses a module whose `go` directive is newer than that, so it is raised with Go. `check:go` runs `gofmt -l`, `golangci-lint run` and `govulncheck ./...`, every step even after one fails, as one script so `check:*` does not pick the parts up twice. `fmt:go` runs `gofmt -w .`. The base `check` and `fmt` tasks pick both up. |
+| `.config/lefthook/go.yml`     | pre-commit: `gofmt -l` on staged `.go` files, failing on any file it lists or on a syntax error (`gofmt -l` itself exits 0 when it lists files). pre-push: `golangci-lint run` when the push changes a `.go` file (it runs `govet`, so there is no separate `go vet` job), and `govulncheck ./...` when it changes a `.go` file, `go.mod` or `go.sum`, since a version bump alone can bring a vulnerable dependency in.                                                                                                                                         |
+| `.golangci.yml`               | golangci-lint v2 configuration, `default: none` and every linter named, so the set changes only when this file does. Groups, each commented in the file: correctness (errcheck, govet, ineffassign, staticcheck, unused, which is golangci-lint's standard set), security (gosec, off in `_test.go`), error handling (errorlint, nilerr), resource leaks (bodyclose, rowserrcheck, sqlclosecheck), context (noctx), hygiene (unconvert, misspell). No formatters. Every finding is reported, not the first few per linter.                                      |
 
 ## gofmt, not gofumpt
 
@@ -71,11 +71,10 @@ command rewrites the file anyway, so there is no `.editorconfig` entry for it.
   `gofmt`, `gofumpt` or `goimports` under `formatters:` would be a second
   copy of the same decision, and they would disagree the day one is
   configured differently.
-- **`go vet` and golangci-lint's `govet`**: pre-push runs only
-  golangci-lint, whose `govet` covers `go vet`. `check:go` still runs both,
-  and `go vet` there takes the toolchain's default analysers with no flags;
-  any analyser setting goes under `linters.settings.govet` in
-  `.golangci.yml` and nowhere else.
+- **`go vet` and golangci-lint's `govet`**: neither pre-push nor
+  `check:go` runs `go vet`; golangci-lint's `govet` covers it. Any analyser
+  setting goes under `linters.settings.govet` in `.golangci.yml` and
+  nowhere else.
 - **gopls and editor settings**: do not set `gopls.gofumpt`, `gopls.staticcheck`
   or `go.lintTool` in workspace settings. The linters run from
   `.golangci.yml`, and there is no committed editor settings directory.
@@ -88,7 +87,7 @@ command rewrites the file anyway, so there is no `.editorconfig` entry for it.
 ## Checking a repository
 
 ```sh
-mise run check                      # gofmt -l, go vet, golangci-lint, govulncheck, and every other layer's checks
+mise run check                      # gofmt -l, golangci-lint (govet included), govulncheck, and every other layer's checks
 mise run fmt                        # gofmt -w, and every other layer's formatters
 golangci-lint run                   # the linters alone
 govulncheck ./...                   # reachable vulnerabilities; -show verbose lists the unreachable ones too
