@@ -1,16 +1,19 @@
 # pr-checks.yml: decision 0004. Calls the reusable check in
 # blairforce1/.github, which refuses a malformed title, a process: title
-# without a Record line, an unanswered Checks box, and undeclared
-# generated content. `edited` re-runs it when the body is fixed.
+# without a Record line, an unanswered Checks box, undeclared generated
+# content, a missing or dangling Change: line, and anything but one class:*
+# label, and keeps the protected-path label in step with .github/CODEOWNERS.
+# `edited` re-runs it when the body is fixed, `labeled` and `unlabeled`
+# when the class label is. pull-requests: write is for that label only.
 name: pr-checks
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize, ready_for_review]
+    types: [opened, edited, reopened, synchronize, ready_for_review, labeled, unlabeled]
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   pr-checks:
