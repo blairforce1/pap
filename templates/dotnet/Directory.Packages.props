@@ -10,9 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Analyzers. StyleCop's last stable release, 1.1.118, predates
-         file-scoped namespaces and later syntax; the beta line is the one
-         that understands current C#. -->
-    <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
+    <!-- Analyzers, referenced by Directory.Build.props in every project -->
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.290" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="5.0.0" />
   </ItemGroup>
 </Project>

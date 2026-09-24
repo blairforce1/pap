@@ -3,8 +3,8 @@
     Directory.Build.props: build settings for every project below this file.
     MSBuild imports it before each project file, so a project inherits all of
     it and overrides a value only by restating it in its own csproj. Style is
-    not set here: .editorconfig owns it, and .globalconfig holds the severity
-    the build enforces that a formatter cannot. See README.md in the template.
+    not set here: .editorconfig owns it, and .globalconfig holds what the
+    build enforces beyond it. See README.md in the template.
   -->
 
   <PropertyGroup>
@@ -12,18 +12,29 @@
     <ImplicitUsings>enable</ImplicitUsings>
 
     <!-- Every warning fails the build: the compiler's, the SDK analyzers'
-         at the latest recommended level, StyleCop's, and the .editorconfig
-         style rules, which EnforceCodeStyleInBuild runs in the compiler. -->
+         at the latest recommended level, the third-party analyzers', and
+         the .editorconfig style rules, which EnforceCodeStyleInBuild runs
+         in the compiler. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
 
-    <!-- The XML documentation file is an input to two checks, not an
-         artefact anyone reads: StyleCop reports SA0001 (documentation
-         analysis disabled) without it, and IDE0005 (unnecessary using)
-         only runs on build when it is generated, as the base .editorconfig
-         notes. It lands in bin/, which is ignored. -->
+    <!-- The XML documentation file is generated for one reason: IDE0005
+         (unnecessary using) only runs on build when it exists, as the base
+         .editorconfig notes. Generating it also makes the compiler report
+         CS1591 on every undocumented public member; whether public members
+         need doc comments is a policy this layer does not set, so that one
+         warning is off. The file lands in bin/, which is ignored. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- MA0007, the trailing comma in a multi-line initialiser, collection
+         expression or switch expression: info by default, an error here.
+         This is the one analyzer severity not set in .globalconfig, because
+         dotnet format's third-party pass reads compilation options and
+         .editorconfig and not that file (measured on SDK 10.0.401); set
+         here, the build refuses a missing comma and dotnet format adds it. -->
+    <WarningsAsErrors>$(WarningsAsErrors);MA0007</WarningsAsErrors>
 
     <!-- Reproducible output: the same sources and inputs give the same
          binary. On CI the source paths are normalised too, so the build
@@ -39,62 +50,13 @@
   </PropertyGroup>
 
   <!--
-    StyleCop.Analyzers runs in every project. Its version is pinned in
-    Directory.Packages.props; its settings are in stylecop.json, handed to
-    the analyzer as an additional file.
+    Third-party analyzers, run in every project. Versions are pinned in
+    Directory.Packages.props. Severities are set in .globalconfig, where
+    every rule an IDE rule in .editorconfig already covers is switched off;
+    the one exception, MA0007, is above.
   -->
   <ItemGroup>
-    <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" />
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" Link="stylecop.json" />
+    <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
+    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="all" />
   </ItemGroup>
-
-  <!--
-    StyleCop rules switched off. Each one duplicates a setting the base
-    .editorconfig already makes and dotnet format already applies, or
-    contradicts one. Every rule not listed runs at StyleCop's default
-    severity, warning, which TreatWarningsAsErrors turns into a build
-    failure. That includes SA1413, the trailing comma in multi-line
-    initialisers, which is the rule this layer adds StyleCop for.
-
-      SA1000-SA1003,
-      SA1006-SA1028    spacing, tabs, trailing whitespace:
-                       csharp_space_* and the [*] whitespace settings (IDE0055)
-      SA1101           this. prefix: dotnet_style_qualification_* = false
-      SA1102-SA1105    query clause layout:
-                       csharp_new_line_between_query_expression_clauses
-      SA1119           unnecessary parentheses: contradicts
-                       dotnet_style_parentheses_* = always_for_clarity
-      SA1121           built-in type alias: dotnet_style_predefined_type_*
-      SA1137           element indentation: csharp_indent_* (IDE0055)
-      SA1142           tuple element names: dotnet_style_explicit_tuple_names
-      SA1206           modifier order: csharp_preferred_modifier_order
-      SA1208-SA1211,
-      SA1216, SA1217   using directive order: dotnet_sort_system_directives_first
-                       and the import sort dotnet format runs
-      SA1300-SA1316    naming: the IDE1006 rules, enforced by .globalconfig;
-                       SA1309 and SA1310 also contradict the _camelCase field rule
-      SA1400           access modifiers: dotnet_style_require_accessibility_modifiers
-      SA1407, SA1408   precedence parentheses: dotnet_style_parentheses_*
-      SA1500           brace placement: csharp_new_line_before_open_brace
-      SA1501, SA1502   single-line blocks and elements: contradict
-                       csharp_preserve_single_line_blocks and _statements = true
-      SA1503, SA1519,
-      SA1520           braces: csharp_prefer_braces
-      SA1507           multiple blank lines:
-                       dotnet_style_allow_multiple_blank_lines_experimental
-      SA1513           blank line after a closing brace:
-                       dotnet_style_allow_statement_immediately_after_block_experimental
-      SA1518           newline at end of file: insert_final_newline
-  -->
-  <PropertyGroup>
-    <NoWarn>
-      $(NoWarn);
-      SA1000;SA1001;SA1002;SA1003;SA1006;SA1007;SA1008;SA1009;SA1010;SA1011;SA1012;SA1013;SA1014;SA1015;SA1016;SA1017;SA1018;SA1019;SA1020;SA1021;SA1022;SA1023;SA1024;SA1025;SA1026;SA1027;SA1028;
-      SA1101;SA1102;SA1103;SA1104;SA1105;SA1119;SA1121;SA1137;SA1142;
-      SA1206;SA1208;SA1209;SA1210;SA1211;SA1216;SA1217;
-      SA1300;SA1302;SA1303;SA1304;SA1306;SA1307;SA1308;SA1309;SA1310;SA1311;SA1312;SA1313;SA1314;SA1316;
-      SA1400;SA1407;SA1408;
-      SA1500;SA1501;SA1502;SA1503;SA1507;SA1513;SA1518;SA1519;SA1520
-    </NoWarn>
-  </PropertyGroup>
 </Project>
