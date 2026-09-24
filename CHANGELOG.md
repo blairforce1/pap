@@ -117,7 +117,8 @@ Each plugin is versioned independently.
 
 - `/change <slug> <class> [Record: NNNN]`: the per-change ceremony of
   decision 0002 as a skill. A worktree on `change/<slug>` from a fresh
-  main, a contradictions-only read, background waits, `mise run check` and
+  main, or the existing branch resumed (`skills/change/worktree.sh`), a
+  contradictions-only read, background waits, `mise run check` and
   `mise run test`, a draft pull request with the class label read back
   after creation and every Checks box answered, and a fixed-shape report.
 
