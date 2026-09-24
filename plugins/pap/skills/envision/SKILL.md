@@ -74,14 +74,14 @@ Invariants are the constraints no change may violate. They are what let an agent
 
 Walk the categories below. For each, ask whether there is a constraint the human already knows. Propose candidates based on what you learned in Part 1 and from the codebase, but label them as proposals. Confirmed constraints go in `invariants.md`; unconfirmed ones go under "Open questions".
 
-| Category | Ask about | Typical invariants |
-|---|---|---|
-| Architectural boundaries | Modules, services, tenants, trust zones | "Tenant data never crosses a tenant boundary in process memory"; "The core domain has no dependency on infrastructure packages" |
-| Security posture | Authentication, authorisation, secrets, data classification | "All external access goes through the authorisation server; no service issues its own tokens"; "Secrets are never in configuration files" |
-| Compliance | Regulations, audit, retention, evidence | "Every valuation run is reproducible from committed inputs"; "Audit records are append-only" |
-| Data model | Load-bearing decisions that would be expensive to reverse | "Money is stored as integer minor units"; "Every entity carries a tenant id" |
-| Operational | Deployment model, observability minimums, rollback | "Every service exposes health and readiness"; "No deploy without a rollback path" |
-| Protected paths | Files no agent may change without a recorded human approval | Migrations, infrastructure definitions, test suites, `product/`, the conventions file |
+| Category                 | Ask about                                                   | Typical invariants                                                                                                                        |
+| ------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Architectural boundaries | Modules, services, tenants, trust zones                     | "Tenant data never crosses a tenant boundary in process memory"; "The core domain has no dependency on infrastructure packages"           |
+| Security posture         | Authentication, authorisation, secrets, data classification | "All external access goes through the authorisation server; no service issues its own tokens"; "Secrets are never in configuration files" |
+| Compliance               | Regulations, audit, retention, evidence                     | "Every valuation run is reproducible from committed inputs"; "Audit records are append-only"                                              |
+| Data model               | Load-bearing decisions that would be expensive to reverse   | "Money is stored as integer minor units"; "Every entity carries a tenant id"                                                              |
+| Operational              | Deployment model, observability minimums, rollback          | "Every service exposes health and readiness"; "No deploy without a rollback path"                                                         |
+| Protected paths          | Files no agent may change without a recorded human approval | Migrations, infrastructure definitions, test suites, `product/`, the conventions file                                                     |
 
 For each confirmed invariant capture three things: the constraint in one sentence, the reason in one sentence, and whether an ADR exists or needs writing. Create ADR stubs for the ones that need writing; do not write full ADRs now.
 

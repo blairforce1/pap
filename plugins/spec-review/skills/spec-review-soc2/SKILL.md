@@ -57,7 +57,7 @@ You are acting as a compliance-literate architect reviewing a **design specifica
 
 Map the design against the 2017 Trust Services Criteria (with the 2022 revised points of focus). Security (Common Criteria) always applies; assess Availability, Confidentiality, Processing Integrity, and Privacy only where the spec or the user indicates they are in scope, and state which categories you assessed.
 
-1. **Logical access (CC6.1 to CC6.3)** - Does the design support provisioning, deprovisioning, least privilege, and periodic access review? Crucially: can access rights be *evidenced*, e.g. exported or queried at a point in time?
+1. **Logical access (CC6.1 to CC6.3)** - Does the design support provisioning, deprovisioning, least privilege, and periodic access review? Crucially: can access rights be _evidenced_, e.g. exported or queried at a point in time?
 2. **Change management (CC8.1)** - Does the delivery design (pipelines, approvals, environments) produce evidence of authorised, tested, approved changes? Are emergency changes designed for, with after-the-fact review?
 3. **System operations and monitoring (CC7.1 to CC7.3)** - Are anomalies, incidents, and capacity issues detectable by design? Is there a designed path from detection to incident record?
 4. **Audit logging and evidence generation (CC7.2; logging has no criterion of its own)** - Are security-relevant events logged with actor, action, timestamp, and outcome? Retention period stated and aligned to audit windows (typically 12 months)? Logs protected from tampering? Prefer designs where evidence is a by-product of operation, not a quarterly screenshot hunt.

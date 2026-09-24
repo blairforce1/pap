@@ -9,7 +9,15 @@ name: pr-checks
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize, ready_for_review, labeled, unlabeled]
+    types: [
+      opened,
+      edited,
+      reopened,
+      synchronize,
+      ready_for_review,
+      labeled,
+      unlabeled,
+    ]
 
 permissions:
   contents: read
