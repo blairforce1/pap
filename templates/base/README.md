@@ -20,6 +20,7 @@ framework version or a person.
 | `.editorconfig-checker.json` | Excludes the types dprint formats, so each file has one checker. Turns off only the indent-size check: it refuses any line whose leading spaces are not a multiple of `indent_size`, which rejects aligned continuation lines such as the XML comments in the .NET layer. Indent style, line endings, final newline, trailing whitespace and charset are still checked. |
 | `.devcontainer/devcontainer.json` | One container for every language layer. mise installs every toolchain from `.config/mise/conf.d/`, so the image is plain Debian (`mcr.microsoft.com/devcontainers/base`, trixie), not a language image, and there are no language features; adding a layer changes nothing here. The container runs as the image's non-root `vscode` user, adds the git and GitHub CLI features, and forwards no ports, auto-forwarding included. The image and both features are pinned by digest, with the version in a comment beside each. mise is installed by `onCreateCommand` from its versioned `install.sh` release asset, checked against a sha256; that script carries the checksum of every mise binary it fetches. There is no official mise feature, and the community one fetches unpinned helpers at build time. The same command first restores `/tmp` to mode 1777 if it is not writable: a feature build under podman leaves it root-owned 0755. `postCreateCommand` is the clone setup, `mise trust && mise install && mise run setup`. `remoteEnv` puts mise and its shims on PATH for terminals and extensions. The extension list is the one in `.vscode/extensions.json`. |
 | `.vscode/extensions.json` | The recommended extensions: EditorConfig, C# Dev Kit, Go, dprint, YAML, markdownlint and ShellCheck. No settings: style lives in `.editorconfig`. The list covers every supported language, not the ones a repository uses, because the file cannot be split per layer and a recommendation for an absent language is harmless. This is decision 0003 rule 3, the treatment `.gitignore` gets, and the only editor file that gets it: every other layer-specific file is contributed per layer. `devcontainer.json` repeats the list under `customizations.vscode`; change both together. |
+| `.github/renovate.jsonc` | Dependency updates for every layer (decision 0007), read by Renovate. One file with a commented section per ecosystem: base (mise tool pins, the devcontainer, GitHub Actions), .NET, Go and Node. Weekly on Monday before 06:00 UTC, minor and patch grouped per ecosystem, majors separate, a seven-day `minimumReleaseAge`, `build(deps):` commits labelled `class:infra`, and lock file maintenance for `packages.lock.json` and `package-lock.json`. Extends no preset, so nothing changes under it without a commit. See "Dependency updates". |
 | `.gitleaks.toml` | The gitleaks default rules, plus an allowlist of paths whose content is generated hashes: `packages.lock.json`, `*-lock.json`, `.git-blame-ignore-revs`. A false positive in a hand-written file takes a `gitleaks:allow` comment on that line, not a path here. |
 | `.github/workflows/security.yml` | Calls the reusable `security` workflow in `blairforce1/.github` on every pull request: `mise run check` on the whole repository, gitleaks over the pull request's commits, Semgrep's community rules for C#, Go, YAML and Dockerfiles, and `trivy fs` for vulnerable dependencies, misconfiguration and secrets. A finding at high or critical fails its check (`security / check`, `security / gitleaks`, `security / semgrep`, `security / trivy`); a lower one is a warning. Findings are annotated on the diff and listed in the job summary, and on a public repository uploaded to code scanning. This is the server-side backstop for the hooks, and the replacement for code scanning and secret scanning, which a private repository on a Pro account does not get. Scanner versions are pinned in the reusable workflow, so a bump lands in every repository at once. `security-events: write` is granted for the upload; the reusable workflow will not start with less, even where it does not upload. |
 | `.semgrepignore` | What Semgrep skips, in `.gitignore` syntax: `artifacts/`, `bin/`, `obj/`, and test fixtures in `testdata/` and `fixtures/`. Semgrep already skips untracked files. The file replaces Semgrep's default ignore list, which would also skip test code; test code is scanned here. |
@@ -30,8 +31,9 @@ framework version or a person.
 A language layer adds its own `[*.ext]` section to this `.editorconfig`,
 its own `.config/mise/conf.d/<lang>.toml` for tool pins and `check:<lang>` and
 `fmt:<lang>` tasks, and its own `.config/lefthook/<lang>.yml` for hook jobs,
-and adds its editor extension to `.vscode/extensions.json` and
-`.devcontainer/devcontainer.json`, and stops there. It never overrides the
+adds its editor extension to `.vscode/extensions.json` and
+`.devcontainer/devcontainer.json`, and adds its ecosystem's section to
+`.github/renovate.jsonc`, and stops there. It never overrides the
 `[*]` section and never edits another layer's files. The base settings are
 the contract every layer builds on. A language that needs different
 indentation, as Go and make do, says so in its own section, where the
@@ -41,7 +43,7 @@ exception is visible and scoped to its files.
 
 A hook that is slow gets skipped, and a skipped hook checks nothing. So:
 
-- **pre-commit** runs formatter checks and file-local checks on staged files
+- **pre-commit** runs formatters and file-local checks on staged files
   only: nothing that compiles, restores packages, resolves dependencies or
   analyses more than the file in front of it. The hook as a whole finishes in
   under two seconds. The base jobs qualify: dprint, editorconfig-checker and
@@ -54,6 +56,63 @@ A hook that is slow gets skipped, and a skipped hook checks nothing. So:
   `.github/workflows/security.yml`.
 
 A language layer's pre-commit job that needs a build is in the wrong hook.
+
+## Dependency updates
+
+Renovate proposes every update, from `.github/renovate.jsonc`. Dependabot
+cannot read the mise pins, which are every layer's toolchain; decision 0007
+has the comparison.
+
+What it reads, checked with a Renovate 44.112.3 dry run on a repository
+built from `base`, `dotnet` and `go`:
+
+- **mise**: every `[tools]` line in `.config/mise/conf.d/*.toml`, `ubi:`
+  and `go:` backends included, except `dotnet`, which the mise manager
+  has no datasource for. A custom manager in the .NET section reads that
+  one as the same `dotnet-sdk` dependency `global.json` names, so the two
+  move in one pull request.
+- **devcontainer**: the image by tag and digest. The features are pinned
+  by digest alone, because the devcontainer CLI refuses a tag and a digest
+  together, so a custom manager reads the version from the comment above
+  each (`// git 1.3.8.`) and moves the comment and the digest together.
+  Keep that comment format. ghcr.io gives no release date for a feature,
+  so the cooldown cannot hold one back.
+- **GitHub Actions**: `uses:` by commit SHA with the version as a comment;
+  both move.
+- **.NET, Go, Node**: `Directory.Packages.props`, `global.json`,
+  `packages.lock.json`; `go.mod` and `go.sum`, with the `go` directive
+  moved with the mise `go` pin; `package.json` and its lock file.
+
+Updated by hand, because nothing reads them:
+
+- mise itself, and the sha256 of its install script, in the devcontainer's
+  `onCreateCommand`. Take the version from the mise releases page and the
+  sha256 of that release's `install.sh`.
+- The dprint plugin versions in `dprint.json`: `dprint config update`
+  raises them.
+
+### Installing the app
+
+The hosted Renovate is Mend's GitHub App, free on the Community Cloud
+tier. An organisation owner installs it from
+<https://github.com/apps/renovate> and chooses "Only select repositories",
+adding each repository that adopts this template; `pap init` will not do
+this. The first run opens an onboarding pull request; merge it once the
+file above is on the default branch. Community Cloud runs each active
+repository about every four hours, one job per organisation at a time, so
+the six-hour Monday window gets at least one run.
+
+What it can see and do, per Mend's security page: read and write code
+(it clones each repository for the length of a job and keeps no source
+after), pull requests, issues (the dependency dashboard), checks, commit
+statuses and workflows (to update pinned actions); read administration
+(branch protection) and Dependabot alerts. Mend's database keeps the
+dependency list and versions per repository and the pull requests it
+opened. It sees nothing in a repository it is not installed on.
+
+For a client estate, run the same Renovate self-hosted through
+`renovatebot/github-action` under a GitHub App the client owns, reading this
+same file, so no third party gets write access.
 
 ## What other tools must not duplicate
 

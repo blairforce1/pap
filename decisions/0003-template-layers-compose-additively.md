@@ -37,11 +37,11 @@ Layers compose additively:
    `[*]` section or another layer's entries.
 3. A language layer's other files live under its own names (`global.json`,
    `.golangci.yml`) or in its own directory. Where a language needs a file
-   that already exists in `base/` (`.gitignore`, `dependabot.yml`), the
+   that already exists in `base/` (`.gitignore`, `.github/renovate.jsonc`), the
    language-specific lines go in `base/` under a commented section, because
    those files cannot be split.
 4. Adding a language is: one new folder, its `[*.ext]` section, its mise
-   pins, its `.gitignore` section, its Dependabot ecosystem, its
+   pins, its `.gitignore` section, its section in `.github/renovate.jsonc`, its
    security-scanning rules, and its extension id to
    `.vscode/extensions.json` and the devcontainer customizations list.
    Nothing else changes.
@@ -66,7 +66,7 @@ judgement.
 - Easier: adding Go is a bounded change with a known list of touch points.
 - Easier: the sync mechanism has a mechanical collision rule to enforce.
 - Easier: `base/` stays small and stable; language churn stays in its layer.
-- Harder: `.gitignore` and `dependabot.yml` carry sections for languages the
+- Harder: `.gitignore` and `.github/renovate.jsonc` carry sections for languages the
   repo may not use. Accepted: an unused ignore pattern is harmless.
 - Harder: `mise.toml` must be merged, not copied, by the sync tool. That is
   the one piece of real logic the rule imposes.
@@ -87,6 +87,12 @@ judgement.
   extension, as rule 3 does for `.gitignore`. Rule 4 now names the
   extension id as a touch point; it said "nothing else changes" while
   missing it.
+- 2026-09-24: [0007](0007-dependency-updates-by-renovate.md) chose Renovate
+  over Dependabot, so rules 3 and 4 and the consequence above name
+  `.github/renovate.jsonc` where they named `dependabot.yml` and the
+  Dependabot ecosystem. A language's section there covers what Renovate's
+  managers read of its manifests; a pin they cannot read takes a custom
+  manager in the same section, as the mise `dotnet` pin does.
 
 ## Where it is taught or enforced
 
