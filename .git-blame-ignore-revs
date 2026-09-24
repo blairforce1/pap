@@ -12,3 +12,6 @@
 #
 # GitHub reads this file by name. Locally, run once per clone:
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply dprint across the repository (#39)
+d37cd1f5e9ce7bb36c7081326f6f9ae0ae411ab9
