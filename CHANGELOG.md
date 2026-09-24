@@ -104,6 +104,16 @@ Each plugin is versioned independently.
 
 ## pap
 
+### [0.4.0] - 2026-09-24
+
+#### Added
+
+- `/change <slug> <class> [Record: NNNN]`: the per-change ceremony of
+  decision 0002 as a skill. A worktree on `change/<slug>` from a fresh
+  main, a contradictions-only read, background waits, `mise run check` and
+  `mise run test`, a draft pull request with the class label read back
+  after creation and every Checks box answered, and a fixed-shape report.
+
 ### [0.3.0] - 2026-09-24
 
 #### Added
