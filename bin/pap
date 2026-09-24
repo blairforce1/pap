@@ -40,7 +40,7 @@
 set -eu
 
 die() { printf 'pap: %s\n' "$*" >&2; exit 1; }
-say() { printf '%s\n' "$*"; }
+say() { printf '%s\n' "$@"; }
 
 self="$0"
 while [ -L "$self" ]; do
