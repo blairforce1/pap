@@ -66,8 +66,8 @@ has the comparison.
 What it reads, checked with a Renovate 44.112.3 dry run on a repository
 built from `base`, `dotnet` and `go`:
 
-- **mise**: every `[tools]` line in `.config/mise/conf.d/*.toml`, `ubi:`
-  and `go:` backends included, except `dotnet`, which the mise manager
+- **mise**: every `[tools]` line in `.config/mise/conf.d/*.toml`, `ubi:`,
+  `go:` and `github:` backends included, except `dotnet`, which the mise manager
   has no datasource for. A custom manager in the .NET section reads that
   one as the same `dotnet-sdk` dependency `global.json` names, so the two
   move in one pull request.
@@ -76,23 +76,26 @@ built from `base`, `dotnet` and `go`:
   together, so a custom manager reads the version from the comment above
   each (`// git 1.3.8.`) and moves the comment and the digest together.
   Keep that comment format. ghcr.io gives no release date for a feature,
-  so the cooldown cannot hold one back.
+  so the cooldown cannot hold one back. mise itself, in `onCreateCommand`,
+  is read by a custom manager from the `releases/download/v<version>/install.sh`
+  URL and the sha256 after it: Renovate computes the new release's
+  `install.sh` sha256 and moves both.
+- **dprint**: the plugin versions in `dprint.json`, from npm, by a custom
+  manager that reads each `"npm:<package>@<version>"` entry.
+- **pap**: the `github:blairforce1/pap` pin in
+  `.config/mise/conf.d/pap.toml`, which `pap init` writes, by the mise
+  manager like any `github:` pin, the table form with `asset_pattern`
+  included (checked 2026-09-24: a `github:cli/cli` table pin got an update
+  proposed). Merging that update moves only the pin: run `mise install`,
+  then `pap sync`, and commit the sync on the same branch.
 - **GitHub Actions**: `uses:` by commit SHA with the version as a comment;
   both move.
 - **.NET, Go, Node**: `Directory.Packages.props`, `global.json`,
   `packages.lock.json`; `go.mod` and `go.sum`, with the `go` directive
   moved with the mise `go` pin; `package.json` and its lock file.
 
-Updated by hand, because nothing reads them:
-
-- mise itself, and the sha256 of its install script, in the devcontainer's
-  `onCreateCommand`. Take the version from the mise releases page and the
-  sha256 of that release's `install.sh`.
-- The dprint plugin versions in `dprint.json`: `dprint config update`
-  raises them.
-- pap itself, in `.config/mise/conf.d/pap.toml`, which `pap init` writes.
-  Whether Renovate's mise manager reads a `github:` pin is not verified
-  yet (decision 0008). Bump it, `mise install`, then `pap sync`.
+Updated by hand: nothing, as of Renovate 44.112.3. A pin added to a layer
+is read by one of the managers above or listed here (rule 7.1).
 
 ### Installing the app
 
@@ -159,6 +162,13 @@ clone setup below, applies the GitHub settings with `pap repo apply` when
 another layer to add that layer; run it unchanged and nothing changes. In
 a repository that already has some of these files, a file that differs
 from the template gets conflict markers to resolve.
+
+Run from a git checkout of pap instead, `init` takes the checkout's
+templates. On a commit tagged `v<x.y.z>` that is the release; on any other
+commit it records `version = "unreleased"` and the commit sha, and writes
+no pin. `sync` then merges from that commit as it would from a version,
+reading it from the checkout or fetching it from GitHub, and refuses a
+commit that was never pushed.
 
 To take a new template version, bump the pin, then:
 

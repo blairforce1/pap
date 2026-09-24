@@ -74,6 +74,30 @@
       "datasourceTemplate": "docker",
       "versioningTemplate": "semver"
     },
+    // base: mise itself in the devcontainer's onCreateCommand, fetched by
+    // its versioned install.sh and checked against that script's sha256.
+    // The version is the release tag; the digest is the script's, which
+    // github-release-attachments computes from the new release's asset,
+    // since the release's SHASUMS files do not list install.sh.
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
+      "matchStrings": [
+        "releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/install\\.sh && echo '(?<currentDigest>[a-f0-9]{64}) "
+      ],
+      "depNameTemplate": "jdx/mise",
+      "datasourceTemplate": "github-release-attachments"
+    },
+    // base: the dprint plugins, which dprint fetches from npm by the
+    // version in each "npm:<package>@<version>" entry.
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)dprint\\.json$/"],
+      "matchStrings": [
+        "\"npm:(?<depName>(?:@[a-z0-9-]+/)?[a-z0-9-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "npm"
+    },
     // .NET: the mise manager has no datasource for `dotnet` (Renovate
     // 44.112.3 skips it as unsupported-datasource), so the SDK pin in
     // .config/mise/conf.d/dotnet.toml is read here, as the same dependency
@@ -116,6 +140,12 @@
       "matchFileNames": ["**/.devcontainer/devcontainer.json"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "devcontainer"
+    },
+    // The dprint plugins, from the custom manager above.
+    {
+      "matchFileNames": ["**/dprint.json"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dprint plugins"
     },
     // Actions are pinned by full commit SHA with the version as a comment;
     // Renovate moves both.
