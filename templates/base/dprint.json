@@ -1,0 +1,23 @@
+{
+  // dprint formats JSON, YAML, Markdown, TOML and Dockerfiles; everything
+  // else is checked by editorconfig-checker (.editorconfig-checker.json
+  // excludes these types so the two never disagree about one file).
+  //
+  // Kept in sync with .editorconfig [*] by leaving dprint's defaults alone:
+  // indentWidth 2 = indent_size, useTabs false = indent_style space,
+  // newLineKind lf = end_of_line. dprint does not read .editorconfig, so
+  // setting any of them here makes a second copy that drifts; if a default
+  // changes, change .editorconfig first (see the base README).
+  "excludes": [
+    "**/packages.lock.json",
+    "**/*-lock.json",
+    "artifacts/**"
+  ],
+  "plugins": [
+    "npm:@dprint/json@0.24.0",
+    "npm:@dprint/markdown@0.24.0",
+    "npm:@dprint/toml@0.8.0",
+    "npm:dprint-plugin-yaml@0.6.0",
+    "npm:@dprint/dockerfile@0.6.0"
+  ]
+}
