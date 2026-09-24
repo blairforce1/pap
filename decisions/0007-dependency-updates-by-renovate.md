@@ -101,6 +101,14 @@ well enough.
   instead of `dependabot.yml` and the Dependabot ecosystem.
 - Follow-up: nothing checks that an adopting repository keeps the file or
   that a new pin is covered; the sync tool is where that check belongs.
+- 2026-09-24, found on #34: Renovate's own pull requests must pass
+  pr-checks. They carry `Change: none` and `Record: none` through
+  `prBodyNotes`, and the reusable workflow in `blairforce1/.github` exempts
+  a bot account (a login ending in `[bot]`) from the Checks-section and
+  provenance checks only, still holding it to the title, `Change:` line and
+  class label. The same pull request found that the hosted app reads
+  configuration through the GitHub API, which does not follow symlinks, so
+  pap carries a copy of the template file, not a link to it.
 
 ## Where it is taught or enforced
 

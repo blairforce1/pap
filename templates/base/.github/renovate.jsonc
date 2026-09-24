@@ -24,10 +24,13 @@
   "internalChecksFilter": "strict",
 
   // build(deps): update <dep> to <version>, labelled for the pr-checks class.
+  // pr-checks holds a bot's pull request to its title, Change line and class
+  // label, so the body notes carry the two footer lines the template would.
   "semanticCommits": "enabled",
   "semanticCommitType": "build",
   "semanticCommitScope": "deps",
   "labels": ["class:infra"],
+  "prBodyNotes": ["Change: none", "Record: none"],
 
   // Majors always get their own pull request; minor and patch are grouped
   // per ecosystem by the packageRules below.
