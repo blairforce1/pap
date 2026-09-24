@@ -23,3 +23,4 @@ jobs:
       - run: sh tests/assemble.test.sh
       - run: sh tests/change-worktree.test.sh
       - run: sh tests/renovate-copy.test.sh
+      - run: sh tests/pap.test.sh
