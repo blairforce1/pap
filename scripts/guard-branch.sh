@@ -48,7 +48,7 @@ check_push_refs() {
   # stdin is the ref list only when git (or lefthook with use_stdin) pipes
   # it in; a terminal means a manual run with nothing to read.
   [ -t 0 ] && return 0
-  while read -r local_ref local_sha remote_ref remote_sha; do
+  while read -r local_ref _ remote_ref _; do
     [ -n "${remote_ref:-}" ] || continue
     if [ "$remote_ref" = "refs/heads/main" ]; then
       refuse "refusing to push $local_ref to $remote_ref" "$1"
