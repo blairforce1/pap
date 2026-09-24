@@ -8,7 +8,7 @@
 # top-level README.md documents the layer and is not copied. Refuses, and
 # writes nothing, when two layers carry the same path (decision 0003 rule 1),
 # when a layer does not exist, or when <target-dir> exists and is not empty.
-# The seed of `pap init`.
+# `pap init` and `pap sync` (bin/pap) build each template version with it.
 
 set -eu
 

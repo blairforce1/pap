@@ -1,0 +1,383 @@
+#!/bin/sh
+# pap: adopt the PAP template in a repository, re-apply it at a new version,
+# and check the machine it is worked on from (decisions 0003, 0008, 0009).
+#
+# Usage: pap init <layer>... [--version <v>]
+#        pap sync [--version <v>]
+#        pap repo status|apply [--repo owner/name] [--dry-run]
+#        pap codeowners [--owner <owner>] [--check | -]
+#        pap doctor
+#        pap version
+#
+# init    Applies base plus the named language layers to the repository at
+#         the current directory, records the version and layers in
+#         .config/pap.toml, pins pap itself in .config/mise/conf.d/pap.toml
+#         when this pap is a release, runs `mise trust && mise install &&
+#         mise run setup`, `pap repo apply` when origin is on GitHub and
+#         `pap codeowners` when product/invariants.md exists, then prints
+#         what to do next. Run again with more layers to add them; run again
+#         unchanged and nothing changes.
+# sync    Re-applies the recorded layers at <v> with a three-way merge per
+#         file: the template at the recorded version is the base, the
+#         repository's file is ours, the template at <v> is theirs. Local
+#         edits are kept; a clash is left as ordinary git conflict markers
+#         and sync exits 1.
+# repo    scripts/repo-sync.sh: the GitHub side, settings to labels.
+# codeowners
+#         scripts/gen-codeowners.sh: .github/CODEOWNERS from the invariants.
+# doctor  The machine side repo status cannot see: mise on PATH and
+#         activated, this configuration trusted, the git hooks installed,
+#         blame.ignoreRevsFile set, and every pinned tool installed at its
+#         pin. Each item is ok, missing, drift or skipped; exits 1 unless
+#         every item is ok or skipped.
+#
+# <v> defaults to this pap's own version, the VERSION file a release
+# carries. A template version other than its own is fetched as tag v<v> from
+# $PAP_SOURCE (default https://github.com/blairforce1/pap.git; a local path
+# works). init and sync refuse a working tree with uncommitted changes, so
+# every change they make is one `git diff` away from being undone.
+
+set -eu
+
+die() { printf 'pap: %s\n' "$*" >&2; exit 1; }
+say() { printf '%s\n' "$@"; }
+
+self="$0"
+while [ -L "$self" ]; do
+  link="$(readlink "$self")"
+  case "$link" in /*) self="$link" ;; *) self="$(dirname "$self")/$link" ;; esac
+done
+root="$(cd "$(dirname "$self")/.." && pwd)"
+own_version="$(cat "$root/VERSION" 2>/dev/null || true)"
+source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
+record=.config/pap.toml
+pin=.config/mise/conf.d/pap.toml
+
+usage() { sed -n '5,10p' "$self" | sed 's/^# //' >&2; exit 64; }
+
+# --- Template trees --------------------------------------------------------
+
+work=""
+cleanup() { [ -z "$work" ] || rm -rf "$work"; }
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT TERM
+workdir() { [ -n "$work" ] || work="$(mktemp -d)"; }
+
+# tree_for <v>: prints a directory holding pap at tag v<v>.
+tree_for() {
+  if [ "$1" = "$own_version" ]; then printf '%s\n' "$root"; return; fi
+  if [ -d "$work/src-$1" ]; then printf '%s\n' "$work/src-$1"; return; fi
+  src="$source"
+  case "$src" in /*) src="file://$src" ;; esac
+  git clone --quiet --depth 1 --branch "v$1" -c advice.detachedHead=false \
+    "$src" "$work/src-$1" 2>"$work/clone.err" ||
+    die "cannot fetch template v$1 from $source: $(tail -n 1 "$work/clone.err")"
+  printf '%s\n' "$work/src-$1"
+}
+
+# build <v> <dest> <layer>...: the layers at v, assembled by that version's
+# own assemble.sh, which dereferences symlinks, leaves out layer READMEs and
+# refuses a collision (decision 0003 rule 1).
+build() {
+  b_v="$1" b_dest="$2"
+  shift 2
+  b_tree="$(tree_for "$b_v")" || exit 1
+  sh "$b_tree/scripts/assemble.sh" "$@" "$b_dest" >/dev/null || die "cannot assemble v$b_v: $*"
+}
+
+# --- The record ------------------------------------------------------------
+
+rec_version() { sed -n 's/^version = "\(.*\)"$/\1/p' "$record"; }
+rec_layers() { sed -n 's/^layers = \[\(.*\)\]$/\1/p' "$record" | tr -d '",'; }
+
+write_record() { # write_record <v> <layer>...
+  r_v="$1"
+  shift
+  list="$(printf '"%s", ' "$@")"
+  mkdir -p "$(dirname "$record")"
+  cat > "$record" <<EOF
+# Written by \`pap init\` and \`pap sync\`; do not edit by hand. The template
+# version and layers applied to this repository (decision 0008): pap sync
+# merges from this version, and the event emitter reports it.
+version = "$r_v"
+layers = [${list%, }]
+EOF
+}
+
+# --- The merge -------------------------------------------------------------
+
+# apply <old> <new> <old label> <new label>: brings the repository at the
+# current directory from the template tree <old> to <new>, file by file.
+# Prints one line per path it touched and sets $conflicts.
+apply() {
+  old="$1" new="$2"
+  : > "$work/empty"
+  { (cd "$old" && find . -type f); (cd "$new" && find . -type f); } |
+    sed 's|^\./||' | sort -u > "$work/paths"
+  conflicts=0
+  while IFS= read -r p; do
+    if [ ! -f "$new/$p" ]; then
+      # The template no longer carries it.
+      [ -e "$p" ] || continue
+      if cmp -s "$p" "$old/$p"; then
+        rm "$p" && say "D  $p"
+      else
+        say "   $p: dropped by the template, kept because it was edited here"
+      fi
+      continue
+    fi
+    # The template did not change it: whatever is here stays.
+    [ -f "$old/$p" ] && cmp -s "$old/$p" "$new/$p" && continue
+    if [ ! -e "$p" ]; then
+      if [ -f "$old/$p" ]; then
+        say "   $p: changed by the template, kept deleted because it was deleted here"
+      else
+        mkdir -p "$(dirname "$p")"
+        cp "$new/$p" "$p" && say "A  $p"
+      fi
+      continue
+    fi
+    cmp -s "$p" "$new/$p" && continue
+    base="$old/$p"
+    [ -f "$base" ] || base="$work/empty"
+    rc=0
+    git merge-file -L "$p (here)" -L "template $3" -L "template $4" "$p" "$base" "$new/$p" || rc=$?
+    case "$rc" in
+      0) say "M  $p" ;;
+      255) die "cannot merge $p" ;;
+      *) say "C  $p" && conflicts=$((conflicts + 1)) ;;
+    esac
+    [ ! -x "$new/$p" ] || chmod +x "$p"
+  done < "$work/paths"
+}
+
+# --- Commands --------------------------------------------------------------
+
+to_top() {
+  top="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
+  cd "$top"
+}
+
+require_clean() {
+  [ -z "$(git status --porcelain)" ] ||
+    die "the working tree has uncommitted changes; commit or stash them first"
+}
+
+target_version() {
+  v="${opt_version:-$own_version}"
+  [ -n "$v" ] || die "this pap is not a release and has no version of its own; pass --version <v>"
+  printf '%s\n' "$v"
+}
+
+cmd_init() {
+  layers=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --version) [ $# -ge 2 ] || usage; opt_version="$2"; shift 2 ;;
+      --version=*) opt_version="${1#--version=}"; shift ;;
+      -*) usage ;;
+      *) layers="$layers $1"; shift ;;
+    esac
+  done
+  [ -n "$layers" ] || usage
+  case " $layers " in *" base "*) ;; *) die "every repository adopts base; name it first: pap init base$layers" ;; esac
+  to_top
+  require_clean
+  v="$(target_version)" || exit 1
+  workdir
+  old_label="none"
+  if [ -f "$record" ]; then
+    old_v="$(rec_version)"
+    # shellcheck disable=SC2046 # the recorded layers are words
+    build "$old_v" "$work/old" $(rec_layers)
+    old_label="v$old_v"
+  else
+    mkdir "$work/old"
+  fi
+  # shellcheck disable=SC2086 # the layers are words
+  build "$v" "$work/new" $layers
+  apply "$work/old" "$work/new" "$old_label" "v$v"
+  # shellcheck disable=SC2086
+  write_record "$v" $layers
+  if [ -n "$own_version" ] && [ ! -e "$pin" ]; then
+    cat > "$pin" <<EOF
+# pap itself, at the tag this repository applies (decision 0001: app
+# repositories pin the tag). Written once by \`pap init\`. To move to a new
+# template version, bump this line, \`mise install\`, then \`pap sync\`.
+[tools]
+"github:blairforce1/pap" = { version = "$own_version", asset_pattern = "pap-*.tar.gz" }
+EOF
+  fi
+  say "Recorded v$v with layers:$layers in $record"
+  if [ "$conflicts" -gt 0 ]; then
+    say "" "$conflicts file(s) have conflict markers. Resolve them, commit, then run pap init$layers again to finish setup."
+    exit 1
+  fi
+
+  say "" "Setting up this clone: mise trust && mise install && mise run setup"
+  mise trust && mise install && mise run setup
+
+  if git remote get-url origin 2>/dev/null | grep -q 'github\.com[:/]'; then
+    say "" "Applying repository settings: pap repo apply"
+    bash "$root/scripts/repo-sync.sh" apply || say "pap repo apply reported failures; see above"
+    repo_note="Check the GitHub side with pap repo status."
+  else
+    repo_note="No GitHub origin yet: after the first push, run pap repo apply."
+  fi
+  if [ -f product/invariants.md ]; then
+    sh "$root/scripts/gen-codeowners.sh" && say "Wrote .github/CODEOWNERS"
+    owners_note=""
+  else
+    owners_note="No product/invariants.md yet: run /envision, then pap codeowners."
+  fi
+
+  say "" "Next:" \
+    "  git add -A && git commit    # on a change/<id> branch, then a draft pull request" \
+    "  $repo_note"
+  [ -z "$owners_note" ] || say "  $owners_note"
+  say "  pap doctor                  # this machine: mise, hooks, tool pins"
+}
+
+cmd_sync() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --version) [ $# -ge 2 ] || usage; opt_version="$2"; shift 2 ;;
+      --version=*) opt_version="${1#--version=}"; shift ;;
+      *) usage ;;
+    esac
+  done
+  to_top
+  [ -f "$record" ] || die "no $record: this repository has not adopted the template; run pap init"
+  require_clean
+  v="$(target_version)" || exit 1
+  old_v="$(rec_version)"
+  layers="$(rec_layers)"
+  [ -n "$old_v" ] && [ -n "$layers" ] || die "$record has no version or no layers"
+  if [ "$old_v" = "$v" ]; then
+    say "Already at v$v."
+    return
+  fi
+  workdir
+  # shellcheck disable=SC2086
+  build "$old_v" "$work/old" $layers
+  # shellcheck disable=SC2086
+  build "$v" "$work/new" $layers
+  apply "$work/old" "$work/new" "v$old_v" "v$v"
+  # shellcheck disable=SC2086
+  write_record "$v" $layers
+  say "Synced v$old_v -> v$v (layers: $layers)."
+  if [ "$conflicts" -gt 0 ]; then
+    say "$conflicts file(s) have conflict markers: resolve them, then commit."
+    exit 1
+  fi
+  say "Next: review with git diff, run mise install for any new pins, then commit."
+}
+
+# doctor ---------------------------------------------------------------------
+
+d_bad=0
+item() { # item <state> <what> [detail]
+  printf '  %-8s %s%s\n' "$1" "$2" "${3:+  ($3)}"
+  case "$1" in ok | skipped) ;; *) d_bad=$((d_bad + 1)) ;; esac
+}
+
+cmd_doctor() {
+  [ $# -eq 0 ] || usage
+  to_top
+  say "mise"
+  if ! command -v mise >/dev/null 2>&1; then
+    item missing "mise on PATH" "https://mise.jdx.dev/getting-started.html"
+    has_mise=false
+  else
+    item ok "mise on PATH" "$(mise --version 2>/dev/null | cut -d' ' -f1)"
+    has_mise=true
+  fi
+  shims="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
+  if [ -n "${MISE_SHELL:-}" ]; then
+    item ok "mise activated" "$MISE_SHELL"
+  else
+    case ":$PATH:" in
+      *":$shims:"*) item ok "mise activated" "shims on PATH" ;;
+      *) item missing "mise activated" "add eval \"\$(mise activate <shell>)\" to your shell's rc file" ;;
+    esac
+  fi
+  if [ "$has_mise" = false ]; then
+    item skipped "configuration trusted" "no mise"
+  elif mise trust --show 2>/dev/null | grep -qv ': trusted$'; then
+    item missing "configuration trusted" "run mise trust"
+  else
+    item ok "configuration trusted"
+  fi
+
+  say "" "git"
+  hooks="$(git rev-parse --git-path hooks)"
+  for h in pre-commit pre-push; do
+    if [ ! -f "$hooks/$h" ]; then
+      item missing "$h hook installed" "run mise run setup"
+    elif grep -q lefthook "$hooks/$h"; then
+      item ok "$h hook installed"
+    else
+      item drift "$h hook installed" "$hooks/$h is not lefthook's"
+    fi
+  done
+  if [ -n "$(git config blame.ignoreRevsFile || true)" ]; then
+    item ok "blame.ignoreRevsFile set"
+  else
+    item missing "blame.ignoreRevsFile set" "run mise run setup"
+  fi
+
+  say "" "tool pins"
+  if [ "$has_mise" = false ]; then
+    item skipped "pinned tools" "no mise"
+  elif ! json="$(mise ls --current --json 2>&1)"; then
+    item missing "pinned tools" "$(printf '%s\n' "$json" | head -n 1)"
+  else
+    # One line per tool: name, active version, pinned version, installed,
+    # and the configuration file that pins it.
+    rows="$(printf '%s\n' "$json" | awk '
+      function val(s) { sub(/^[^:]*: */, "", s); sub(/,$/, "", s); gsub(/"/, "", s); return s }
+      /^  "[^"]+": \[/ { t = $0; sub(/^  "/, "", t); sub(/": \[.*/, "", t); v = r = i = s = "" }
+      /^      "version":/ { v = val($0) }
+      /^      "requested_version":/ { r = val($0) }
+      /^      "installed":/ { i = val($0) }
+      /^        "path":/ { s = val($0) }
+      /^    }/ { if (t != "") print t, v, r, i, s }')"
+    pinned=0
+    while read -r t v r i s; do
+      # Only this repository's pins, not the global configuration's.
+      case "$s" in "$top"/*) ;; *) continue ;; esac
+      pinned=$((pinned + 1))
+      if [ "$i" != true ]; then
+        item missing "$t $r" "run mise install"
+      elif [ -n "$r" ] && [ "$v" != "$r" ]; then
+        item drift "$t $r" "active is $v"
+      else
+        item ok "$t $r"
+      fi
+    done <<EOF
+$rows
+EOF
+    [ "$pinned" -gt 0 ] || item skipped "pinned tools" "nothing pinned here"
+  fi
+
+  say ""
+  if [ "$d_bad" -eq 0 ]; then
+    say "This machine is ready."
+  else
+    say "$d_bad item(s) need attention."
+    exit 1
+  fi
+}
+
+opt_version=""
+cmd="${1:-}"
+[ $# -eq 0 ] || shift
+case "$cmd" in
+  init) cmd_init "$@" ;;
+  sync) cmd_sync "$@" ;;
+  repo) exec bash "$root/scripts/repo-sync.sh" "$@" ;;
+  codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
+  doctor) cmd_doctor "$@" ;;
+  version) say "${own_version:-unreleased ($root)}" ;;
+  *) usage ;;
+esac

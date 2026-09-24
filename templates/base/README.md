@@ -15,7 +15,7 @@ framework version or a person.
 | `.lefthookrc` | Puts mise's shims first on PATH before every hook job, so the hooks find the pinned tools from a shell, GUI client or agent session that has not activated mise. A shim resolves the version this repository pins and works without `mise` itself on PATH. The hook script sources this file too, before it looks for lefthook, so it finds lefthook through the shim; the absolute path `lefthook install` writes is only a fallback. That is why hooks installed in the devcontainer work on the host and the reverse: the path names one side's home directory, the shim exists on both. Where no lefthook is reachable, the hook script prints "Can't find lefthook in PATH" and exits 0, letting the commit through unchecked; this file refuses the commit instead and names the command to run. `LEFTHOOK=0` still skips the hooks. |
 | `scripts/guard-branch.sh` | Refuses a push from any branch but `change/<id>`, and any push to `main` (decision 0002). In this repository it is a symlink to pap's own `scripts/guard-branch.sh`, so there is one copy; the sync tool copies the file it points at. |
 | `scripts/gen-codeowners.sh` | Writes `.github/CODEOWNERS` from the "Protected paths" section of `product/invariants.md`, so GitHub and the `pr-checks` workflow see the same protected paths the invariants name. Every path is owned by the owner segment of the `origin` remote (`github.com/<owner>/<repo>`, ssh or https), or by `--owner`; with neither it refuses. `--check` writes nothing and fails when the CODEOWNERS in the index is stale. The pre-commit job `codeowners` runs it when `product/invariants.md` is staged, and `mise run check:codeowners` runs it on demand, passing where `product/invariants.md` does not exist yet. A symlink to pap's own copy, like `guard-branch.sh`. |
-| `scripts/assemble.sh` (pap only) | Not a file this layer ships: the pap script that builds a repository from layers, `scripts/assemble.sh base [dotnet] [go] <target-dir>`. It copies each layer, dereferencing the symlinks above, leaves out each layer's own `README.md`, prints the files written, and refuses, writing nothing, when two layers carry the same path (decision 0003 rule 1) or the target is not empty. It is the seed of `pap init`, and the way to build the throwaway repository a template change is verified in. |
+| `scripts/assemble.sh` (pap only) | Not a file this layer ships: the pap script that builds a repository from layers, `scripts/assemble.sh base [dotnet] [go] <target-dir>`. It copies each layer, dereferencing the symlinks above, leaves out each layer's own `README.md`, prints the files written, and refuses, writing nothing, when two layers carry the same path (decision 0003 rule 1) or the target is not empty. `pap init` and `pap sync` run it, and it is the way to build the throwaway repository a template change is verified in. |
 | `dprint.json` | Formats JSON, YAML, Markdown, TOML and Dockerfiles, at pinned plugin versions. Sets no indentation, tab or line-ending option: its defaults match the `[*]` section, and the comment in the file names each pair. Excludes lock files and `artifacts/`. |
 | `.editorconfig-checker.json` | Excludes the types dprint formats, so each file has one checker. Turns off only the indent-size check: it refuses any line whose leading spaces are not a multiple of `indent_size`, which rejects aligned continuation lines such as the XML comments in the .NET layer. Indent style, line endings, final newline, trailing whitespace and charset are still checked. |
 | `.devcontainer/devcontainer.json` | One container for every language layer. mise installs every toolchain from `.config/mise/conf.d/`, so the image is plain Debian (`mcr.microsoft.com/devcontainers/base`, trixie), not a language image, and there are no language features; adding a layer changes nothing here. The container runs as the image's non-root `vscode` user, adds the git and GitHub CLI features, and forwards no ports, auto-forwarding included. The image and both features are pinned by digest, with the version in a comment beside each. mise is installed by `onCreateCommand` from its versioned `install.sh` release asset, checked against a sha256; that script carries the checksum of every mise binary it fetches. There is no official mise feature, and the community one fetches unpinned helpers at build time. The same command first restores `/tmp` to mode 1777 if it is not writable: a feature build under podman leaves it root-owned 0755. `postCreateCommand` is the clone setup, `mise trust && mise install && mise run setup`. `remoteEnv` puts mise and its shims on PATH for terminals and extensions. The extension list is the one in `.vscode/extensions.json`. |
@@ -90,13 +90,16 @@ Updated by hand, because nothing reads them:
   sha256 of that release's `install.sh`.
 - The dprint plugin versions in `dprint.json`: `dprint config update`
   raises them.
+- pap itself, in `.config/mise/conf.d/pap.toml`, which `pap init` writes.
+  Whether Renovate's mise manager reads a `github:` pin is not verified
+  yet (decision 0008). Bump it, `mise install`, then `pap sync`.
 
 ### Installing the app
 
 The hosted Renovate is Mend's GitHub App, free on the Community Cloud
 tier. An organisation owner installs it from
 <https://github.com/apps/renovate> and chooses "Only select repositories",
-adding each repository that adopts this template; `pap init` will not do
+adding each repository that adopts this template; `pap init` does not do
 this. The first run opens an onboarding pull request; merge it once the
 file above is on the default branch. Community Cloud runs each active
 repository about every four hours, one job per organisation at a time, so
@@ -136,6 +139,50 @@ the drift is found by the next person whose editor disagrees with CI.
   `--severity`; the default threshold, `warn`, is what the file is written
   against.
 
+## Adopting and syncing the template
+
+`pap` applies these layers to a repository and keeps them current
+(decision 0008). It is a shell script in pap's release archive, installed
+by mise's `github` backend. In the repository, on a `change/<id>` branch
+with a clean working tree:
+
+```sh
+mise exec 'github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@<version>' -- pap init base dotnet go
+```
+
+`init` writes the layers, leaving out each layer's README and refusing a
+path two layers both carry. It records the version and layers in
+`.config/pap.toml`, pins pap in `.config/mise/conf.d/pap.toml`, runs the
+clone setup below, applies the GitHub settings with `pap repo apply` when
+`origin` is on GitHub, writes `.github/CODEOWNERS` when
+`product/invariants.md` exists, and prints what is left. Run it again with
+another layer to add that layer; run it unchanged and nothing changes. In
+a repository that already has some of these files, a file that differs
+from the template gets conflict markers to resolve.
+
+To take a new template version, bump the pin, then:
+
+```sh
+mise install && pap sync
+```
+
+`sync` merges each file three ways: the template at the recorded version
+as the base, this repository's file, and the template at the new version.
+Local edits are kept, the template's changes arrive, and where both
+changed the same lines the file gets ordinary git conflict markers
+(`<<<<<<< <path> (here)` / `>>>>>>> template v<version>`) and `sync` exits
+1. A file the template drops is removed if it was not edited here. Review
+with `git diff`, resolve, commit.
+
+`pap doctor` reports what the GitHub side cannot: mise on PATH and
+activated, the configuration trusted, the git hooks installed,
+`blame.ignoreRevsFile` set, and each pinned tool installed at its pin.
+`pap repo status` reports the GitHub side, and `pap codeowners` regenerates
+`.github/CODEOWNERS`.
+
+Releases are cut in pap with `mise run release <version>` (see
+`scripts/release.sh`); `--dry-run` builds the archive and creates nothing.
+
 ## Setting up a clone
 
 Once per clone:
@@ -146,7 +193,7 @@ mise trust && mise install && mise run setup
 
 `trust` because mise refuses an untrusted configuration, `install` for the
 pinned tools, `setup` for the git hooks and `blame.ignoreRevsFile`. `pap
-init` will run this sequence when it exists.
+init` runs this sequence; `pap doctor` checks the result.
 
 The devcontainer runs the same sequence as its `postCreateCommand`. Hooks
 installed on either side work on both: see the `.lefthookrc` row.

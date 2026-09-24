@@ -18,7 +18,8 @@ This repository is the process definition and the toolkit. It is being built in 
 | `decisions/` | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited. |
 | `plugins/pap/` | A Claude Code plugin: one skill per process phase (`/envision` so far), plus hooks that enforce the rules an agent must not be able to talk its way around. |
 | `plugins/spec-review/` | A Claude Code plugin for phase 3, spec review: eleven reviewer perspectives, from security to the EU AI Act, plus `spec-review-full` to run the whole board. Works on any design document, with or without the `pap` plugin. |
-| `scripts/` | Guards shared by the git hooks and the Claude Code hooks. |
+| `bin/pap` | The `pap` CLI: `init` and `sync` apply the template layers, `repo` and `codeowners` configure GitHub, `doctor` checks the local machine. |
+| `scripts/` | Guards shared by the git hooks and the Claude Code hooks, the template assembler and the release script. |
 | `.github/rulesets/` | The branch ruleset applied to every repo that adopts the process. |
 | `lefthook.yml`, `mise.toml` | Pinned local tooling. `mise install && lefthook install` is the whole setup. |
 
@@ -46,7 +47,7 @@ What PAP adds is the product layer above per-change intent, task classes that se
 1. Install the plugin in Claude Code from this repository's marketplace:
    `claude plugin marketplace add blairforce1/pap` then `claude plugin install pap@blairforce1-pap`.
 2. In a new or existing repo, run `/envision` to produce the product layer (vision, invariants, hypothesis backlog).
-3. Apply the ruleset and install the hooks. A `pap` CLI that does this idempotently is in progress.
+3. Apply the template, the ruleset and the hooks with `pap init base [dotnet] [go]`, and take later template versions with `pap sync`. See "Adopting and syncing the template" in `templates/base/README.md`.
 
 Repository templates (editorconfig, .NET analyzers, formatting, devcontainer) and the metrics pipeline are on the roadmap; see the decision records and open pull requests for current state.
 

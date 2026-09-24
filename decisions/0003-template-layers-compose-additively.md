@@ -94,9 +94,14 @@ judgement.
   managers read of its manifests; a pin they cannot read takes a custom
   manager in the same section, as the mise `dotnet` pin does.
 
+- 2026-09-24: the sync tool is built ([0008](0008-template-sync-by-assemble-and-merge-file.md)).
+  `pap init` and `pap sync` assemble layers with `scripts/assemble.sh`,
+  which refuses a collision, so rule 3.1 is enforced wherever the
+  template is applied.
+
 ## Where it is taught or enforced
 
 Backs [`rules.md`](../rules.md) 3.1 (layers add, never replace). Taught in
-`templates/base/README.md` ("Adding a language"). Enforced by nothing yet;
-planned enforcement is the sync tool's collision check. The status
+`templates/base/README.md` ("Adding a language"). Enforced by
+`scripts/assemble.sh`, which `pap init` and `pap sync` run. The status
 lifecycle follows [0001](0001-process-changes-are-measured-interventions.md).
