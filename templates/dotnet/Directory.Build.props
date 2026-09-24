@@ -107,8 +107,9 @@
     Directory.Packages.props. Severities are set in .globalconfig: every
     Meziantou and Roslynator rule an IDE rule in .editorconfig already
     covers is switched off, the one exception, MA0007, is above; every
-    SonarAnalyzer.CSharp rule enabled by default is held at suggestion for
-    a bake-in period, see the note in .globalconfig.
+    SonarAnalyzer.CSharp rule enabled by default is set by its Sonar type,
+    bugs and vulnerabilities at warning, smells at suggestion; see the
+    note in .globalconfig.
   -->
   <ItemGroup>
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />

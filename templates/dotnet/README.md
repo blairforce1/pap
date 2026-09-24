@@ -16,7 +16,7 @@ overrides anything in `templates/base/`: rule 3.1 of
 | `Directory.Build.props` | The build settings every project inherits. Nullable reference types and implicit usings on. Every warning is a build failure: the compiler's, the SDK analyzers' at `latest-recommended`, the third-party analyzers', and the `.editorconfig` style rules, which `EnforceCodeStyleInBuild` runs in the compiler. The XML documentation file is generated so IDE0005 runs on build, with CS1591 off so that does not become a documentation mandate. MA0007, the trailing comma in a multi-line initialiser, raised to an error here rather than in `.globalconfig` because `dotnet format` reads severities from compilation options and `.editorconfig` only; set here, the build refuses a missing comma and the formatter adds it. Provenance, for process principle 6 (every artefact records what produced it): deterministic output, `ContinuousIntegrationBuild` when the `CI` variable is set, SourceLink (built into the SDK for GitHub, so no package reference), `PublishRepositoryUrl` and `EmbedUntrackedSources`. All build output under `artifacts/` (`UseArtifactsOutput`), so no `bin/` or `obj/` in project folders. `packages.lock.json` written on every restore and enforced with `RestoreLockedMode` when `CI` is set. Restore audit of every package, direct and transitive, at every severity (`NuGetAuditMode=all`, `NuGetAuditLevel=low`), so an advisory fails restore. NU3018 kept a warning; see "Package source". Projects whose name ends in `.Tests` are never packed and have CA1707 and CA1816 off. Meziantou.Analyzer, Roslynator.Analyzers and SonarAnalyzer.CSharp referenced in every project. |
 | `Directory.Packages.props` | Central package management: a project references a package by name and the version is set once here. Holds the three analyzer versions. Every other package an adopting repository uses gets a `PackageVersion` line here; a project scaffolded by `dotnet new` arrives with versions on its references, and restore refuses them (NU1008) until they move. |
 | `nuget.config` | nuget.org as the only source, sources from user and machine config cleared, and source mapping sending every package id there. Signature validation in `require` mode: a package is extracted only if a trusted signer signed it. Trusted are the nuget.org repository signature (three certificates) and Microsoft's author signature (four certificates). |
-| `.globalconfig` | What the build enforces beyond `.editorconfig`: IDE1006 naming at warning, so a misnamed symbol is a build error, and every Meziantou and Roslynator rule an IDE rule already covers switched off, each group naming the IDE rule. Records why IDE0130 (namespace matches folder) is not there and why MA0007 is not either. Also every SonarAnalyzer.CSharp rule enabled by default, held at `suggestion` for a bake-in period that started 2026-09-24; see "Analyzers". |
+| `.globalconfig` | What the build enforces beyond `.editorconfig`: IDE1006 naming at warning, so a misnamed symbol is a build error, and every Meziantou and Roslynator rule an IDE rule already covers switched off, each group naming the IDE rule. Records why IDE0130 (namespace matches folder) is not there and why MA0007 is not either. Also the severity of every SonarAnalyzer.CSharp rule enabled by default, by Sonar's rule type: Bug and Vulnerability at `warning`, Code Smell and Security Hotspot at `suggestion`; see "Analyzers". |
 
 ## Analyzers
 
@@ -29,19 +29,26 @@ Three packages, all pinned in `Directory.Packages.props`.
   Roslynator.Formatting.Analyzers: every RCS0xxx rule in it is a formatting
   opinion `.editorconfig` already holds.
 - **SonarAnalyzer.CSharp** (S rules): bugs, vulnerabilities, security
-  hotspots and code smells. On a bake-in since 2026-09-24: its 320
-  default-on rules (version 10.34.0.3385) report as suggestions, not
-  warnings, because at warning the bare `dotnet new` scaffold already fails
-  the build (S2094, empty class), and a realistic class fails on ten rules
-  at once. None is switched off. `scripts/sonar-suggestions.cs` in pap
-  generates the list in `.globalconfig`; rerun it when the version moves.
+  hotspots and code smells, each rule typed by Sonar. Severity follows the
+  type. **Enforced: Bug and Vulnerability**, at warning, so a build fails
+  on them; 110 rules in version 10.34.0.3385, among them S2077 (SQL built
+  by string formatting) and S2068 (hard-coded credentials). **Under
+  revisit: Code Smell and Security Hotspot**, at suggestion, failing
+  nothing; 201 smells, and no hotspots, because Sonar retyped its former
+  hotspots as vulnerabilities by 10.34. At Sonar's own defaults every rule
+  is a warning, and the bare `dotnet new` scaffold fails on a smell
+  (S2094, empty class). None is switched off.
+  `scripts/sonar-suggestions.cs` in pap generates the block in
+  `.globalconfig`, reading each rule's type from Sonar's rspec metadata
+  for the analyzer's version; rerun it when the version moves.
 
-  **Revisit** on 2027-03-24, or after ten changes to this layer, whichever
-  comes first. Read what fired, from a build's SARIF log
-  (`dotnet build -p:ErrorLog=build.sarif`), and raise each rule that earned
-  it to warning, one rule per commit with the evidence. Five overlap a rule
-  already enforced (S1104 CA1051, S1135 MA0026, S2325 CA1822, S108 and
-  S2486 RCS1075); the revisit decides which copy stays.
+  **Revisit** of the two suggestion types, from 2026-09-24: on
+  2027-03-24, or after ten changes to this layer, whichever comes first.
+  Read what fired, from a build's SARIF log
+  (`dotnet build -p:ErrorLog=build.sarif`), and raise each smell that
+  earned it to warning, one rule per commit with the evidence. Five
+  overlap a rule already enforced (S1104 CA1051, S1135 MA0026, S2325
+  CA1822, S108 and S2486 RCS1075); the revisit decides which copy stays.
 
 Not used, on purpose:
 
@@ -66,8 +73,10 @@ Measured on SDK 10.0.401 with a class library and an xunit project.
   else and exits 0.
 - Every other Meziantou and Roslynator rule at warning by default: the build
   fails; those with a fix are applied by `dotnet format`.
-- Every SonarAnalyzer.CSharp rule: none fails the build during the bake-in
-  period; each is a suggestion instead. See "Analyzers" and `.globalconfig`.
+- SonarAnalyzer.CSharp Bug and Vulnerability rules: the build fails. A
+  query built by concatenation fails on S2077, a password in a local on
+  S2068. Code Smell rules are suggestions and fail nothing. See
+  "Analyzers" and `.globalconfig`.
 - IDE0130 namespace matches folder: not enforced. See `.globalconfig`.
 - A file `dotnet new` scaffolds arrives with a UTF-8 byte-order mark, which
   the base `charset = utf-8` refuses. `dotnet format` strips it from `.cs`
