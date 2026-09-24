@@ -7,3 +7,8 @@ yq = "4.53.6"
 [tasks.test]
 description = "Run the repository test suites"
 run = ["sh tests/guard-route.test.sh", "sh tests/gen-codeowners.test.sh", "sh tests/assemble.test.sh", "sh tests/change-worktree.test.sh"]
+
+# Scratch: pap has no check task yet; this one lets the preview run the
+# check job.
+[tasks.check]
+run = "mise run test"

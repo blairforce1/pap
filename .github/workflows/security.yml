@@ -1,0 +1,14 @@
+# Scratch: previews blairforce1/.github#4's security workflow on pap. Not
+# for merging.
+name: security
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security:
+    uses: blairforce1/.github/.github/workflows/security.yml@preview-security-scanning
