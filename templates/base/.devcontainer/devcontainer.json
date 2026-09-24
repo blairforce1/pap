@@ -31,9 +31,11 @@
   "otherPortsAttributes": {
     "onAutoForward": "ignore"
   },
-  // mise 2026.5.12. No official mise feature exists; the community one
-  // fetches unpinned helpers at build time.
-  "onCreateCommand": "curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh",
+  // First, /tmp: the base image has it 1777, but a feature build under
+  // podman leaves it root 0755, and mise, dotnet and go all write there.
+  // A no-op under Docker. Then mise 2026.5.12: no official mise feature
+  // exists, and the community one fetches unpinned helpers at build time.
+  "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh",
   "postCreateCommand": "mise trust && mise install && mise run setup",
   "customizations": {
     "vscode": {
