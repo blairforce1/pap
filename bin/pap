@@ -41,6 +41,11 @@
 # Unreleased: run from a checkout whose commit carries no release tag, with
 # no --version, pap applies that commit's templates, records
 # version = "unreleased" and commit = "<sha>", and writes no pin for itself.
+# The sha is the merge-base of HEAD with the checkout's origin/main, the
+# newest commit sure to reach main: a squash merge discards a branch's own
+# commits. With no origin/main it is HEAD, with a warning. Template changes
+# on the branch past the merge-base read as local edits on the next sync
+# until main has them.
 # sync treats the recorded commit as the three-way base exactly as it would a
 # version: it reads the commit from this checkout if it has it, else fetches
 # it from $PAP_SOURCE, and refuses if neither has it (a commit that was never
@@ -67,6 +72,11 @@ if [ -z "$own_version" ] && git -C "$root" rev-parse --verify -q HEAD >/dev/null
   else
     own_commit="$(git -C "$root" rev-parse HEAD)"
   fi
+fi
+# The commit an unreleased record names: see "Unreleased" above.
+own_base=""
+if [ -n "$own_commit" ] && git -C "$root" rev-parse --verify -q refs/remotes/origin/main >/dev/null; then
+  own_base="$(git -C "$root" merge-base HEAD refs/remotes/origin/main 2>/dev/null || true)"
 fi
 source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
@@ -136,7 +146,24 @@ rec_ref() {
 describe() { case "$1" in v*) printf '%s\n' "$1" ;; *) printf 'unreleased %.12s\n' "$1" ;; esac; }
 rec_layers() { sed -n 's/^layers = \[\(.*\)\]$/\1/p' "$record" | tr -d '",'; }
 
+# recordable <ref>: sets $recorded to what the record names for <ref>.
+recordable() {
+  recorded="$1"
+  [ -n "$own_commit" ] && [ "$1" = "$own_commit" ] || return 0
+  if [ -z "$own_base" ]; then
+    printf 'pap: warning: %s has no origin/main to find a merge-base with; recording HEAD %.12s, which a squash merge will not bring to main\n' "$root" "$1" >&2
+    return 0
+  fi
+  recorded="$own_base"
+  [ "$own_base" = "$1" ] ||
+    git -C "$root" diff --quiet "$own_base" "$1" -- templates scripts/assemble.sh ||
+    say "Note: this checkout changes the templates since $(describe "$own_base"), the merge-base with origin/main that the record names; the next sync reads those changes as local edits until main has them."
+}
+
 write_record() { # write_record <ref> <layer>...
+  recordable "$1"
+  shift
+  set -- "$recorded" "$@"
   case "$1" in
     v*) r_lines="version = \"${1#v}\"" ;;
     *) r_lines="version = \"unreleased\"
@@ -263,7 +290,7 @@ cmd_init() {
 "github:blairforce1/pap" = { version = "$own_version", asset_pattern = "pap-*.tar.gz" }
 EOF
   fi
-  say "Recorded $(describe "$ref") with layers:$layers in $record"
+  say "Recorded $(describe "$recorded") with layers:$layers in $record"
   if [ "$conflicts" -gt 0 ]; then
     say "" "$conflicts file(s) have conflict markers. Resolve them, commit, then run pap init$layers again to finish setup."
     exit 1
@@ -320,7 +347,7 @@ cmd_sync() {
   apply "$work/old" "$work/new" "$(describe "$old_ref")" "$(describe "$ref")"
   # shellcheck disable=SC2086
   write_record "$ref" $layers
-  say "Synced $(describe "$old_ref") -> $(describe "$ref") (layers: $layers)."
+  say "Synced $(describe "$old_ref") -> $(describe "$recorded") (layers: $layers)."
   if [ "$conflicts" -gt 0 ]; then
     say "$conflicts file(s) have conflict markers: resolve them, then commit."
     exit 1
