@@ -1,3 +1,4 @@
+# scratch: preview of blairforce1/.github change/security-cache-isolation; do not merge.
 # security.yml: calls the reusable security workflow in blairforce1/.github
 # on every pull request: `mise run check`, gitleaks over the pull request's
 # commits, Semgrep and Trivy. A finding at high or critical fails its check;
