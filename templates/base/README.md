@@ -165,8 +165,10 @@ from the template gets conflict markers to resolve.
 
 Run from a git checkout of pap instead, `init` takes the checkout's
 templates. On a commit tagged `v<x.y.z>` that is the release; on any other
-commit it records `version = "unreleased"` and the commit sha, and writes
-no pin. `sync` then merges from that commit as it would from a version,
+commit it records `version = "unreleased"` and a commit sha, and writes
+no pin. The sha is the merge-base of HEAD with the checkout's
+`origin/main`, because a squash merge discards the branch's own commits;
+with no `origin/main` it is HEAD, with a warning. `sync` then merges from that commit as it would from a version,
 reading it from the checkout or fetching it from GitHub, and refuses a
 commit that was never pushed.
 

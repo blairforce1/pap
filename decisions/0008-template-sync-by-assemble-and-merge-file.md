@@ -111,6 +111,14 @@ merge, which git already ships.
   records `version = "unreleased"` and a `commit` line, a third line in
   `.config/pap.toml`. `pap sync` uses that commit as the three-way base,
   from the checkout or fetched from GitHub, and refuses one it cannot find.
+- Recorded 2026-09-24: that commit is the merge-base of HEAD with the
+  checkout's `origin/main`, not HEAD. A squash merge discards a branch's
+  own commits, so a recorded branch head stops existing on main; #38's
+  record had to be corrected by hand. The merge-base is the newest commit
+  sure to reach main. init still applies HEAD's templates, so a branch's
+  template changes past the merge-base read as local edits on the next
+  sync until main has them, and init says so. With no `origin/main` it
+  records HEAD and warns.
 
 ## Where it is taught or enforced
 

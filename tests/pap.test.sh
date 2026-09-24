@@ -189,6 +189,53 @@ out="$(cd "$T/unrel2" && sh "$T/src/bin/pap" init base 2>&1)"; rc=$?
 result $? "unreleased: init refuses a checkout with uncommitted template changes" "$out"
 g -C "$T/src" checkout -q -- .
 
+# --- the recorded commit: the merge-base with origin/main -------------------
+
+# init_from <pap checkout> <app>: init base in a new repository <app>.
+init_from() {
+  git init -q -b main "$T/$2"
+  out="$(cd "$T/$2" && sh "$T/$1/bin/pap" init base 2>&1)"; rc=$?
+}
+recorded() { sed -n 's/^commit = "\(.*\)"$/\1/p' "$T/$1/.config/pap.toml"; }
+
+git clone -q "$T/src" "$T/co"
+init_from co onmain
+[ "$rc" = 0 ] && [ "$(recorded onmain)" = "$sha_u" ] && ! printf '%s\n' "$out" | grep -q warning
+result $? "recorded commit: init on main records HEAD" "$out"
+
+g -C "$T/co" switch -qc change/x
+printf '# On the branch only.\n' >> "$T/co/templates/base/trivy.yaml"
+g -C "$T/co" commit -qam branch
+init_from co onbranch
+[ "$rc" = 0 ] && [ "$(recorded onbranch)" = "$sha_u" ] &&
+  grep -qx '# On the branch only.' "$T/onbranch/trivy.yaml" &&
+  printf '%s\n' "$out" | grep -q 'Note: this checkout changes the templates'
+result $? "recorded commit: init on a branch ahead of main applies HEAD and records the merge-base" "$out"
+
+git clone -q "$T/co" "$T/co-noorigin" && git -C "$T/co-noorigin" remote remove origin
+sha_b="$(git -C "$T/co-noorigin" rev-parse HEAD)"
+init_from co-noorigin noorigin
+[ "$rc" = 0 ] && [ "$(recorded noorigin)" = "$sha_b" ] &&
+  printf '%s\n' "$out" | grep -q 'warning: .* has no origin/main'
+result $? "recorded commit: init with no origin records HEAD and warns" "$out"
+
+# sync from each: the base is the recorded commit, fetched from PAP_SOURCE
+# (the merge-base and main's HEAD) or from a checkout that has it.
+for app in onmain onbranch; do
+  g -C "$T/$app" add -A && g -C "$T/$app" commit -qm init
+  out="$(cd "$T/$app" && sh "$pap" sync --version 0.3.0 2>&1)"; rc=$?
+  [ "$rc" = 0 ] && grep -qx 'version = "0.3.0"' "$T/$app/.config/pap.toml" &&
+    ! grep -q 'unreleased' "$T/$app/.gitignore"
+  result $? "recorded commit: sync from $app's record to v0.3.0" "$out"
+done
+grep -qx '# On the branch only.' "$T/onbranch/trivy.yaml"
+result $? "recorded commit: the branch's template change past the merge-base is kept as a local edit"
+g -C "$T/noorigin" add -A && g -C "$T/noorigin" commit -qm init
+out="$(cd "$T/noorigin" && PAP_SOURCE="$T/co-noorigin" sh "$pap" sync --version 0.3.0 2>&1)"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'version = "0.3.0"' "$T/noorigin/.config/pap.toml" &&
+  ! grep -q 'On the branch only' "$T/noorigin/trivy.yaml"
+result $? "recorded commit: sync from a HEAD recorded with no origin" "$out"
+
 # --- doctor ------------------------------------------------------------------
 
 # ls.json <installed> <active version>: a fixture in mise's --json shape,
