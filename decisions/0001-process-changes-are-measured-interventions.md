@@ -54,6 +54,9 @@ is the whole point of measuring, and attribution needs a boundary.
 - Recorded 2026-09-23: neither enforcement named below exists yet. The
   register at `rules.md` carries 1.1 and 1.2 as enforced by nothing, so the
   gap is on the record until `pap emit` and the title check are built.
+- Recorded 2026-09-24: the title check is built, as part of the reusable
+  `pr-checks` workflow of [0004](0004-pull-request-checks-are-answered.md).
+  It is not yet a required check; `pap emit` is still unbuilt.
 
 ## Where it is taught or enforced
 

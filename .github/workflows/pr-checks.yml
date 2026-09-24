@@ -1,0 +1,17 @@
+# pr-checks.yml: decision 0004. Calls the reusable check in
+# blairforce1/.github, which refuses a malformed title, a process: title
+# without a Record line, an unanswered Checks box, and undeclared
+# generated content. `edited` re-runs it when the body is fixed.
+name: pr-checks
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-checks:
+    uses: blairforce1/.github/.github/workflows/pr-checks.yml@main
