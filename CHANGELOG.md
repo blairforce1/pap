@@ -104,6 +104,23 @@ Each plugin is versioned independently.
 
 ## pap
 
+### [0.3.0] - 2026-09-24
+
+#### Added
+
+- The `PreToolUse` hook refuses an agent's hook bypass in a repository
+  that adopts PAP (decision 0005): `LEFTHOOK` or `LEFTHOOK_EXCLUDE` set
+  anywhere in the command, `git commit --no-verify` or `-n`, `git push
+  --no-verify`, and `core.hooksPath` through `git config`, `-c` or
+  `--config-env`. It follows `cd`, `git -C`, `env` and command sequences
+  as the branch guard does. A commit message that mentions `--no-verify`
+  and `git push -n` (a dry run) pass.
+
+#### Fixed
+
+- `env git commit` is recognised as a commit, so the branch guard no
+  longer misses it.
+
 ### [0.2.0] - 2026-09-23
 
 #### Fixed

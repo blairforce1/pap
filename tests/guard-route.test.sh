@@ -98,6 +98,50 @@ check 0 "$T/G"  'git commit -m x' Edit
 # Targets that are not repositories.
 check 0 "$T/U"  'cd ~/does-not-exist && git commit -m x'
 
+# Decision 0005: hook bypasses are refused in an adopting repository. G2 is
+# on change/x, so the branch check passes and only the bypass can refuse.
+# Each pattern: direct, after cd, through git -C, after env, and in && and ;
+# sequences.
+for bypass in 'LEFTHOOK=0 git commit -m x' 'LEFTHOOK_EXCLUDE=lint git commit -m x' \
+              'git commit --no-verify -m x' 'git commit -n -m x' 'git commit -anm x' \
+              'git push --no-verify' 'git config core.hooksPath /dev/null'; do
+  check 2 "$T/G2" "$bypass"
+  check 2 "$T/U"  "cd $T/G2 && $bypass"
+  check 2 "$T/G2" "env $bypass"
+  check 2 "$T/U"  "cd $T/G2 && true && $bypass"
+  check 2 "$T/U"  "cd $T/G2; $bypass"
+done
+check 2 "$T/U"  "git -C $T/G2 commit --no-verify -m x"
+check 2 "$T/U"  "git -C $T/G2 commit -n -m x"
+check 2 "$T/U"  "git -C $T/G2 push --no-verify"
+check 2 "$T/U"  "git -C $T/G2 config core.hooksPath /dev/null"
+check 2 "$T/U"  "LEFTHOOK=0 git -C $T/G2 commit -m x"
+check 2 "$T/U"  "LEFTHOOK_EXCLUDE=lint git -C $T/G2 commit -m x"
+check 2 "$T/U"  "env LEFTHOOK=0 git -C $T/G2 commit -m x"
+check 2 "$T/U"  "env LEFTHOOK_EXCLUDE=lint git -C $T/G2 commit -m x"
+check 2 "$T/G2" 'export LEFTHOOK=0 && git commit -m x'
+check 2 "$T/G2" 'LEFTHOOK=0; git commit -m x'
+check 2 "$T/G2" 'export LEFTHOOK=0'
+check 2 "$T/G2" 'git commit --no-veri -m x'
+check 2 "$T/G2" 'git -c core.hooksPath=/dev/null commit -m x'
+check 2 "$T/G2" 'git --config-env=core.hooksPath=H commit -m x'
+check 2 "$T/G2" 'git config --local core.HooksPath .no-hooks'
+
+# Near misses that must pass.
+check 0 "$T/G2" 'git commit -m "skip --no-verify next time"'
+check 0 "$T/G2" "git commit -m 'why LEFTHOOK=0 is refused'"
+check 0 "$T/G2" 'LEFTHOOK_VERBOSE=1 git commit -m x'
+check 0 "$T/G2" 'git push -n origin change/x'
+check 0 "$T/G2" 'git commit -m n'
+check 0 "$T/G2" 'git commit -uno -m x'
+check 0 "$T/G2" 'git commit -m "fix core.hooksPath docs"'
+check 0 "$T/G2" 'git log --grep=--no-verify'
+
+# A bypass in a repository that does not adopt PAP is not this hook's business.
+check 0 "$T/U"  'git commit --no-verify -m x'
+check 0 "$T/G2" "LEFTHOOK=0 git -C $T/U commit -m x"
+check 0 "$T/G2" "cd $T/U && git config core.hooksPath /dev/null"
+
 # Without jq the router cannot parse; it complains only where the session's
 # own repository is guarded, and never blocks.
 mkdir -p "$T/bin"
