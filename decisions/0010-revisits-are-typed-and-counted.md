@@ -7,7 +7,7 @@
 - **PIP:** #44 (0006 was measured only because the human remembered; 0002's "20 changes" trigger had passed 19 change pull requests earlier, unchecked)
 - **Expected effect:** counted revisits sitting more than 10 change pull requests past their trigger ↓ from 1 (0002, 19 past) to 0
 - **Introduced in:** unreleased
-- **Revisit:** after 20 change PRs from #PR: whether any counted revisit sat more than 10 change pull requests past its trigger
+- **Revisit:** after 20 change PRs from #45: whether any counted revisit sat more than 10 change pull requests past its trigger
 
 ## Context
 
