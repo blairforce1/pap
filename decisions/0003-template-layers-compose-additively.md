@@ -41,8 +41,10 @@ Layers compose additively:
    language-specific lines go in `base/` under a commented section, because
    those files cannot be split.
 4. Adding a language is: one new folder, its `[*.ext]` section, its mise
-   pins, its `.gitignore` section, its Dependabot ecosystem, and its
-   security-scanning rules. Nothing else changes.
+   pins, its `.gitignore` section, its Dependabot ecosystem, its
+   security-scanning rules, and its extension id to
+   `.vscode/extensions.json` and the devcontainer customizations list.
+   Nothing else changes.
 
 The reason that carried it: multi-language repositories are the expected
 case, not the exception, and additive composition is the only rule under
@@ -80,6 +82,11 @@ judgement.
   built from `base` plus `dotnet` (change `template-tooling`). Of the two
   shared files rule 2 names, a language layer now touches only
   `.editorconfig`; the collision check is unchanged.
+- 2026-09-24: #26 added `.vscode/extensions.json` and the devcontainer's
+  extension list to `templates/base/`, both listing every language's
+  extension, as rule 3 does for `.gitignore`. Rule 4 now names the
+  extension id as a touch point; it said "nothing else changes" while
+  missing it.
 
 ## Where it is taught or enforced
 

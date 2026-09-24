@@ -75,6 +75,15 @@ see its own inputs cannot be measured.
 - Recorded 2026-09-23: `rules.md`, cited by this record and by 0001 since
   the founding commit, did not exist. Written in change `rules-register` as
   an index from each rule to its record and its enforcement.
+- Recorded 2026-09-24: #26 found that lefthook's generated hook prints
+  "Can't find lefthook in PATH" and exits 0 when the lefthook binary is
+  absent, so a commit passes unchecked on any clone where setup has not
+  run. `templates/base/.lefthookrc` now refuses the commit and names the
+  setup command (`mise trust && mise install`). This is a fourth failure
+  mode of the client-side layers, after the missing layers, the unrouted
+  hook and the missing register. The ruleset remains the backstop for main
+  only; pre-commit checks have no server-side backstop until the CI
+  scanning layer exists.
 
 ## Where it is taught or enforced
 
