@@ -13,14 +13,14 @@ overrides anything in `templates/base/`: rule 3.1 of
 | `global.json` | Pins the SDK to 10.0.401, the current LTS release, with `rollForward: latestPatch`: a later patch of the 10.0.4xx feature band is accepted, nothing else is. A machine with only a 10.0.3xx or an 11.0 SDK fails at once instead of building with a compiler the repository was not written against. Raise the version here when the feature band moves. `global.json` is authoritative for the SDK version. |
 | `.config/mise/conf.d/dotnet.toml` | The same SDK version as a mise tool pin, so `mise install` provides the SDK `global.json` asks for. The two must agree; when they differ, `global.json` is right and this line is the bug. Also `check:dotnet` (`dotnet format --verify-no-changes`) and `fmt:dotnet` (`dotnet format`), which the base `check` and `fmt` tasks pick up. mise reads it beside the base layer's file; nothing is merged. |
 | `.config/lefthook/dotnet.yml` | Two jobs, pulled in by the base `lefthook.yml`, split by the base README's hook speed rule. pre-commit: `dotnet format whitespace --folder --verify-no-changes --include` on staged `.cs` files, which reads `.editorconfig` and checks whitespace and charset without loading a project, so no restore or build; 0.9 to 1.5 s on one staged file. Plain `whitespace` without `--folder` loads the project and took 1.8 to 2.3 s, over the two-second limit. pre-push: the full `dotnet format --verify-no-changes` on the solution, which runs the style and analyzer rules (IDE0161 and the rest) and needs the project loaded; 4.0 to 4.8 s on a one-project solution. A style-only violation therefore passes the commit and is refused on push. |
-| `Directory.Build.props` | The build settings every project inherits. Nullable reference types and implicit usings on. Every warning is a build failure: the compiler's, the SDK analyzers' at `latest-recommended`, the third-party analyzers', and the `.editorconfig` style rules, which `EnforceCodeStyleInBuild` runs in the compiler. The XML documentation file is generated so IDE0005 runs on build, with CS1591 off so that does not become a documentation mandate. MA0007, the trailing comma in a multi-line initialiser, raised to an error here rather than in `.globalconfig` because `dotnet format` reads severities from compilation options and `.editorconfig` only; set here, the build refuses a missing comma and the formatter adds it. Provenance, for process principle 6 (every artefact records what produced it): deterministic output, `ContinuousIntegrationBuild` when the `CI` variable is set, SourceLink (built into the SDK for GitHub, so no package reference), `PublishRepositoryUrl` and `EmbedUntrackedSources`. All build output under `artifacts/` (`UseArtifactsOutput`), so no `bin/` or `obj/` in project folders. `packages.lock.json` written on every restore and enforced with `RestoreLockedMode` when `CI` is set. Restore audit of every package, direct and transitive, at every severity (`NuGetAuditMode=all`, `NuGetAuditLevel=low`), so an advisory fails restore. NU3018 kept a warning; see "Package source". Projects whose name ends in `.Tests` are never packed and have CA1707 and CA1816 off. Meziantou.Analyzer and Roslynator.Analyzers referenced in every project. |
-| `Directory.Packages.props` | Central package management: a project references a package by name and the version is set once here. Holds the two analyzer versions. Every other package an adopting repository uses gets a `PackageVersion` line here; a project scaffolded by `dotnet new` arrives with versions on its references, and restore refuses them (NU1008) until they move. |
+| `Directory.Build.props` | The build settings every project inherits. Nullable reference types and implicit usings on. Every warning is a build failure: the compiler's, the SDK analyzers' at `latest-recommended`, the third-party analyzers', and the `.editorconfig` style rules, which `EnforceCodeStyleInBuild` runs in the compiler. The XML documentation file is generated so IDE0005 runs on build, with CS1591 off so that does not become a documentation mandate. MA0007, the trailing comma in a multi-line initialiser, raised to an error here rather than in `.globalconfig` because `dotnet format` reads severities from compilation options and `.editorconfig` only; set here, the build refuses a missing comma and the formatter adds it. Provenance, for process principle 6 (every artefact records what produced it): deterministic output, `ContinuousIntegrationBuild` when the `CI` variable is set, SourceLink (built into the SDK for GitHub, so no package reference), `PublishRepositoryUrl` and `EmbedUntrackedSources`. All build output under `artifacts/` (`UseArtifactsOutput`), so no `bin/` or `obj/` in project folders. `packages.lock.json` written on every restore and enforced with `RestoreLockedMode` when `CI` is set. Restore audit of every package, direct and transitive, at every severity (`NuGetAuditMode=all`, `NuGetAuditLevel=low`), so an advisory fails restore. NU3018 kept a warning; see "Package source". Projects whose name ends in `.Tests` are never packed and have CA1707 and CA1816 off. Meziantou.Analyzer, Roslynator.Analyzers and SonarAnalyzer.CSharp referenced in every project. |
+| `Directory.Packages.props` | Central package management: a project references a package by name and the version is set once here. Holds the three analyzer versions. Every other package an adopting repository uses gets a `PackageVersion` line here; a project scaffolded by `dotnet new` arrives with versions on its references, and restore refuses them (NU1008) until they move. |
 | `nuget.config` | nuget.org as the only source, sources from user and machine config cleared, and source mapping sending every package id there. Signature validation in `require` mode: a package is extracted only if a trusted signer signed it. Trusted are the nuget.org repository signature (three certificates) and Microsoft's author signature (four certificates). |
-| `.globalconfig` | What the build enforces beyond `.editorconfig`: IDE1006 naming at warning, so a misnamed symbol is a build error, and every analyzer rule an IDE rule already covers switched off, each group naming the IDE rule. Records why IDE0130 (namespace matches folder) is not there and why MA0007 is not either. |
+| `.globalconfig` | What the build enforces beyond `.editorconfig`: IDE1006 naming at warning, so a misnamed symbol is a build error, and every Meziantou and Roslynator rule an IDE rule already covers switched off, each group naming the IDE rule. Records why IDE0130 (namespace matches folder) is not there and why MA0007 is not either. Also every SonarAnalyzer.CSharp rule enabled by default, held at `suggestion` for a bake-in period that started 2026-09-24; see "Analyzers". |
 
 ## Analyzers
 
-Two packages, both pinned in `Directory.Packages.props`.
+Three packages, all pinned in `Directory.Packages.props`.
 
 - **Meziantou.Analyzer** (MA rules): usage, design and performance rules,
   and MA0007, the trailing comma in multi-line initialisers, collection
@@ -28,6 +28,20 @@ Two packages, both pinned in `Directory.Packages.props`.
 - **Roslynator.Analyzers** (RCS rules): the analyzers and their fixes. Not
   Roslynator.Formatting.Analyzers: every RCS0xxx rule in it is a formatting
   opinion `.editorconfig` already holds.
+- **SonarAnalyzer.CSharp** (S rules): bugs, vulnerabilities, security
+  hotspots and code smells. On a bake-in since 2026-09-24: its 320
+  default-on rules (version 10.34.0.3385) report as suggestions, not
+  warnings, because at warning the bare `dotnet new` scaffold already fails
+  the build (S2094, empty class), and a realistic class fails on ten rules
+  at once. None is switched off. `scripts/sonar-suggestions.cs` in pap
+  generates the list in `.globalconfig`; rerun it when the version moves.
+
+  **Revisit** on 2027-03-24, or after ten changes to this layer, whichever
+  comes first. Read what fired, from a build's SARIF log
+  (`dotnet build -p:ErrorLog=build.sarif`), and raise each rule that earned
+  it to warning, one rule per commit with the evidence. Five overlap a rule
+  already enforced (S1104 CA1051, S1135 MA0026, S2325 CA1822, S108 and
+  S2486 RCS1075); the revisit decides which copy stays.
 
 Not used, on purpose:
 
@@ -36,8 +50,6 @@ Not used, on purpose:
   no support for C# 12 and later syntax.
 - **CSharpier**. It is a second formatter with its own opinions, and
   `.editorconfig` is the single style source; `dotnet format` applies it.
-- **SonarAnalyzer.CSharp**. Planned for the security-scanning layer, not
-  here.
 
 ## What the build refuses and what the formatter fixes
 
@@ -54,6 +66,8 @@ Measured on SDK 10.0.401 with a class library and an xunit project.
   else and exits 0.
 - Every other Meziantou and Roslynator rule at warning by default: the build
   fails; those with a fix are applied by `dotnet format`.
+- Every SonarAnalyzer.CSharp rule: none fails the build during the bake-in
+  period; each is a suggestion instead. See "Analyzers" and `.globalconfig`.
 - IDE0130 namespace matches folder: not enforced. See `.globalconfig`.
 - A file `dotnet new` scaffolds arrives with a UTF-8 byte-order mark, which
   the base `charset = utf-8` refuses. `dotnet format` strips it from `.cs`
@@ -108,6 +122,9 @@ controls here address the risks a proxy is usually bought for:
   altered after it, is refused.
 - **Source mapping**: a package id resolves from one source only, which
   closes dependency confusion between feeds.
+- **Scanning**: the base layer's `security` workflow runs Trivy on every
+  pull request, which reads `packages.lock.json` and fails on a high or
+  critical advisory, as restore audit does locally.
 
 Signature publishers, checked with `dotnet nuget verify --all` on the
 packages this template and a `dotnet new xunit` project restore:
@@ -117,6 +134,7 @@ packages this template and a `dotnet new xunit` project restore:
 | Microsoft | Yes | `author`, the four certificates from Microsoft's 2026 signing-certificate update, including the one that signs from 2026-09-23 |
 | Meziantou (Meziantou.Analyzer) | No, repository signature only | none |
 | Roslynator (Roslynator.Analyzers) | No, repository signature only | none |
+| SonarSource (SonarAnalyzer.CSharp) | Yes | none; the nuget.org repository signature already covers it |
 | xUnit.net, Coverlet, Json.NET (.NET Foundation) | Yes | none; not template packages, covered by the repository entry |
 
 A package is trusted when any one of its signatures matches an entry, so
@@ -159,7 +177,6 @@ Planned hardening:
 
 - Dependabot with a cooldown, so a version is not adopted the day it is
   published: the dependency-updates layer.
-- Trivy and SonarAnalyzer.CSharp: the security-scanning layer.
 - The sync tool verifying that `global.json` and `dotnet.toml` name the same
   SDK version.
 
