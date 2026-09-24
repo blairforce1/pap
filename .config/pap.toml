@@ -1,6 +1,5 @@
 # Written by `pap init` and `pap sync`; do not edit by hand. The template
 # version and layers applied to this repository (decision 0008): pap sync
 # merges from this version, and the event emitter reports it.
-version = "unreleased"
-commit = "68f31f1d9932b0d6cf4dc1c60ff57fc93aae8ca9"
+version = "0.5.0"
 layers = ["base"]
