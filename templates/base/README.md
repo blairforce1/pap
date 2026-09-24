@@ -38,7 +38,7 @@ exception is visible and scoped to its files.
 
 A hook that is slow gets skipped, and a skipped hook checks nothing. So:
 
-- **pre-commit** runs formatter checks and file-local checks on staged files
+- **pre-commit** runs formatters and file-local checks on staged files
   only: nothing that compiles, restores packages, resolves dependencies or
   analyses more than the file in front of it. The hook as a whole finishes in
   under two seconds. The base jobs qualify: dprint, editorconfig-checker and
