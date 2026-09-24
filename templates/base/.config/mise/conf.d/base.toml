@@ -56,12 +56,12 @@ run = "gitleaks git --redact --no-banner"
 
 [tasks."check:codeowners"]
 description = "Fail if .github/CODEOWNERS is not what product/invariants.md generates"
-# Compares without writing: `-` sends the generated file to stdout. A
-# repository with no product/invariants.md yet (before envision) passes.
+# --check writes nothing and compares with the index copy, as the
+# pre-commit job does. A repository with no product/invariants.md yet
+# (before envision) passes.
 run = '''
 [ -f product/invariants.md ] || { echo "check:codeowners: no product/invariants.md; nothing to check"; exit 0; }
-scripts/gen-codeowners.sh - | diff -u .github/CODEOWNERS - \
-  || { echo "check:codeowners: .github/CODEOWNERS is stale; run scripts/gen-codeowners.sh" >&2; exit 1; }
+scripts/gen-codeowners.sh --check
 '''
 
 [tasks."check:shellcheck"]
