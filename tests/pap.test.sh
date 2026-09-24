@@ -18,12 +18,19 @@
 set -u
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
-pap="$here/bin/pap"
 
 command -v git >/dev/null 2>&1 || { printf 'Bail out! git not found\n'; exit 1; }
 
 T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT INT TERM
+# git looks for no repository above $T.
+export GIT_CEILING_DIRECTORIES="$T"
+
+# The pap under test: a plain copy, neither a release nor a git checkout, so
+# the checkout's own tags (a release tag on main) cannot change what it does.
+mkdir "$T/self"
+cp -a "$here/bin" "$here/scripts" "$here/templates" "$T/self/"
+pap="$T/self/bin/pap"
 
 n=0
 failed=0
