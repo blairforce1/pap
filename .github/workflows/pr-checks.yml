@@ -17,4 +17,4 @@ permissions:
 
 jobs:
   pr-checks:
-    uses: blairforce1/.github/.github/workflows/pr-checks.yml@preview-codeowners
+    uses: blairforce1/.github/.github/workflows/pr-checks.yml@main
