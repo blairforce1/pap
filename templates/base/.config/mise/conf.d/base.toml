@@ -34,7 +34,16 @@ run = "mise run --continue-on-error 'check:*'"
 
 [tasks.fmt]
 description = "Apply every formatter the hooks check"
-run = "mise run --continue-on-error 'fmt:*'"
+# First, strip a UTF-8 byte-order mark from every text file git tracks or
+# would track: .editorconfig's [*] sets charset = utf-8 for all of them, and
+# tools such as `dotnet new` write one. Before the fan-out, so no formatter
+# rewrites a file this step is also rewriting. grep -I skips binary files;
+# grep exits non-zero when no file has a mark, hence `|| true` on that stage
+# only. perl, not sed -i, because sed -i differs between GNU and BSD.
+run = [
+  '''(git ls-files -z --cached --others --exclude-standard | LC_ALL=C xargs -0 -r grep -lIsZ "$(printf '^\357\273\277')" -- || true) | xargs -0 -r perl -pi -e 's/\A\xEF\xBB\xBF// if $. == 1; close ARGV if eof' ''',
+  "mise run --continue-on-error 'fmt:*'",
+]
 
 [tasks."check:dprint"]
 run = "dprint check"
