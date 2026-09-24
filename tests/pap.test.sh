@@ -90,6 +90,14 @@ result $? "init: says what to do next about the repository and CODEOWNERS" "$out
 [ ! -e "$T/app/.config/mise/conf.d/pap.toml" ]
 result $? "init: an unreleased pap writes no pin for itself"
 
+# A released pap: its own tree at v0.1.0 with a VERSION file, no fetch.
+cp -a "$T/src" "$T/rel" && git -C "$T/rel" checkout -q v0.1.0 && echo 0.1.0 > "$T/rel/VERSION"
+git init -q -b main "$T/relapp"
+out="$(cd "$T/relapp" && PAP_SOURCE=/nonexistent sh "$T/rel/bin/pap" init base 2>&1)"; rc=$?
+[ "$rc" = 0 ] && grep -q '"github:blairforce1/pap" = { version = "0.1.0", asset_pattern = "pap-\*.tar.gz" }' \
+  "$T/relapp/.config/mise/conf.d/pap.toml"
+result $? "init: a released pap uses its own templates and pins itself" "$out"
+
 g -C "$T/app" add -A && g -C "$T/app" commit -qm init
 out="$(run init --version 0.1.0 base dotnet go)"; rc=$?
 [ "$rc" = 0 ] && [ -z "$(git -C "$T/app" status --porcelain)" ]
