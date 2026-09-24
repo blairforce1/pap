@@ -45,6 +45,26 @@
           {
             "context": "tests",
             "integration_id": 15368
+          },
+          {
+            "context": "pr-checks / checks",
+            "integration_id": 15368
+          },
+          {
+            "context": "security / check",
+            "integration_id": 15368
+          },
+          {
+            "context": "security / gitleaks",
+            "integration_id": 15368
+          },
+          {
+            "context": "security / semgrep",
+            "integration_id": 15368
+          },
+          {
+            "context": "security / trivy",
+            "integration_id": 15368
           }
         ]
       }

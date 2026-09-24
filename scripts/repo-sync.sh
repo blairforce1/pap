@@ -10,7 +10,8 @@
 #
 # status  Read-only. Reports each item as ok, drift, missing or
 #         unavailable-on-plan, in five groups: repository settings, security,
-#         ruleset, enforcement layers (decision 0002) and labels. Two more
+#         ruleset (with each required status check by name), enforcement
+#         layers (decision 0002) and labels. Two more
 #         states cover what the four cannot: skipped (the check cannot run
 #         from here) and error (the API call itself failed). Exits 1 unless
 #         every item is ok, unavailable-on-plan or skipped.
@@ -240,6 +241,7 @@ group "Ruleset"
 ruleset_name="$(jq -r .name "$ruleset_file")"
 ruleset_want="$(jq -S --slurpfile t "$ruleset_file" "$normalise" "$ruleset_file")"
 ruleset_enforcement=""
+ruleset_live=""
 item="ruleset '$ruleset_name'"
 api_get "repos/$repo/rulesets?per_page=100"
 if [ "$code" != 200 ]; then
@@ -248,6 +250,7 @@ else
   ruleset_id="$(jq -r --arg n "$ruleset_name" \
     'map(select(.name == $n and .source_type == "Repository")) | first | .id // empty' <<<"$body")"
   if [ -z "$ruleset_id" ]; then
+    ruleset_live="{}"
     record ruleset missing "$item"
     plan "$item" "+ ruleset: create '$ruleset_name' from .github/rulesets/main.json" \
       gh api -X POST "repos/$repo/rulesets" --input "$ruleset_file"
@@ -256,6 +259,7 @@ else
     if [ "$code" != 200 ]; then
       record ruleset error "$item" "HTTP $code"
     else
+      ruleset_live="$body"
       ruleset_enforcement="$(jq -r .enforcement <<<"$body")"
       have="$(jq -S --slurpfile t "$ruleset_file" "$normalise" <<<"$body")"
       if [ "$have" = "$ruleset_want" ]; then
@@ -270,6 +274,21 @@ else
       fi
     fi
   fi
+fi
+
+# Each required check by name, so a drifting list reads without the diff.
+# Report-only: the ruleset update above is what fixes them.
+if [ -n "$ruleset_live" ]; then
+  # shellcheck disable=SC2016 # jq's $variables, not the shell's
+  checks='[.rules[]? | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context]'
+  live_checks="$(jq -c "$checks" <<<"$ruleset_live")"
+  while IFS= read -r check; do
+    if jq -e --arg c "$check" 'index($c) != null' <<<"$live_checks" >/dev/null; then
+      record ruleset ok "required check '$check'"
+    else
+      record ruleset missing "required check '$check'"
+    fi
+  done < <(jq -r "${checks}[]" "$ruleset_file")
 fi
 
 # --- 4. Enforcement layers (decision 0002), report-only ---------------------
