@@ -3,9 +3,7 @@
 # Not pap.toml, which is the name `pap init` gives the pin of pap itself.
 
 [tools]
-uv = "0.12.18"
 yq = "4.53.6"
-"pipx:check-jsonschema" = "0.38.1"
 
 [tasks.test]
 description = "Run the repository test suites"
