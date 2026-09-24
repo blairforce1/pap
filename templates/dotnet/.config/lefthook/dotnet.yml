@@ -1,0 +1,6 @@
+# .NET layer's git hooks, pulled in by the base lefthook.yml `extends`.
+pre-commit:
+  jobs:
+    - name: dotnet-format
+      glob: "*.cs"
+      run: dotnet format --verify-no-changes --include {staged_files}

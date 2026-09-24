@@ -11,7 +11,8 @@ overrides anything in `templates/base/`: rule 3.1 of
 | File | What it does |
 |---|---|
 | `global.json` | Pins the SDK to 10.0.401, the current LTS release, with `rollForward: latestPatch`: a later patch of the 10.0.4xx feature band is accepted, nothing else is. A machine with only a 10.0.3xx or an 11.0 SDK fails at once instead of building with a compiler the repository was not written against. Raise the version here when the feature band moves. `global.json` is authoritative for the SDK version. |
-| `mise.toml` | The same SDK version as a mise tool pin, so `mise install` provides the SDK `global.json` asks for. The two must agree; when they differ, `global.json` is right and this line is the bug. The sync tool merges this file into the repository's `mise.toml` (decision 0003) and will check the two agree. |
+| `.config/mise/conf.d/dotnet.toml` | The same SDK version as a mise tool pin, so `mise install` provides the SDK `global.json` asks for. The two must agree; when they differ, `global.json` is right and this line is the bug. Also `check:dotnet` (`dotnet format --verify-no-changes`) and `fmt:dotnet` (`dotnet format`), which the base `check` and `fmt` tasks pick up. mise reads it beside the base layer's file; nothing is merged. |
+| `.config/lefthook/dotnet.yml` | A pre-commit job, pulled in by the base `lefthook.yml`, running `dotnet format --verify-no-changes --include` on staged `.cs` files. Measured on a one-project console solution: 3.4 to 4.5 s across five runs, alone and alongside the base jobs, so it stays in pre-commit. Nearly all of that is loading the workspace, so it grows with the solution, not with the files staged; move it to pre-push when it passes five seconds. |
 | `Directory.Build.props` | The build settings every project inherits. Nullable reference types and implicit usings on. Every warning is a build failure: the compiler's, the SDK analyzers' at `latest-recommended`, the third-party analyzers', and the `.editorconfig` style rules, which `EnforceCodeStyleInBuild` runs in the compiler. The XML documentation file is generated so IDE0005 runs on build, with CS1591 off so that does not become a documentation mandate. MA0007, the trailing comma in a multi-line initialiser, raised to an error here rather than in `.globalconfig` because `dotnet format` reads severities from compilation options and `.editorconfig` only; set here, the build refuses a missing comma and the formatter adds it. Provenance, for process principle 6 (every artefact records what produced it): deterministic output, `ContinuousIntegrationBuild` when the `CI` variable is set, SourceLink (built into the SDK for GitHub, so no package reference), `PublishRepositoryUrl` and `EmbedUntrackedSources`. All build output under `artifacts/` (`UseArtifactsOutput`), so no `bin/` or `obj/` in project folders. `packages.lock.json` written on every restore and enforced with `RestoreLockedMode` when `CI` is set. Restore audit of every package, direct and transitive, at every severity (`NuGetAuditMode=all`, `NuGetAuditLevel=low`), so an advisory fails restore. NU3018 kept a warning; see "Package source". Projects whose name ends in `.Tests` are never packed and have CA1707 and CA1816 off. Meziantou.Analyzer and Roslynator.Analyzers referenced in every project. |
 | `Directory.Packages.props` | Central package management: a project references a package by name and the version is set once here. Holds the two analyzer versions. Every other package an adopting repository uses gets a `PackageVersion` line here; a project scaffolded by `dotnet new` arrives with versions on its references, and restore refuses them (NU1008) until they move. |
 | `nuget.config` | nuget.org as the only source, sources from user and machine config cleared, and source mapping sending every package id there. Signature validation in `require` mode: a package is extracted only if a trusted signer signed it. Trusted are the nuget.org repository signature (three certificates) and Microsoft's author signature (four certificates). |
@@ -54,6 +55,10 @@ Measured on SDK 10.0.401 with a class library and an xunit project.
 - Every other Meziantou and Roslynator rule at warning by default: the build
   fails; those with a fix are applied by `dotnet format`.
 - IDE0130 namespace matches folder: not enforced. See `.globalconfig`.
+- A file `dotnet new` scaffolds arrives with a UTF-8 byte-order mark, which
+  the base `charset = utf-8` refuses. `dotnet format` strips it from `.cs`
+  files; it does not touch a `.csproj`, which editorconfig-checker refuses
+  until the mark is removed: `sed -i '1s/^\xEF\xBB\xBF//' <name>.csproj`.
 - A stale `packages.lock.json` with `CI` set: restore fails (NU1004).
 - A package with a known advisory, direct or transitive: restore fails
   (NU1901 to NU1904, raised by `TreatWarningsAsErrors`).
@@ -79,7 +84,7 @@ place it could restate a value, and must not.
 - **Environment**: `DOTNET_NUGET_SIGNATURE_VERIFICATION` unset. Signature
   verification on restore is on by default on Linux (measured on SDK
   10.0.401), and setting the variable to `false` turns it off, so nothing,
-  including `mise.toml`, sets it. Not measured on macOS.
+  including the mise files, sets it. Not measured on macOS.
 - **CI**: `dotnet build` with `CI` set and `dotnet format --verify-no-changes`,
   nothing else. No `--severity`, no `-warnaserror`, no separate analyzer or
   formatter step: the build is the gate.
@@ -155,7 +160,7 @@ Planned hardening:
 - Dependabot with a cooldown, so a version is not adopted the day it is
   published: the dependency-updates layer.
 - Trivy and SonarAnalyzer.CSharp: the security-scanning layer.
-- The sync tool verifying that `global.json` and `mise.toml` name the same
+- The sync tool verifying that `global.json` and `dotnet.toml` name the same
   SDK version.
 
 ## Checking a repository
@@ -165,6 +170,7 @@ dotnet restore                      # writes packages.lock.json; commit it
 dotnet build                        # style, naming, analyzer warnings are errors
 dotnet test
 dotnet format --verify-no-changes   # exit 2 lists every rule that would change
+mise run fmt                        # after `dotnet new`: strips the BOM it writes into .cs files
 CI=1 dotnet restore                 # locked mode: NU1004 if the lock file is stale
 dotnet nuget trust source nuget.org --configfile nuget.config   # refresh repository certificates after a rotation
 ```
