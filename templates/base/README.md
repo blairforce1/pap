@@ -9,7 +9,7 @@ framework version or a person.
 | `.editorconfig`                   | The single source of style. The `[*]` section sets encoding, line endings, final newline, trailing whitespace and two-space indentation for every file. The `[*.cs]` section sets four-space indentation and the full set of `dotnet_` and `csharp_` style rules, each with a severity, so `dotnet format` applies them and `dotnet format --verify-no-changes` fails when they are broken. `[*.go]` and `[{Makefile,*.mk}]` switch to tabs because gofmt and make require them. Rules at `suggestion` are taste calls the IDE offers and nothing enforces; naming rules are there too, because `dotnet format` cannot rename and aborts on a naming warning.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `.gitattributes`                  | Makes git agree with the editor: LF on every platform, C# hunks headed by the enclosing method, binary types marked so they are never normalised, lock files marked generated so GitHub collapses them, `CHANGELOG.md` merged as a union so parallel entries do not conflict, and `.devcontainer` and `.github` left out of archives.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `.gitignore`                      | OS, editor, .NET, Go and node artefacts, in commented sections. Go binaries have no fixed extension, so the Go section ignores test binaries, coverage profiles and pprof output, and relies on `bin/` for `go build -o bin/`. Editor settings are ignored: `.idea/` and `.vs/` whole, `.vscode/` by content, so that `.vscode/extensions.json` can be let back in (git cannot re-include a file under an ignored directory).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `.git-blame-ignore-revs`          | Formatting-only commits, one hash per line, that `git blame` and GitHub skip. Starts empty; the first repository-wide `dotnet format` commit goes in first. Needs `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone, which `mise run setup` does.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `.git-blame-ignore-revs`          | Formatting-only commits, one hash per line, that `git blame` and GitHub skip. Starts empty. A formatting-only change goes in its own pull request; under squash merging the hash to record is the squash commit that lands on main, added by the next pull request. Needs `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone, which `mise run setup` does.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `.config/mise/conf.d/base.toml`   | Exact pins for lefthook, dprint, gitleaks, shellcheck and editorconfig-checker, and the `setup`, `check` and `fmt` tasks. mise reads every file in `conf.d/`, so a language layer ships its own file beside this one and nothing is merged. `setup` installs the git hooks and sets `blame.ignoreRevsFile`; it is a task, not a mise `postinstall` hook, because mise hooks need `experimental = true` and that would switch experimental features on for the whole repository. `check` runs every `check:*` task and `fmt` every `fmt:*` task, with `--continue-on-error` so one run reports every failure; a language layer adds its steps as `check:<lang>` and `fmt:<lang>`. Before the formatters, `fmt` strips a UTF-8 byte-order mark from every text file git tracks or would track, since `charset = utf-8` covers all of them and some generators, `dotnet new` among them, write one. editorconfig-checker is pinned through the deprecated `ubi` backend: the aqua entry asks for an asset the release does not ship, and the `github` backend fails its attestation check on mise 2026.5.12. `ubi` is removed in mise 2027.1.0.                                       |
 | `lefthook.yml`                    | The git hooks. pre-commit, on staged files only, fixing nothing: `dprint check`, editorconfig-checker, `gitleaks git --pre-commit --staged` (the gitleaks 8.30 form; `protect` is gone), shellcheck on staged `.sh` files, and `scripts/gen-codeowners.sh --check` when `product/invariants.md` is staged. pre-push: `scripts/guard-branch.sh push`, as a `script` job with `use_stdin`, because lefthook v2 skips `run` jobs when HEAD has no diff against its upstream and `git push origin HEAD:main` from an already-pushed branch would get through. `rc: ./.lefthookrc` runs before every job (the `./` is needed: POSIX `.` looks a slash-less name up on PATH). `extends: .config/lefthook/*.yml` pulls in each language layer's jobs; with no language layer the glob matches nothing and that is fine.                                                                                                                                                                                                                                                                                                                                                                   |
 | `.lefthookrc`                     | Puts mise's shims first on PATH before every hook job, so the hooks find the pinned tools from a shell, GUI client or agent session that has not activated mise. A shim resolves the version this repository pins and works without `mise` itself on PATH. The hook script sources this file too, before it looks for lefthook, so it finds lefthook through the shim; the absolute path `lefthook install` writes is only a fallback. That is why hooks installed in the devcontainer work on the host and the reverse: the path names one side's home directory, the shim exists on both. Where no lefthook is reachable, the hook script prints "Can't find lefthook in PATH" and exits 0, letting the commit through unchecked; this file refuses the commit instead and names the command to run. `LEFTHOOK=0` still skips the hooks.                                                                                                                                                                                                                                                                                                                                         |
@@ -66,8 +66,8 @@ has the comparison.
 What it reads, checked with a Renovate 44.112.3 dry run on a repository
 built from `base`, `dotnet` and `go`:
 
-- **mise**: every `[tools]` line in `.config/mise/conf.d/*.toml`, `ubi:`
-  and `go:` backends included, except `dotnet`, which the mise manager
+- **mise**: every `[tools]` line in `.config/mise/conf.d/*.toml`, `ubi:`,
+  `go:` and `github:` backends included, except `dotnet`, which the mise manager
   has no datasource for. A custom manager in the .NET section reads that
   one as the same `dotnet-sdk` dependency `global.json` names, so the two
   move in one pull request.
@@ -76,23 +76,26 @@ built from `base`, `dotnet` and `go`:
   together, so a custom manager reads the version from the comment above
   each (`// git 1.3.8.`) and moves the comment and the digest together.
   Keep that comment format. ghcr.io gives no release date for a feature,
-  so the cooldown cannot hold one back.
+  so the cooldown cannot hold one back. mise itself, in `onCreateCommand`,
+  is read by a custom manager from the `releases/download/v<version>/install.sh`
+  URL and the sha256 after it: Renovate computes the new release's
+  `install.sh` sha256 and moves both.
+- **dprint**: the plugin versions in `dprint.json`, from npm, by a custom
+  manager that reads each `"npm:<package>@<version>"` entry.
+- **pap**: the `github:blairforce1/pap` pin in
+  `.config/mise/conf.d/pap.toml`, which `pap init` writes, by the mise
+  manager like any `github:` pin, the table form with `asset_pattern`
+  included (checked 2026-09-24: a `github:cli/cli` table pin got an update
+  proposed). Merging that update moves only the pin: run `mise install`,
+  then `pap sync`, and commit the sync on the same branch.
 - **GitHub Actions**: `uses:` by commit SHA with the version as a comment;
   both move.
 - **.NET, Go, Node**: `Directory.Packages.props`, `global.json`,
   `packages.lock.json`; `go.mod` and `go.sum`, with the `go` directive
   moved with the mise `go` pin; `package.json` and its lock file.
 
-Updated by hand, because nothing reads them:
-
-- mise itself, and the sha256 of its install script, in the devcontainer's
-  `onCreateCommand`. Take the version from the mise releases page and the
-  sha256 of that release's `install.sh`.
-- The dprint plugin versions in `dprint.json`: `dprint config update`
-  raises them.
-- pap itself, in `.config/mise/conf.d/pap.toml`, which `pap init` writes.
-  Whether Renovate's mise manager reads a `github:` pin is not verified
-  yet (decision 0008). Bump it, `mise install`, then `pap sync`.
+Updated by hand: nothing, as of Renovate 44.112.3. A pin added to a layer
+is read by one of the managers above or listed here (rule 7.1).
 
 ### Installing the app
 
@@ -159,6 +162,13 @@ clone setup below, applies the GitHub settings with `pap repo apply` when
 another layer to add that layer; run it unchanged and nothing changes. In
 a repository that already has some of these files, a file that differs
 from the template gets conflict markers to resolve.
+
+Run from a git checkout of pap instead, `init` takes the checkout's
+templates. On a commit tagged `v<x.y.z>` that is the release; on any other
+commit it records `version = "unreleased"` and the commit sha, and writes
+no pin. `sync` then merges from that commit as it would from a version,
+reading it from the checkout or fetching it from GitHub, and refuses a
+commit that was never pushed.
 
 To take a new template version, bump the pin, then:
 

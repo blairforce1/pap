@@ -2,7 +2,9 @@
 
 All notable changes to the plugins in this marketplace are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Each plugin is versioned independently.
+spec-review is versioned on its own. From 0.5.0 the pap plugin shares the
+repository's one tag series, `v<x.y.z>`, with the CLI and templates;
+`mise run release` refuses a version the two plugin manifests do not carry.
 
 ## spec-review
 
@@ -110,6 +112,23 @@ Each plugin is versioned independently.
   instead of the user skills directory.
 
 ## pap
+
+### [0.5.0] - Unreleased
+
+#### Added
+
+- `bin/pap`: `init`, `sync`, `repo`, `codeowners` and `doctor` (#37).
+  Run from a checkout with no release tag, `init` records
+  `version = "unreleased"` and the commit, and `sync` merges from that
+  commit.
+- `mise run release <version> [--dry-run]`, the first release of the
+  repository's one tag series.
+
+#### Changed
+
+- The plugin's version is the repository's release version.
+- pap adopts its own base layer: `mise run check` and `mise run fmt`, the
+  `security` workflow and the base hooks run on pap itself.
 
 ### [0.4.0] - 2026-09-24
 

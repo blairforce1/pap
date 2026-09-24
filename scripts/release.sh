@@ -13,8 +13,12 @@
 # commit on origin cannot carry unpushed work. --dry-run builds the archive,
 # prints its path and sha256, and creates nothing.
 #
-# Refuses a version that is not x.y.z, or whose tag already exists on origin.
-# Requires git, tar and, without --dry-run, gh (authenticated).
+# One tag series for the repository: the pap plugin and the toolkit share
+# the version from 0.5.0 (decision 0001). Refuses a version that is not
+# x.y.z, whose tag already exists on origin, or that
+# plugins/pap/.claude-plugin/plugin.json and the pap entry in
+# .claude-plugin/marketplace.json do not both carry at that commit.
+# Requires git, tar, jq and, without --dry-run, gh (authenticated).
 
 set -eu
 
@@ -36,6 +40,10 @@ cd "$(dirname "$0")/.."
 git fetch --quiet origin main
 sha="$(git rev-parse origin/main)"
 [ -z "$(git ls-remote --tags origin "refs/tags/$tag")" ] || die "$tag already exists on origin"
+plugin="$(git show "$sha:plugins/pap/.claude-plugin/plugin.json" | jq -r .version)"
+market="$(git show "$sha:.claude-plugin/marketplace.json" | jq -r '.plugins[] | select(.name == "pap") | .version')"
+[ "$plugin" = "$version" ] && [ "$market" = "$version" ] ||
+  die "origin/main carries pap $plugin in plugin.json and $market in marketplace.json, not $version; bump both first"
 
 out="$(mktemp -d)"
 name="pap-$version"

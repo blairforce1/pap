@@ -189,6 +189,7 @@ else
   else
     record security missing "$item" "status $status"
     # Push protection needs secret scanning on; both go in one request.
+    # shellcheck disable=SC2016 # $0 and $1 are sh -c's, expanded there
     plan "$item" "+ security: enable secret scanning and push protection" \
       sh -c 'printf "%s" "$1" | gh api -X PATCH "repos/$0" --input -' "$repo" \
       '{"security_and_analysis":{"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}}'
@@ -216,6 +217,7 @@ fi
 # keys the file carries, recursively, with rules matched by type, so a field
 # GitHub adds or returns by default cannot cause permanent drift. Rules are
 # sorted by type so order alone is not drift.
+# shellcheck disable=SC2016 # jq's $variables, not the shell's
 normalise='
   def prune($t):
     if ($t | type) == "object" and type == "object" then

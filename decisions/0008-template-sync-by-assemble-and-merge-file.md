@@ -102,6 +102,15 @@ merge, which git already ships.
 - Follow-up: whether Renovate's mise manager reads the `github:` pin in
   `.config/mise/conf.d/pap.toml` is not verified; until it is, a pap bump
   is manual.
+- Recorded 2026-09-24: it does. A Renovate 44.112.3 dry run extracted the
+  `github:blairforce1/pap` table pin and proposed an update for a
+  `github:cli/cli` pin of the same shape, so a pap bump arrives as a
+  Renovate pull request; `mise install` and `pap sync` still follow it by
+  hand.
+- Recorded 2026-09-24: `pap init` run from a checkout with no release tag
+  records `version = "unreleased"` and a `commit` line, a third line in
+  `.config/pap.toml`. `pap sync` uses that commit as the three-way base,
+  from the checkout or fetched from GitHub, and refuses one it cannot find.
 
 ## Where it is taught or enforced
 

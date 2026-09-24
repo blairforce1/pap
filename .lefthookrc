@@ -1,0 +1,18 @@
+# .lefthookrc: sourced by lefthook before every hook job (the `rc` key in
+# lefthook.yml), and by the hook script itself before it looks for lefthook.
+# Puts mise's shims first on PATH so the pinned tools are found from a shell,
+# GUI client or agent session that has not activated mise. A shim resolves
+# the version this repository pins, and works without mise itself on PATH.
+# Where mise is activated this changes nothing.
+#
+# The shim is also how the hook finds lefthook, on the host and in the
+# devcontainer alike: the absolute path `lefthook install` writes is the
+# fallback, so the side that did not run setup still works. Where neither
+# is there, the hook script prints "Can't find lefthook in PATH" and exits
+# 0, and the commit goes through unchecked; refuse it instead.
+PATH="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims:$PATH"
+export PATH
+if [ -z "${LEFTHOOK_BIN:-}" ] && ! command -v lefthook >/dev/null 2>&1; then
+  echo "lefthook not found; run: mise trust && mise install" >&2
+  exit 1
+fi

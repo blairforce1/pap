@@ -57,6 +57,12 @@ is the whole point of measuring, and attribution needs a boundary.
 - Recorded 2026-09-24: the title check is built, as part of the reusable
   `pr-checks` workflow of [0004](0004-pull-request-checks-are-answered.md).
   It is not yet a required check; `pap emit` is still unbuilt.
+- Recorded 2026-09-24: from 0.5.0 the pap plugin and the toolkit (CLI,
+  templates, skills) share one version and one tag series, `v<x.y.z>`, so
+  the tag an app repository pins names the plugin it runs too.
+  `mise run release` refuses a version that
+  `plugins/pap/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
+  do not both carry. spec-review keeps its own version.
 
 ## Where it is taught or enforced
 
