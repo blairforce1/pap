@@ -3,15 +3,11 @@
 # language layer ships its own file beside this one and nothing is merged
 # (decision 0003).
 #
-# `mise trust && mise install` on a fresh clone installs these and, through
-# the postinstall hook, runs `setup`. mise hooks are experimental, hence the
-# setting; without it `mise run setup` does the same by hand.
+# Once per clone: `mise trust && mise install && mise run setup`. `pap init`
+# will run that sequence when it exists.
 #
 # check and fmt run every task named check:* and fmt:*. A language layer adds
 # its steps by defining check:<lang> and fmt:<lang> in its own file.
-
-[settings]
-experimental = true
 
 [tools]
 lefthook = "2.1.14"
@@ -22,9 +18,6 @@ shellcheck = "0.11.0"
 # not ship, and the github backend fails its attestation check (mise
 # 2026.5.12). ubi is deprecated and removed in mise 2027.1.0; move before then.
 "ubi:editorconfig-checker/editorconfig-checker" = "4.0.2"
-
-[hooks]
-postinstall = "mise run setup"
 
 [tasks.setup]
 description = "Install the git hooks and point git blame at the ignore list"

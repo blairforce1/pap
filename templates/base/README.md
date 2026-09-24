@@ -10,7 +10,7 @@ framework version or a person.
 | `.gitattributes` | Makes git agree with the editor: LF on every platform, C# hunks headed by the enclosing method, binary types marked so they are never normalised, lock files marked generated so GitHub collapses them, `CHANGELOG.md` merged as a union so parallel entries do not conflict, and `.devcontainer` and `.github` left out of archives. |
 | `.gitignore` | OS, editor, .NET and node artefacts, in commented sections. Editor settings directories are ignored whole. |
 | `.git-blame-ignore-revs` | Formatting-only commits, one hash per line, that `git blame` and GitHub skip. Starts empty; the first repository-wide `dotnet format` commit goes in first. Needs `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone, which `mise run setup` does. |
-| `.config/mise/conf.d/base.toml` | Exact pins for lefthook, dprint, gitleaks, shellcheck and editorconfig-checker, and the `setup`, `check` and `fmt` tasks. mise reads every file in `conf.d/`, so a language layer ships its own file beside this one and nothing is merged. A `postinstall` hook runs `setup`, so `mise trust && mise install` on a fresh clone installs the tools and the git hooks; mise hooks are experimental, so this file sets `experimental = true` for the repository. `check` runs every `check:*` task and `fmt` every `fmt:*` task, with `--continue-on-error` so one run reports every failure; a language layer adds its steps as `check:<lang>` and `fmt:<lang>`. editorconfig-checker is pinned through the deprecated `ubi` backend: the aqua entry asks for an asset the release does not ship, and the `github` backend fails its attestation check on mise 2026.5.12. `ubi` is removed in mise 2027.1.0. |
+| `.config/mise/conf.d/base.toml` | Exact pins for lefthook, dprint, gitleaks, shellcheck and editorconfig-checker, and the `setup`, `check` and `fmt` tasks. mise reads every file in `conf.d/`, so a language layer ships its own file beside this one and nothing is merged. `setup` installs the git hooks and sets `blame.ignoreRevsFile`; it is a task, not a mise `postinstall` hook, because mise hooks need `experimental = true` and that would switch experimental features on for the whole repository. `check` runs every `check:*` task and `fmt` every `fmt:*` task, with `--continue-on-error` so one run reports every failure; a language layer adds its steps as `check:<lang>` and `fmt:<lang>`. editorconfig-checker is pinned through the deprecated `ubi` backend: the aqua entry asks for an asset the release does not ship, and the `github` backend fails its attestation check on mise 2026.5.12. `ubi` is removed in mise 2027.1.0. |
 | `lefthook.yml` | The git hooks. pre-commit, on staged files only, fixing nothing: `dprint check`, editorconfig-checker, `gitleaks git --pre-commit --staged` (the gitleaks 8.30 form; `protect` is gone) and shellcheck on staged `.sh` files. pre-push: `scripts/guard-branch.sh push`, as a `script` job with `use_stdin`, because lefthook v2 skips `run` jobs when HEAD has no diff against its upstream and `git push origin HEAD:main` from an already-pushed branch would get through. `extends: .config/lefthook/*.yml` pulls in each language layer's jobs; with no language layer the glob matches nothing and that is fine. |
 | `scripts/guard-branch.sh` | Refuses a push from any branch but `change/<id>`, and any push to `main` (decision 0002). In this repository it is a symlink to pap's own `scripts/guard-branch.sh`, so there is one copy; the sync tool copies the file it points at. |
 | `dprint.json` | Formats JSON, YAML, Markdown, TOML and Dockerfiles, at pinned plugin versions. Sets no indentation, tab or line-ending option: its defaults match the `[*]` section, and the comment in the file names each pair. Excludes lock files and `artifacts/`. |
@@ -49,6 +49,18 @@ the drift is found by the next person whose editor disagrees with CI.
   `--severity`; the default threshold, `warn`, is what the file is written
   against.
 
+## Setting up a clone
+
+Once per clone:
+
+```sh
+mise trust && mise install && mise run setup
+```
+
+`trust` because mise refuses an untrusted configuration, `install` for the
+pinned tools, `setup` for the git hooks and `blame.ignoreRevsFile`. `pap
+init` will run this sequence when it exists.
+
 ## The pap repository's own tooling
 
 pap's root `lefthook.yml` and `mise.toml` predate this layer and differ from
@@ -61,8 +73,7 @@ dogfood run; they are not edited by hand in the meantime.
 dotnet format --verify-no-changes   # exit 2 lists every file and rule that would change
 dotnet format                       # applies them
 git config blame.ignoreRevsFile .git-blame-ignore-revs   # once per clone
-mise trust && mise install          # tools, then git hooks through the postinstall hook
-mise run setup                      # the hooks by hand, if mise hooks are off
+mise trust && mise install && mise run setup   # once per clone
 mise run check                      # every hook's check on the whole repository
 mise run fmt                        # every formatter
 ```
