@@ -1,13 +1,14 @@
 # 0006. Carry every change with /change, assemble.sh and CLAUDE.md
 
-- **Status:** measured:refuted (2026-09-24); the skill is kept
+- **Status:** measured:refuted (2026-09-24)
+- **Disposition:** kept
 - **Date:** 2026-09-24
 - **Deciders:** blairforce1, with Claude Code
 - **Supersedes:** none
 - **PIP:** the 2026-09-24 session-speed analysis: of about 230 active minutes over seven sessions, 57% was model time and 43% tool time; every brief re-sent the same per-change preamble and asked for a full read-and-summarise before work and a long verification list after it
 - **Expected effect:** brief-to-draft-PR wall time ↓ from the 8.8 min median of #25 to #29; fix-up rounds per pull request not ↑ from a median of 0; findings per pull request not ↓ from a median of 6
 - **Introduced in:** v0.5.0
-- **Revisit:** after the next five change pull requests; keep or revert on the three numbers
+- **Revisit:** after 5 change PRs from #30: keep or revert on the three numbers. Counted from #30, not the v0.5.0 tag, because the window was registered from the pull request that introduced the skill
 
 ## Context
 

@@ -7,6 +7,7 @@
 #        pap repo status|apply [--repo owner/name] [--dry-run]
 #        pap codeowners [--owner <owner>] [--check | -]
 #        pap doctor
+#        pap revisits
 #        pap version
 #
 # init    Applies base plus the named language layers to the repository at
@@ -32,6 +33,14 @@
 #         every item is ok or skipped. Also counts local branches whose
 #         upstream is gone, as of the last fetch, and suggests mise run
 #         tidy; a stale branch is housekeeping and never fails doctor.
+# revisits
+#         Reads the typed Revisit line of every record in decisions/
+#         (decision 0010) and prints one line per record: due, not due
+#         (n of m), manual, closed, or unknown when the count cannot be
+#         made. `after <n> change PRs` counts pull requests merged to main
+#         from a change/ branch, through gh, since the record's Introduced-in
+#         tag or the `from #<pr>` it names. Always exits 0: it reports and
+#         never blocks.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -84,7 +93,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,10p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,11p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -459,6 +468,67 @@ EOF
   fi
 }
 
+# revisits -------------------------------------------------------------------
+
+# field <file> <name>: the value of a record header line, "- **Name:** value".
+field() { sed -n "s/^- \*\*$2:\*\* *//p" "$1" | head -n 1; }
+
+cmd_revisits() {
+  [ $# -eq 0 ] || usage
+  top="$(git rev-parse --show-toplevel 2>/dev/null)" || { say "Not inside a git repository; nothing to revisit."; return 0; }
+  cd "$top"
+  [ -d decisions ] || { say "No decisions/ directory; nothing to revisit."; return 0; }
+  prs="" prs_err=""
+  for f in decisions/[0-9][0-9][0-9][0-9]-*.md; do
+    [ -f "$f" ] || continue
+    id="$(basename "$f" | cut -c1-4)"
+    status="$(field "$f" Status)"
+    trigger="$(field "$f" Revisit)"
+    case "$status" in
+      measured:* | superseded* | withdrawn*) say "$id closed ($status)"; continue ;;
+    esac
+    case "$trigger" in
+      "") say "$id unknown (no Revisit line)"; continue ;;
+      when\ *) say "$id manual ($(printf '%s' "$trigger" | cut -c1-60)$([ ${#trigger} -le 60 ] || printf '...'))"; continue ;;
+      on\ [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*)
+        day="$(printf '%s' "$trigger" | cut -c4-13)"
+        if [ "$(date -u +%Y%m%d)" -lt "$(printf '%s' "$day" | tr -d -)" ]; then say "$id not due (on $day)"; else say "$id due (on $day)"; fi
+        continue ;;
+      after\ [0-9]*\ change\ PRs*) ;;
+      *) say "$id unknown (Revisit is not in the typed form of decision 0010)"; continue ;;
+    esac
+    want="$(printf '%s' "$trigger" | sed 's/^after \([0-9]*\) .*/\1/')"
+    from="$(printf '%s' "$trigger" | sed -nE 's/^after [0-9]+ change PRs from (#[0-9]+|v[0-9][0-9.]*[0-9]).*/\1/p')"
+    [ -n "$from" ] || from="$(field "$f" "Introduced in")"
+    # Merged pull requests, once: number, head branch, merge time in epoch
+    # seconds.
+    if [ -z "$prs" ] && [ -z "$prs_err" ]; then
+      prs="$(gh pr list --state merged --base main --limit 1000 \
+        --json number,headRefName,mergedAt \
+        --jq '.[] | [.number, .headRefName, (.mergedAt | fromdateiso8601)] | @tsv' 2>&1)" ||
+        { prs_err="$(printf '%s\n' "$prs" | head -n 1)"; prs=""; }
+      [ -n "$prs" ] || [ -n "$prs_err" ] || prs_err="no merged pull requests"
+    fi
+    if [ -n "$prs_err" ]; then say "$id unknown (gh: $prs_err)"; continue; fi
+    case "$from" in
+      "#"*)
+        since="$(printf '%s\n' "$prs" | awk -F '\t' -v n="${from#\#}" '$1 == n { print $3 }')"
+        [ -n "$since" ] || { say "$id unknown ($from is not a merged pull request)"; continue; } ;;
+      v*)
+        since="$(git log -1 --format=%ct "refs/tags/$from" 2>/dev/null)" ||
+          { say "$id unknown (no tag $from here; name the start with 'from #<pr>')"; continue; } ;;
+      *) say "$id unknown (introduced in '$from', not a tag; name the start with 'from #<pr>')"; continue ;;
+    esac
+    have="$(printf '%s\n' "$prs" | awk -F '\t' -v t="$since" '$2 ~ /^change\// && $3 > t { c++ } END { print c + 0 }')"
+    if [ "$have" -ge "$want" ]; then
+      say "$id due ($have of $want change PRs since $from)"
+    else
+      say "$id not due ($have of $want change PRs since $from)"
+    fi
+  done
+  return 0
+}
+
 opt_version=""
 cmd="${1:-}"
 [ $# -eq 0 ] || shift
@@ -468,6 +538,7 @@ case "$cmd" in
   repo) exec bash "$root/scripts/repo-sync.sh" "$@" ;;
   codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
   doctor) cmd_doctor "$@" ;;
+  revisits) cmd_revisits "$@" || true ;;
   version) if [ -n "$own_version" ]; then say "$own_version"; else say "unreleased ${own_commit:-} ($root)"; fi ;;
   *) usage ;;
 esac
