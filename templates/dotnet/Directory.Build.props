@@ -24,7 +24,7 @@
          .editorconfig notes. Generating it also makes the compiler report
          CS1591 on every undocumented public member; whether public members
          need doc comments is a policy this layer does not set, so that one
-         warning is off. The file lands in bin/, which is ignored. -->
+         warning is off. The file lands in artifacts/, which is ignored. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
@@ -36,11 +36,26 @@
          here, the build refuses a missing comma and dotnet format adds it. -->
     <WarningsAsErrors>$(WarningsAsErrors);MA0007</WarningsAsErrors>
 
-    <!-- Reproducible output: the same sources and inputs give the same
-         binary. On CI the source paths are normalised too, so the build
-         machine's directory layout reaches nothing. -->
+    <!-- Provenance. Process principle 6: every artefact records what
+         produced it. For a binary that is the exact source it was built
+         from, and these settings put that in the output. Deterministic
+         output means the same sources and inputs give the same binary; on
+         CI the source paths are normalised too, so the build machine's
+         directory layout reaches nothing. SourceLink writes the repository
+         URL and commit into the PDB, so a debugger fetches the source that
+         built it; the SDK ships SourceLink for GitHub and turns it on, so
+         there is no package to reference. PublishRepositoryUrl stamps the
+         repository URL into the package and assembly metadata, and
+         EmbedUntrackedSources puts generated files, which are in no
+         commit, inside the PDB. -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' != ''">true</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- All build output under artifacts/ at the repository root, which the
+         base .gitignore ignores: no bin/ or obj/ inside project folders. -->
+    <UseArtifactsOutput>true</UseArtifactsOutput>
 
     <!-- Every project writes packages.lock.json on restore; commit it. On CI
          the lock file is an input, not an output: a restore that would have
@@ -67,6 +82,24 @@
          stay errors: an unsigned package is NU3004, a package signed by
          anyone not in trustedSigners is NU3034. -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU3018</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <!--
+    Test projects: any project whose name ends in .Tests. Never packed. Two
+    rules are off here and stay on everywhere else, each found by building
+    ordinary xunit code (measured on SDK 10.0.401):
+      CA1707  no underscores in identifiers; test names like
+              Describe_WhenEmpty_ReturnsName are the convention.
+      CA1816  call GC.SuppressFinalize in Dispose; xunit's per-test teardown
+              is Dispose on the test class, which has no finalizer to
+              suppress.
+    CS1591 is off for every project above. Nothing else fired: Meziantou's
+    ConfigureAwait rule (MA0004) stays quiet in a project that references
+    xunit.
+  -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707;CA1816</NoWarn>
   </PropertyGroup>
 
   <!--
