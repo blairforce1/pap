@@ -1,0 +1,180 @@
+// renovate.jsonc: dependency updates for every layer (decision 0007).
+// One file carries every language's ecosystem in its own commented section,
+// because Renovate reads one configuration per repository (decision 0003
+// rule 3). A section for a language the repository does not use matches
+// nothing and costs nothing.
+//
+// No `extends`. Built-in presets such as config:recommended ship inside
+// Renovate and change with whatever version the hosted app runs, so this
+// file states every setting it relies on; the only thing that moves under
+// it is Renovate's own defaults. Written against Renovate 44.112.3.
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // Weekly, Monday before 06:00 UTC. Lock file maintenance runs in the same
+  // window.
+  "timezone": "Etc/UTC",
+  "schedule": ["* 0-5 * * 1"],
+
+  // Seven-day cooldown: a release is proposed only once it is seven days
+  // old. `strict` holds the branch until then rather than opening it early.
+  // A release with no publish date is held too (`timestamp-required`, the
+  // default), except images and features: see the devcontainer rules.
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+
+  // build(deps): update <dep> to <version>, labelled for the pr-checks class.
+  // pr-checks holds a bot's pull request to its title, Change line and class
+  // label, so the body notes carry the two footer lines the template would.
+  "semanticCommits": "enabled",
+  "semanticCommitType": "build",
+  "semanticCommitScope": "deps",
+  "labels": ["class:infra"],
+  "prBodyNotes": ["Change: none", "Record: none"],
+
+  // Majors always get their own pull request; minor and patch are grouped
+  // per ecosystem by the packageRules below.
+  "separateMajorMinor": true,
+
+  // An issue listing every pending, held and failed update: the one place
+  // a stuck ecosystem shows up.
+  "dependencyDashboard": true,
+
+  "ignorePaths": ["**/node_modules/**", "artifacts/**"],
+
+  // Refresh lock files that no manifest change touches: packages.lock.json
+  // and package-lock.json. go.sum has no maintenance run in Renovate; it is
+  // rewritten with each go.mod update, and gomodTidy keeps it minimal.
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-5 * * 1"]
+  },
+  "postUpdateOptions": ["gomodTidy"],
+
+  // The devcontainer manager reads only the root .devcontainer/ by default;
+  // this adds any directory's, so a repository that carries templates (pap
+  // itself) keeps their image current too. The custom managers below are
+  // unanchored for the same reason.
+  "devcontainer": {
+    "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"]
+  },
+
+  "customManagers": [
+    // base: devcontainer features. The devcontainer CLI refuses a feature
+    // reference with both a tag and a digest (CLI 0.89.0), so features are
+    // pinned by digest alone and the devcontainer manager finds no version
+    // to update. This reads the version from the comment above each feature
+    // ("// git 1.3.8.") and moves the comment and the digest together.
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
+      "matchStrings": [
+        "//\\s*[a-z-]+ (?<currentValue>\\d+\\.\\d+\\.\\d+)\\.[^\\n]*\\n\\s*\"(?<depName>ghcr\\.io/devcontainers/features/[a-z0-9-]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver"
+    },
+    // .NET: the mise manager has no datasource for `dotnet` (Renovate
+    // 44.112.3 skips it as unsupported-datasource), so the SDK pin in
+    // .config/mise/conf.d/dotnet.toml is read here, as the same dependency
+    // global.json names.
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)\\.config/mise/conf\\.d/dotnet\\.toml$/"],
+      "matchStrings": ["\\ndotnet = \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "dotnet-sdk",
+      "datasourceTemplate": "dotnet-version"
+    }
+  ],
+
+  "packageRules": [
+    // --- base: mise tool pins, the devcontainer, GitHub Actions ----------
+    // The mise manager reads every .config/mise/conf.d/*.toml, so each
+    // layer's pins are covered by this one rule.
+    {
+      "matchManagers": ["mise"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "mise tools"
+    },
+    // The features are the custom manager's; the devcontainer manager's
+    // copy has no version and would propose a bare digest for the same line.
+    {
+      "matchManagers": ["devcontainer"],
+      "matchDepNames": ["ghcr.io/devcontainers/features/**"],
+      "enabled": false
+    },
+    // ghcr.io publishes no release date for a feature, and the default
+    // `timestamp-required` would hold every feature update forever. For
+    // images and features the cooldown applies only where the registry
+    // gives a date.
+    {
+      "matchDatasources": ["docker"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    // The image and, through the custom manager above, the features.
+    {
+      "matchFileNames": ["**/.devcontainer/devcontainer.json"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "devcontainer"
+    },
+    // Actions are pinned by full commit SHA with the version as a comment;
+    // Renovate moves both.
+    {
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    // A reusable workflow called at a branch, such as the pr-checks caller
+    // at @main (decision 0004), follows that branch on purpose; no pin.
+    {
+      "matchManagers": ["github-actions"],
+      "matchCurrentValue": "main",
+      "pinDigests": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "github-actions"
+    },
+
+    // --- .NET: Directory.Packages.props, global.json, packages.lock.json --
+    {
+      "matchManagers": ["nuget"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "nuget"
+    },
+    // global.json and .config/mise/conf.d/dotnet.toml must name the same
+    // SDK, so the two move in one pull request, majors included.
+    {
+      "matchDepNames": ["dotnet-sdk"],
+      "groupName": ".NET SDK"
+    },
+
+    // --- Go: go.mod and go.sum ------------------------------------------
+    {
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "gomod"
+    },
+    // The go directive in go.mod and the go pin in
+    // .config/mise/conf.d/go.toml must agree, so they move together. The
+    // directive is a minimum, which Renovate leaves alone unless told to
+    // bump it.
+    {
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "matchDepNames": ["go"],
+      "matchManagers": ["mise", "gomod"],
+      "groupName": "Go toolchain"
+    },
+
+    // --- Node: package.json and package-lock.json -----------------------
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm"
+    }
+  ]
+}
