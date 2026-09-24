@@ -47,6 +47,26 @@
          to change it fails (NU1004) instead of resolving something else. -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(CI)' != ''">true</RestoreLockedMode>
+
+    <!-- Restore audit: every package in the graph, direct or transitive, is
+         checked against the advisory database, at every severity from low
+         up. An advisory is a warning (NU1901-NU1904), and
+         TreatWarningsAsErrors turns it into a failed restore. -->
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <!-- NU3018 stays a warning. nuget.config requires a trusted signature on
+         every package, and in that mode NuGet also checks revocation on each
+         signature. On Linux the check reports "revocation status unknown"
+         for a signature whose certificate has expired, even with every CRL
+         reachable and current. Author signatures: xunit.abstractions 2.0.3
+         under xunit 2, Microsoft.Bcl.AsyncInterfaces 6.0.0 under xunit.v3.
+         The nuget.org repository signature from 2018: NETStandard.Library
+         1.6.1 (measured on SDK 10.0.401). NuGet reports it as a warning;
+         TreatWarningsAsErrors would fail every such restore. The refusals that matter are other codes and
+         stay errors: an unsigned package is NU3004, a package signed by
+         anyone not in trustedSigners is NU3034. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU3018</WarningsNotAsErrors>
   </PropertyGroup>
 
   <!--
