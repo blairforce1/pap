@@ -106,8 +106,9 @@ statuses and workflows (to update pinned actions); read administration
 dependency list and versions per repository and the pull requests it
 opened. It sees nothing in a repository it is not installed on.
 
-If that access is unacceptable, the same file runs under self-hosted
-Renovate in a scheduled workflow with its own token or GitHub App.
+For a client estate, run the same Renovate self-hosted through
+`renovatebot/github-action` under a GitHub App the client owns, reading this
+same file, so no third party gets write access.
 
 ## What other tools must not duplicate
 
