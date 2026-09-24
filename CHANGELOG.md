@@ -6,6 +6,13 @@ Each plugin is versioned independently.
 
 ## spec-review
 
+### [1.3.1] - 2026-09-23
+
+#### Changed
+
+- The GDPR and AI Act dates live in one shared reference,
+  `references/regulatory-dates.md`, instead of in each skill (#15).
+
 ### [1.3.0] - 2026-09-23
 
 #### Added
