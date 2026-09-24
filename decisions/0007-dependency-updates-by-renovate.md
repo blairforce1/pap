@@ -26,21 +26,21 @@ Both tools were checked against current documentation and, for Renovate,
 against a dry run of 44.112.3 on a repository built by
 `scripts/assemble.sh base dotnet go`:
 
-| Need | Dependabot | Renovate |
-|---|---|---|
-| mise pins in `.config/mise/conf.d/*.toml` | Not supported; the request is On Hold (dependabot-core#12320) | `mise` manager, on by default, matches `conf.d/*.toml`; read every base and Go pin, and `ubi:` and `go:` backends. Skips `dotnet` (no datasource) |
-| nuget, `Directory.Packages.props` | Yes, central package management included | Yes |
-| .NET SDK in `global.json` | `dotnet-sdk` ecosystem, version updates only | `nuget` manager, `dotnet-sdk` dependency |
-| gomod, `go.sum` | Yes; `go.sum` updated with `go.mod` | Yes; `go.sum` updated with `go.mod`, `gomodTidy` |
-| github-actions by SHA with version comment | Yes, comment updated | Yes, SHA and comment updated |
-| devcontainer image | Not documented; features only | Yes, tag and digest |
-| devcontainer features pinned by digest | Features by tag, with the devcontainer lock file | Not by its manager (no version to read); a regex custom manager reading the version comment works |
-| npm | Yes | Yes |
-| Cooldown | `cooldown.default-days` | `minimumReleaseAge`; held when a release has no date unless `timestamp-optional` |
-| Minor and patch grouped, majors separate | `groups` with `update-types` | `packageRules` with `groupName`; `separateMajorMinor` |
-| Lock file maintenance | `versioning-strategy: lockfile-only`, within declared ranges | `lockFileMaintenance` for `packages.lock.json` and npm; none for `go.sum` |
-| `build(deps):` prefix, label | `commit-message.prefix`, `labels` | `semanticCommitType`, `semanticCommitScope`, `labels` |
-| Access | Native to GitHub, nothing to install | Mend's hosted GitHub App, or self-hosted with a token or app |
+| Need                                       | Dependabot                                                    | Renovate                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| mise pins in `.config/mise/conf.d/*.toml`  | Not supported; the request is On Hold (dependabot-core#12320) | `mise` manager, on by default, matches `conf.d/*.toml`; read every base and Go pin, and `ubi:` and `go:` backends. Skips `dotnet` (no datasource) |
+| nuget, `Directory.Packages.props`          | Yes, central package management included                      | Yes                                                                                                                                               |
+| .NET SDK in `global.json`                  | `dotnet-sdk` ecosystem, version updates only                  | `nuget` manager, `dotnet-sdk` dependency                                                                                                          |
+| gomod, `go.sum`                            | Yes; `go.sum` updated with `go.mod`                           | Yes; `go.sum` updated with `go.mod`, `gomodTidy`                                                                                                  |
+| github-actions by SHA with version comment | Yes, comment updated                                          | Yes, SHA and comment updated                                                                                                                      |
+| devcontainer image                         | Not documented; features only                                 | Yes, tag and digest                                                                                                                               |
+| devcontainer features pinned by digest     | Features by tag, with the devcontainer lock file              | Not by its manager (no version to read); a regex custom manager reading the version comment works                                                 |
+| npm                                        | Yes                                                           | Yes                                                                                                                                               |
+| Cooldown                                   | `cooldown.default-days`                                       | `minimumReleaseAge`; held when a release has no date unless `timestamp-optional`                                                                  |
+| Minor and patch grouped, majors separate   | `groups` with `update-types`                                  | `packageRules` with `groupName`; `separateMajorMinor`                                                                                             |
+| Lock file maintenance                      | `versioning-strategy: lockfile-only`, within declared ranges  | `lockFileMaintenance` for `packages.lock.json` and npm; none for `go.sum`                                                                         |
+| `build(deps):` prefix, label               | `commit-message.prefix`, `labels`                             | `semanticCommitType`, `semanticCommitScope`, `labels`                                                                                             |
+| Access                                     | Native to GitHub, nothing to install                          | Mend's hosted GitHub App, or self-hosted with a token or app                                                                                      |
 
 ## Decision
 

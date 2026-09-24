@@ -11,17 +11,17 @@ This repository is the process definition and the toolkit. It is being built in 
 
 ## What is here
 
-| Path | What it is |
-|---|---|
-| `process/personal-agentic-process.md` | The process itself. Tool-agnostic. Says what must happen, not how. |
-| `rules.md` | The rule register: every enforceable rule, the decision that introduced it, and what enforces it today. Gaps are written down, not hidden. |
-| `decisions/` | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited. |
-| `plugins/pap/` | A Claude Code plugin: one skill per process phase (`/envision` so far), plus hooks that enforce the rules an agent must not be able to talk its way around. |
-| `plugins/spec-review/` | A Claude Code plugin for phase 3, spec review: eleven reviewer perspectives, from security to the EU AI Act, plus `spec-review-full` to run the whole board. Works on any design document, with or without the `pap` plugin. |
-| `bin/pap` | The `pap` CLI: `init` and `sync` apply the template layers, `repo` and `codeowners` configure GitHub, `doctor` checks the local machine. |
-| `scripts/` | Guards shared by the git hooks and the Claude Code hooks, the template assembler and the release script. |
-| `.github/rulesets/` | The branch ruleset applied to every repo that adopts the process. |
-| `lefthook.yml`, `mise.toml` | Pinned local tooling. `mise install && lefthook install` is the whole setup. |
+| Path                                  | What it is                                                                                                                                                                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `process/personal-agentic-process.md` | The process itself. Tool-agnostic. Says what must happen, not how.                                                                                                                                                           |
+| `rules.md`                            | The rule register: every enforceable rule, the decision that introduced it, and what enforces it today. Gaps are written down, not hidden.                                                                                   |
+| `decisions/`                          | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited.                                                            |
+| `plugins/pap/`                        | A Claude Code plugin: one skill per process phase (`/envision` so far), plus hooks that enforce the rules an agent must not be able to talk its way around.                                                                  |
+| `plugins/spec-review/`                | A Claude Code plugin for phase 3, spec review: eleven reviewer perspectives, from security to the EU AI Act, plus `spec-review-full` to run the whole board. Works on any design document, with or without the `pap` plugin. |
+| `bin/pap`                             | The `pap` CLI: `init` and `sync` apply the template layers, `repo` and `codeowners` configure GitHub, `doctor` checks the local machine.                                                                                     |
+| `scripts/`                            | Guards shared by the git hooks and the Claude Code hooks, the template assembler and the release script.                                                                                                                     |
+| `.github/rulesets/`                   | The branch ruleset applied to every repo that adopts the process.                                                                                                                                                            |
+| `lefthook.yml`, `mise.toml`           | Pinned local tooling. `mise install && lefthook install` is the whole setup.                                                                                                                                                 |
 
 ## Core ideas
 

@@ -19,20 +19,20 @@ does not depend on the `pap` plugin and works on any design document.
 
 ## Skills
 
-| Skill | Perspective |
-|-------|-------------|
-| `spec-review-full` | Orchestrates every perspective below and consolidates findings |
-| `spec-review-security` | Threats, trust boundaries, secrets, authn/authz |
-| `spec-review-reliability` | Resilience, availability, failure modes |
-| `spec-review-operations` | Operability, observability, day-2 readiness |
-| `spec-review-cost` | Cost optimisation (Azure Well-Architected Framework pillar) |
-| `spec-review-performance` | Performance efficiency, scalability, capacity |
-| `spec-review-qa` | Testability and requirements quality |
-| `spec-review-ux` | Usability and user journeys |
-| `spec-review-gdpr` | EU and UK GDPR data protection by design |
-| `spec-review-ai-act` | EU AI Act (Regulation (EU) 2024/1689) obligations |
-| `spec-review-soc2` | SOC 2 Trust Services Criteria audit readiness |
-| `spec-review-iso27001` | ISO/IEC 27001:2022 ISMS fit and Annex A controls |
+| Skill                     | Perspective                                                    |
+| ------------------------- | -------------------------------------------------------------- |
+| `spec-review-full`        | Orchestrates every perspective below and consolidates findings |
+| `spec-review-security`    | Threats, trust boundaries, secrets, authn/authz                |
+| `spec-review-reliability` | Resilience, availability, failure modes                        |
+| `spec-review-operations`  | Operability, observability, day-2 readiness                    |
+| `spec-review-cost`        | Cost optimisation (Azure Well-Architected Framework pillar)    |
+| `spec-review-performance` | Performance efficiency, scalability, capacity                  |
+| `spec-review-qa`          | Testability and requirements quality                           |
+| `spec-review-ux`          | Usability and user journeys                                    |
+| `spec-review-gdpr`        | EU and UK GDPR data protection by design                       |
+| `spec-review-ai-act`      | EU AI Act (Regulation (EU) 2024/1689) obligations              |
+| `spec-review-soc2`        | SOC 2 Trust Services Criteria audit readiness                  |
+| `spec-review-iso27001`    | ISO/IEC 27001:2022 ISMS fit and Annex A controls               |
 
 ## Usage
 

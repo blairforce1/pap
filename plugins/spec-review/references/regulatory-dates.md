@@ -11,14 +11,14 @@ moves, edit it here and update the verification date.
 These dates have moved once already: the Digital Omnibus on AI, Regulation (EU)
 2026/1744, in force 27 July 2026.
 
-| Obligation | Applies from |
-|---|---|
-| Article 5 prohibited practices | 2 February 2025; the additions made by Regulation (EU) 2026/1744 (non-consensual intimate imagery, child sexual abuse material) from 2 December 2026 |
-| Article 4 AI literacy (support duty since the Omnibus) | 2 February 2025 |
-| Chapter V GPAI model obligations | 2 August 2025 |
-| Article 50 transparency | 2 August 2026; Article 50(2) marking has grace to 2 December 2026 for systems already on the market |
-| Annex III high-risk (Chapter III) | 2 December 2027 |
-| Annex I high-risk (product legislation) | 2 August 2028 |
+| Obligation                                             | Applies from                                                                                                                                         |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Article 5 prohibited practices                         | 2 February 2025; the additions made by Regulation (EU) 2026/1744 (non-consensual intimate imagery, child sexual abuse material) from 2 December 2026 |
+| Article 4 AI literacy (support duty since the Omnibus) | 2 February 2025                                                                                                                                      |
+| Chapter V GPAI model obligations                       | 2 August 2025                                                                                                                                        |
+| Article 50 transparency                                | 2 August 2026; Article 50(2) marking has grace to 2 December 2026 for systems already on the market                                                  |
+| Annex III high-risk (Chapter III)                      | 2 December 2027                                                                                                                                      |
+| Annex I high-risk (product legislation)                | 2 August 2028                                                                                                                                        |
 
 UK position: no AI statute at the verification date. SI 2026/425 obliges the
 ICO to write a statutory code of practice on AI and automated decision-making,
@@ -28,10 +28,10 @@ updated during 2026.
 
 ## UK GDPR and the Data (Use and Access) Act 2025
 
-| Event | Date |
-|---|---|
-| DUAA data-protection provisions commenced | February and June 2026 |
-| Article 22 cutover: decisions taken before this date stay under the old Article 22 | 5 February 2026 |
+| Event                                                                              | Date                   |
+| ---------------------------------------------------------------------------------- | ---------------------- |
+| DUAA data-protection provisions commenced                                          | February and June 2026 |
+| Article 22 cutover: decisions taken before this date stay under the old Article 22 | 5 February 2026        |
 
 ## EU Digital Omnibus proposal on data
 

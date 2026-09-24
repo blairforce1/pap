@@ -50,14 +50,14 @@ the draft pull request being opened. A fix-up round is a further prompt on
 the same branch after the draft was opened and before merge. A finding is
 a bullet under "Decisions and tradeoffs to review" in the body.
 
-| PR | Wall time | Fix-up rounds | Findings |
-|---|---|---|---|
-| #25 | 8.8 min | 0 | 6 |
-| #26 | 12.2 min | 0 | 7 |
-| #27 | 4.8 min | 0 | 9 |
-| #28 | 0.8 min | 0 | 0 |
-| #29 | 9.0 min | 1 | 5 |
-| Median | 8.8 min | 0 | 6 |
+| PR     | Wall time | Fix-up rounds | Findings |
+| ------ | --------- | ------------- | -------- |
+| #25    | 8.8 min   | 0             | 6        |
+| #26    | 12.2 min  | 0             | 7        |
+| #27    | 4.8 min   | 0             | 9        |
+| #28    | 0.8 min   | 0             | 0        |
+| #29    | 9.0 min   | 1             | 5        |
+| Median | 8.8 min   | 0             | 6        |
 
 ## Considered options
 
