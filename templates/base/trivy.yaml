@@ -1,0 +1,11 @@
+# trivy.yaml: read by `trivy fs` from the repository root. Skips build
+# output, which holds restored packages and compiled copies of the source,
+# and test fixtures, which hold vulnerable or malformed input on purpose.
+# .semgrepignore skips the same paths.
+scan:
+  skip-dirs:
+    - "**/artifacts"
+    - "**/bin"
+    - "**/obj"
+    - "**/testdata"
+    - "**/fixtures"

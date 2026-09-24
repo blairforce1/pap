@@ -22,6 +22,9 @@ framework version or a person.
 | `.vscode/extensions.json` | The recommended extensions: EditorConfig, C# Dev Kit, Go, dprint, YAML, markdownlint and ShellCheck. No settings: style lives in `.editorconfig`. The list covers every supported language, not the ones a repository uses, because the file cannot be split per layer and a recommendation for an absent language is harmless. This is decision 0003 rule 3, the treatment `.gitignore` gets, and the only editor file that gets it: every other layer-specific file is contributed per layer. `devcontainer.json` repeats the list under `customizations.vscode`; change both together. |
 | `.github/renovate.jsonc` | Dependency updates for every layer (decision 0007), read by Renovate. One file with a commented section per ecosystem: base (mise tool pins, the devcontainer, GitHub Actions), .NET, Go and Node. Weekly on Monday before 06:00 UTC, minor and patch grouped per ecosystem, majors separate, a seven-day `minimumReleaseAge`, `build(deps):` commits labelled `class:infra`, and lock file maintenance for `packages.lock.json` and `package-lock.json`. Extends no preset, so nothing changes under it without a commit. See "Dependency updates". |
 | `.gitleaks.toml` | The gitleaks default rules, plus an allowlist of paths whose content is generated hashes: `packages.lock.json`, `*-lock.json`, `.git-blame-ignore-revs`. A false positive in a hand-written file takes a `gitleaks:allow` comment on that line, not a path here. |
+| `.github/workflows/security.yml` | Calls the reusable `security` workflow in `blairforce1/.github` on every pull request: `mise run check` on the whole repository, gitleaks over the pull request's commits, Semgrep's community rules for C#, Go, YAML and Dockerfiles, and `trivy fs` for vulnerable dependencies, misconfiguration and secrets. A finding at high or critical fails its check (`security / check`, `security / gitleaks`, `security / semgrep`, `security / trivy`); a lower one is a warning. Findings are annotated on the diff and listed in the job summary, and on a public repository uploaded to code scanning. This is the server-side backstop for the hooks, and the replacement for code scanning and secret scanning, which a private repository on a Pro account does not get. Scanner versions are pinned in the reusable workflow, so a bump lands in every repository at once. `security-events: write` is granted for the upload; the reusable workflow will not start with less, even where it does not upload. |
+| `.semgrepignore` | What Semgrep skips, in `.gitignore` syntax: `artifacts/`, `bin/`, `obj/`, and test fixtures in `testdata/` and `fixtures/`. Semgrep already skips untracked files. The file replaces Semgrep's default ignore list, which would also skip test code; test code is scanned here. |
+| `trivy.yaml` | Read by `trivy fs` from the root. Skips the same paths as `.semgrepignore`: build output holds restored packages and compiled copies, fixtures hold vulnerable input on purpose. `trivy fs` reads the file system, not git, so an ignored `artifacts/` is scanned without it. |
 
 ## Adding a language
 
@@ -49,7 +52,8 @@ A hook that is slow gets skipped, and a skipped hook checks nothing. So:
 - **pre-push** runs anything that compiles or analyses a program: builds,
   analyzers, linters that type-check, vulnerability scans.
 - **CI is the gate.** Hooks can be skipped (`--no-verify`, `LEFTHOOK=0`) and
-  run only on what changed; CI runs `mise run check` on everything.
+  run only on what changed; CI runs `mise run check` on everything, in
+  `.github/workflows/security.yml`.
 
 A language layer's pre-commit job that needs a build is in the wrong hook.
 

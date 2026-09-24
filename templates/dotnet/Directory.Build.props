@@ -104,12 +104,16 @@
 
   <!--
     Third-party analyzers, run in every project. Versions are pinned in
-    Directory.Packages.props. Severities are set in .globalconfig, where
-    every rule an IDE rule in .editorconfig already covers is switched off;
-    the one exception, MA0007, is above.
+    Directory.Packages.props. Severities are set in .globalconfig: every
+    Meziantou and Roslynator rule an IDE rule in .editorconfig already
+    covers is switched off, the one exception, MA0007, is above; every
+    SonarAnalyzer.CSharp rule enabled by default is set by its Sonar type,
+    bugs and vulnerabilities at warning, smells at suggestion; see the
+    note in .globalconfig.
   -->
   <ItemGroup>
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
     <PackageReference Include="Roslynator.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />
   </ItemGroup>
 </Project>

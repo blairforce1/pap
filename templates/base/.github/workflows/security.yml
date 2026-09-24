@@ -1,0 +1,19 @@
+# security.yml: calls the reusable security workflow in blairforce1/.github
+# on every pull request: `mise run check`, gitleaks over the pull request's
+# commits, Semgrep and Trivy. A finding at high or critical fails its check;
+# lower ones are warnings. .semgrepignore and trivy.yaml at the root say
+# what the scanners skip. security-events: write is for the SARIF upload to
+# code scanning, which happens on public repositories only; the reusable
+# workflow declares it, so the caller must grant it on private ones too.
+name: security
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security:
+    uses: blairforce1/.github/.github/workflows/security.yml@main
