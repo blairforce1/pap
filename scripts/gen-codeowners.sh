@@ -4,34 +4,58 @@
 # a recorded human approval (process section 3.2) are the paths GitHub and
 # the pr-checks workflow treat as protected.
 #
-# Usage: gen-codeowners.sh [output]
+# Usage: gen-codeowners.sh [--owner <owner>] [--check | -]
 #
-#   output  Where to write, relative to the repository root. Default
-#           .github/CODEOWNERS; `-` writes to stdout, which is how
-#           `mise run check:codeowners` compares without writing.
+#   --owner  The GitHub user or team that owns every path, with or without
+#            the leading @. Default: the owner segment of the origin remote,
+#            github.com/<owner>/<repo> over ssh or https.
+#   --check  Write nothing; exit 1 if .github/CODEOWNERS in the index (what
+#            the next commit carries) differs from what would be generated.
+#            Used by the pre-commit hook and `mise run check:codeowners`.
+#   -        Write to stdout instead of .github/CODEOWNERS.
 #
 # Every backticked path on a bullet line of the section becomes one line
-# owned by $owner. A path that does not start with `/` or `**` is anchored at
-# the root with a leading `/`: invariants.md means the repository's
-# CLAUDE.md, not every CLAUDE.md. CODEOWNERS has no negation or character
-# ranges, so a path with `!`, `[` or whitespace is refused.
+# owned by the owner. A path that does not start with `/` or `**` is
+# anchored at the root with a leading `/`: invariants.md means the
+# repository's CLAUDE.md, not every CLAUDE.md. CODEOWNERS has no negation or
+# character ranges, so a path with `!`, `[` or whitespace is refused.
 #
-# Exits 1 with one line on stderr when the file, the section or its paths
-# are missing. Running it twice produces the same file.
+# Exits 1 with one line on stderr when the file, the section, its paths or
+# an owner are missing. Running it twice produces the same file.
 
 set -eu
 
-owner='@blairforce1'
 src='product/invariants.md'
+out='.github/CODEOWNERS'
 
 die() {
   printf 'gen-codeowners: %s\n' "$1" >&2
   exit 1
 }
 
+owner=''
+mode='write'
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --owner) [ $# -ge 2 ] || die '--owner needs a value'; owner="$2"; shift 2 ;;
+    --owner=*) owner="${1#--owner=}"; shift ;;
+    --check) mode=check; shift ;;
+    -) mode=stdout; shift ;;
+    *) die "unknown argument '$1'; usage: gen-codeowners.sh [--owner <owner>] [--check | -]" ;;
+  esac
+done
+
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || die 'not inside a git repository'
 cd "$root"
-out="${1:-.github/CODEOWNERS}"
+
+if [ -z "$owner" ]; then
+  # git@github.com:o/r.git, ssh://git@github.com/o/r, https://[user@]github.com/o/r
+  owner="$(git remote get-url origin 2>/dev/null \
+    | sed -nE 's#^(ssh://)?([^@/]+@)?github\.com[:/]([^/]+)/[^/]+/?$#\3#p; s#^https?://([^@/]+@)?github\.com/([^/]+)/[^/]+/?$#\2#p' \
+    | head -n 1)" || true
+  [ -n "$owner" ] || die 'no owner: pass --owner <owner>, or set an origin remote on github.com/<owner>/<repo>'
+fi
+owner="@${owner#@}"
 
 [ -f "$src" ] || die "$src not found"
 grep -q '^## Protected paths[[:space:]]*$' "$src" \
@@ -65,9 +89,18 @@ content="$(printf '%s\n' \
   '' \
   "$body")"
 
-if [ "$out" = - ]; then
-  printf '%s\n' "$content"
-else
-  mkdir -p "$(dirname "$out")"
-  printf '%s\n' "$content" > "$out"
-fi
+case "$mode" in
+  stdout)
+    printf '%s\n' "$content"
+    ;;
+  check)
+    staged="$(git show ":$out" 2>/dev/null)" \
+      || die "$out is not in the index; run scripts/gen-codeowners.sh and git add $out"
+    [ "$staged" = "$content" ] \
+      || die "$out is stale for $src; run scripts/gen-codeowners.sh and git add $out"
+    ;;
+  write)
+    mkdir -p "$(dirname "$out")"
+    printf '%s\n' "$content" > "$out"
+    ;;
+esac

@@ -35,9 +35,16 @@ result() { # result <ok 0|1> <label> [detail]
   fi
 }
 
+# mkrepo <name> [origin url]: the default origin is an ssh github.com URL.
 mkrepo() {
   git init -q -b main "$T/$1"
   mkdir -p "$T/$1/product"
+  [ "${2-x}" = none ] || git -C "$T/$1" remote add origin "${2:-git@github.com:blairforce1/$1.git}"
+}
+commit() {
+  git -C "$T/$1" add -A
+  git -C "$T/$1" -c user.name=test -c user.email=test@example.invalid \
+    -c commit.gpgsign=false commit -q -m "${2:-x}"
 }
 
 # The envision template's section, plus a duplicate, a star bullet and a
@@ -81,7 +88,7 @@ out="$(cd "$T/sample/product" && sh "$gen" 2>&1)"
 rc=$?
 got="$(cat "$T/sample/.github/CODEOWNERS" 2>/dev/null)"
 [ "$rc" = 0 ] && [ "$got" = "$expected" ]
-result $? 'sample invariants.md writes the expected .github/CODEOWNERS, run from a subdirectory' \
+result $? 'sample invariants.md writes the expected .github/CODEOWNERS, owner from an ssh origin, run from a subdirectory' \
   "exit $rc; $out
 $(printf '%s\n' "$expected" > "$T/want"; printf '%s\n' "$got" | diff -u "$T/want" - )"
 
@@ -93,9 +100,7 @@ got="$(cd "$T/stdout" && sh "$gen" -)"
 result $? "'-' writes to stdout only"
 
 # Idempotence: a second run leaves the committed file unchanged.
-git -C "$T/sample" add -A
-git -C "$T/sample" -c user.name=test -c user.email=test@example.invalid \
-  -c commit.gpgsign=false commit -q -m init
+commit sample init
 (cd "$T/sample" && sh "$gen") >/dev/null 2>&1
 rc=$?
 st="$(git -C "$T/sample" status --porcelain)"
@@ -134,6 +139,76 @@ out="$(cd "$T/negated" && sh "$gen" 2>&1)"
 rc=$?
 [ "$rc" = 1 ] && [ ! -e "$T/negated/.github" ]
 result $? 'negated path exits 1 and writes nothing' "exit $rc; $out"
+
+# Owner: https origin, the flag over the origin, the flag with no origin,
+# and neither.
+two='## Protected paths
+- `infra/**`'
+mkrepo https https://someone@github.com/Some-Org/repo.git
+printf '%s\n' "$two" > "$T/https/product/invariants.md"
+got="$(cd "$T/https" && sh "$gen" - | tail -n 1)"
+[ "$got" = '/infra/** @Some-Org' ]
+result $? 'owner from an https origin with a user part' "got: $got"
+
+mkrepo sshurl ssh://git@github.com/Other/repo
+printf '%s\n' "$two" > "$T/sshurl/product/invariants.md"
+got="$(cd "$T/sshurl" && sh "$gen" - | tail -n 1)"
+[ "$got" = '/infra/** @Other' ]
+result $? 'owner from an ssh:// origin without .git' "got: $got"
+
+got="$(cd "$T/https" && sh "$gen" --owner @team-x - | tail -n 1)"
+[ "$got" = '/infra/** @team-x' ]
+result $? '--owner overrides the origin' "got: $got"
+
+mkrepo noorigin none
+printf '%s\n' "$two" > "$T/noorigin/product/invariants.md"
+got="$(cd "$T/noorigin" && sh "$gen" --owner=bob - | tail -n 1)"
+[ "$got" = '/infra/** @bob' ]
+result $? '--owner=<owner> with no origin, @ added' "got: $got"
+
+out="$(cd "$T/noorigin" && sh "$gen" 2>&1)"
+rc=$?
+[ "$rc" = 1 ] \
+  && [ "$out" = 'gen-codeowners: no owner: pass --owner <owner>, or set an origin remote on github.com/<owner>/<repo>' ] \
+  && [ ! -e "$T/noorigin/.github" ]
+result $? 'no origin and no --owner exits 1 naming both' "exit $rc; $out"
+
+mkrepo gitlab git@gitlab.com:someone/repo.git
+printf '%s\n' "$two" > "$T/gitlab/product/invariants.md"
+out="$(cd "$T/gitlab" && sh "$gen" 2>&1)"
+rc=$?
+[ "$rc" = 1 ] && [ ! -e "$T/gitlab/.github" ]
+result $? 'an origin not on github.com is not an owner' "exit $rc; $out"
+
+# --check compares against the index: fresh passes, a changed invariants.md
+# fails, a regenerated but unstaged file still fails, staging it passes.
+mkrepo check
+printf '%s\n' "$two" > "$T/check/product/invariants.md"
+(cd "$T/check" && sh "$gen") && commit check
+(cd "$T/check" && sh "$gen" --check) >/dev/null 2>&1
+result $? '--check passes when the index copy is current'
+
+printf -- '- `migrations/**`\n' >> "$T/check/product/invariants.md"
+out="$(cd "$T/check" && sh "$gen" --check 2>&1)"
+rc=$?
+[ "$rc" = 1 ] && [ "$out" = 'gen-codeowners: .github/CODEOWNERS is stale for product/invariants.md; run scripts/gen-codeowners.sh and git add .github/CODEOWNERS' ]
+result $? '--check fails when invariants.md changed' "exit $rc; $out"
+
+(cd "$T/check" && sh "$gen")
+(cd "$T/check" && sh "$gen" --check) >/dev/null 2>&1
+[ $? = 1 ]
+result $? '--check fails when the regenerated file is not staged'
+
+git -C "$T/check" add .github/CODEOWNERS
+(cd "$T/check" && sh "$gen" --check) >/dev/null 2>&1
+result $? '--check passes once the regenerated file is staged'
+
+mkrepo checknew
+printf '%s\n' "$two" > "$T/checknew/product/invariants.md"
+out="$(cd "$T/checknew" && sh "$gen" --check 2>&1)"
+rc=$?
+[ "$rc" = 1 ] && [ ! -e "$T/checknew/.github" ]
+result $? '--check fails with no CODEOWNERS in the index, and writes nothing' "exit $rc; $out"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }
