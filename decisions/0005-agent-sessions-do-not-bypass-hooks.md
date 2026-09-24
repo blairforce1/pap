@@ -69,6 +69,15 @@ the agent.
   pre-commit checks; until it exists this hook is the only one.
 - Follow-up: the installed plugin enforces this only after
   `claude plugin update` to 0.3.0.
+- Recorded 2026-09-24: a command the human runs with `!` inside a Claude
+  Code session does not pass through `PreToolUse`. With pap 0.3.0
+  installed and reloaded, `! git commit --no-verify -m x` on `main` in
+  this repository reached git ("nothing to commit"); the hook would have
+  refused it twice, under this record and under 0002. So "humans are
+  unaffected" holds inside a session too. It also means `!` skips the 0002
+  hook layer; the pre-push hook and the ruleset still apply. `!` is typed
+  at the prompt, not issued through the agent's Bash tool, so this record's
+  rule is unchanged.
 
 ## Where it is taught or enforced
 
