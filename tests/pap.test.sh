@@ -302,6 +302,17 @@ out="$(doctor PATH="$MISE_DATA_DIR/shims:$PATH")"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'ok       mise activated  (shims on PATH)'
 result $? "doctor: mise shims on PATH count as activated" "$out"
 
+# A branch whose upstream was deleted, as after a merged pull request:
+# reported with the tidy hint, and not a failure.
+git -C "$T/app" remote add origin "$T/nowhere.git"
+git -C "$T/app" branch -q stale
+git -C "$T/app" config branch.stale.remote origin
+git -C "$T/app" config branch.stale.merge refs/heads/stale
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 0 ] &&
+  printf '%s\n' "$out" | grep -q 'stale    1 branch(es) with a gone upstream  (run mise run tidy)'
+result $? "doctor: counts branches with a gone upstream, suggests tidy; exits 0" "$out"
+
 printf '#!/bin/sh\nexit 0\n' > "$hooks/pre-push"
 ls_json true 2.1.13
 out="$(doctor MISE_SHELL=bash)"; rc=$?
