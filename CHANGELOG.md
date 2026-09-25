@@ -115,6 +115,11 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+#### Changed
+
+- `mise run release` refuses a version whose pap section in `CHANGELOG.md`
+  at origin/main still reads `Unreleased`.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added
