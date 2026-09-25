@@ -91,7 +91,7 @@ targets="$(jq -r '
       def stdin($kind; $route):
         $all[] | $docs[.] | (., if $kind == "jsonfile" then (fromjson? | .body? | strings) else empty end) | found($route);
       # $v is a word as written; a heredoc inside it, as in "$(cat <<EOF ...)", counts.
-      def text($route; $v): (($v | unword), ($v | marks[] | $docs[.])) | found($route);
+      def text($route; $v): (($v | unword | ltrimstr("body=")), ($v | marks[] | $docs[.])) | found($route);
       def file($kind; $route; $f):
         if $f == "-" then stdin($kind; $route)
           else "\($kind)\t\($dir)\t\($route)\t\(if ($f | startswith("/")) then $f else $dir + "/" + $f end)" end;
