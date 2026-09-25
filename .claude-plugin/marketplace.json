@@ -9,7 +9,7 @@
       "name": "pap",
       "source": "./plugins/pap",
       "description": "Personal Agentic Process",
-      "version": "0.5.0"
+      "version": "0.6.0"
     },
     {
       "name": "spec-review",
