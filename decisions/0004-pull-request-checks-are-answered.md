@@ -170,6 +170,11 @@ answer (each body read by hand, against `.github/CODEOWNERS`).
   a pull request touching a protected path needs an owner's
   `Approved-by: @login` line, and a reason no longer answers that box.
   The required-check follow-up above was done in #42.
+- Recorded 2026-09-25: a squash merge keeps one co-author per email, and
+  every Claude model shares `noreply@anthropic.com`, so all but one
+  Anthropic co-author are dropped (#50 lost its Fable 5.1 trailer). Rule
+  4.2's trailer is a lower bound; the `Provenance:` line is the complete
+  record, and `scripts/written-with.sh` counts both for release notes.
 
 ## Where it is taught or enforced
 
