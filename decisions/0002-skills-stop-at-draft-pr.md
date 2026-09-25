@@ -6,7 +6,7 @@
 - **Supersedes:** none
 - **PIP:** #1 (intent.md committed directly to main, 2026-09-16)
 - **Expected effect:** humanReview coverage ↑ to 100%; unreviewed changes on main ↓ to 0
-- **Introduced in:** v0.1.0
+- **Introduced in:** v0.5.0
 - **Revisit:** after 10 change PRs from #47: the one extension 0001 allows; measure the draft-PR step as active time from draft open to merge, from session transcripts as 0006 did, not timestamps, and close to a `measured:` status whatever it shows
 
 ## Context

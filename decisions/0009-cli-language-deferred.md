@@ -6,7 +6,7 @@
 - **Supersedes:** none
 - **PIP:** none; this is a structural record, not an intervention under 0001
 - **Expected effect:** not applicable
-- **Introduced in:** unreleased
+- **Introduced in:** v0.5.0
 - **Revisit:** when the first component needs structured data and unit tests beyond what shell tests give; expected to be the event emitter (`pap emit`)
 
 ## Context

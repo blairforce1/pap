@@ -6,7 +6,7 @@
 - **Supersedes:** none
 - **PIP:** none; this is a structural record, not an intervention under 0001
 - **Expected effect:** not applicable
-- **Introduced in:** unreleased
+- **Introduced in:** v0.5.0
 - **Revisit:** when Dependabot ships mise support ([dependabot-core#12320](https://github.com/dependabot/dependabot-core/issues/12320)), Mend changes the Community Cloud terms or permissions, or a layer adds a pin that neither a Renovate manager nor a custom manager can read
 
 ## Context

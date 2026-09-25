@@ -7,7 +7,7 @@
 - **Supersedes:** none
 - **PIP:** #21 (decision 0003 merged with all three Checks boxes unticked, no reasons, and no attribution for generated content)
 - **Expected effect:** pull requests merged with an unexplained unticked box, or with generated content shown but not declared, ↓ from 2 of the 15 merged since the template (#7, #21) to 0
-- **Introduced in:** unreleased
+- **Introduced in:** v0.5.0
 - **Revisit:** after 20 change PRs from #23: if the check failed more often on a correct pull request than on a real omission. The record predates the first tag, so the count starts after its pull request
 
 ## Context

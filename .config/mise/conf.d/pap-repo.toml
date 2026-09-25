@@ -19,6 +19,7 @@ run = [
   "sh tests/revisits.test.sh",
   "sh tests/coverage.test.sh",
   "sh tests/measure.test.sh",
+  "sh tests/release.test.sh",
 ]
 
 [tasks.release]

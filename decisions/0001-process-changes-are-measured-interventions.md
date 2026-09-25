@@ -6,7 +6,7 @@
 - **Supersedes:** none
 - **PIP:** none (founding)
 - **Expected effect:** none (founding)
-- **Introduced in:** v0.1.0
+- **Introduced in:** v0.5.0
 - **Revisit:** when three process interventions have shipped: if none shows a detectable effect
 
 ## Context

@@ -6,7 +6,7 @@
 - **Supersedes:** none; amends [0004](0004-pull-request-checks-are-answered.md)
 - **PIP:** #46 (merged with the protected-path box unticked and "Approval is blairforce1's to record here before merge"; no approval was ever recorded) and #48 (the same reason, its approval written two minutes after the merge); found by 0004's revisit, #49
 - **Expected effect:** pull requests touching a protected path merged with no owner's approval recorded in the body before the merge ↓ from 3 of the 4 since #46 (#46 never, #47 a false tick, #48 two minutes after; #49 24 s before) to 0
-- **Introduced in:** unreleased
+- **Introduced in:** v0.6.0
 - **Revisit:** after 10 change PRs from #50: whether any pull request the check labelled protected-path merged without an owner's Approved-by line, or the check refused one that had it
 
 ## Context

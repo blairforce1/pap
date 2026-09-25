@@ -17,7 +17,9 @@
 # the version from 0.5.0 (decision 0001). Refuses a version that is not
 # x.y.z, whose tag already exists on origin, or that
 # plugins/pap/.claude-plugin/plugin.json and the pap entry in
-# .claude-plugin/marketplace.json do not both carry at that commit.
+# .claude-plugin/marketplace.json do not both carry at that commit, or
+# whose section under "## pap" in CHANGELOG.md at that commit still reads
+# "Unreleased": date it before releasing.
 # Requires git, tar, jq and, without --dry-run, gh (authenticated).
 
 set -eu
@@ -44,6 +46,12 @@ plugin="$(git show "$sha:plugins/pap/.claude-plugin/plugin.json" | jq -r .versio
 market="$(git show "$sha:.claude-plugin/marketplace.json" | jq -r '.plugins[] | select(.name == "pap") | .version')"
 [ "$plugin" = "$version" ] && [ "$market" = "$version" ] ||
   die "origin/main carries pap $plugin in plugin.json and $market in marketplace.json, not $version; bump both first"
+heading="$(git show "$sha:CHANGELOG.md" | awk -v h="### [$version]" '
+  /^## / { pap = ($0 == "## pap") }
+  pap && index($0, h) == 1 { print; exit }')"
+case "$heading" in
+  *Unreleased*) die "CHANGELOG.md at origin/main reads '$heading'; date the $version section first" ;;
+esac
 
 out="$(mktemp -d)"
 name="pap-$version"
