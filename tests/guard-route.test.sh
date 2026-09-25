@@ -55,7 +55,7 @@ check() {
     '{tool_name: $t, cwd: $d, tool_input: {command: $c}}')"
   printf '%s' "$input" | "$router" >/dev/null 2>&1
   rc=$?
-  label="cwd=${2#"$T"/} ${4:+[$4] }$3"
+  label="cwd=${2#"$T"/} ${4:+[$4] }$(printf '%s' "$3" | tr '\n' '~')"
   if [ "$rc" = "$1" ]; then
     printf 'ok %d - %s\n' "$n" "$label"
   else
@@ -141,6 +141,48 @@ check 0 "$T/G2" 'git log --grep=--no-verify'
 check 0 "$T/U"  'git commit --no-verify -m x'
 check 0 "$T/G2" "LEFTHOOK=0 git -C $T/U commit -m x"
 check 0 "$T/G2" "cd $T/U && git config core.hooksPath /dev/null"
+
+# Decision 0012: an agent may not write an Approved-by line into a pull
+# request body, by any route, even to keep one the live body already has.
+printf 'Summary\n- [ ] No protected path touched\n  Approved-by: @owner\n' > "$T/G2/approved.md"
+printf 'Summary\nApproved by the owner later.\n' > "$T/G2/plain.md"
+printf '{"body":"x\\napproved-BY: @owner"}' > "$T/G2/approved.json"
+printf '{"body":"x\\nno approval"}' > "$T/G2/plain.json"
+nl='
+'
+check 2 "$T/G2" "gh pr create --draft --title t --body \"x${nl}Approved-by: @owner\""
+check 0 "$T/G2" "gh pr create --draft --title t --body \"x${nl}no approval\""
+check 2 "$T/G2" "gh pr edit 7 -b 'x${nl}  approved-BY: @owner'"
+check 0 "$T/G2" "gh pr edit 7 -b 'x'"
+check 2 "$T/G2" "gh pr edit 7 --body=\$'x\\nApproved-by: @owner'"
+check 2 "$T/G2" 'gh pr create --body-file approved.md'
+check 0 "$T/G2" 'gh pr create --body-file plain.md'
+check 2 "$T/U"  "cd $T/G2 && gh pr edit 7 -F approved.md"
+check 2 "$T/G2" "gh pr edit 7 -F $T/G2/approved.md"
+check 0 "$T/G2" 'gh pr edit 7 -F missing.md'
+check 2 "$T/G2" "gh pr edit 7 --body-file - <<'EOF'${nl}Summary${nl}Approved-by: @owner${nl}EOF"
+check 0 "$T/G2" "gh pr edit 7 --body-file - <<'EOF'${nl}Summary${nl}EOF"
+check 2 "$T/G2" "cat <<EOF | gh pr create -F -${nl}Approved-By:@owner${nl}EOF"
+check 2 "$T/G2" "gh pr create --body \"\$(cat <<'EOF'${nl}Approved-by: @owner${nl}EOF${nl})\""
+check 0 "$T/G2" "gh pr create --body \"\$(cat <<'EOF'${nl}Summary${nl}EOF${nl})\""
+check 2 "$T/G2" "gh api repos/o/r/pulls/7 -X PATCH -f body=\"x${nl}Approved-by: @owner\""
+check 0 "$T/G2" "gh api repos/o/r/pulls/7 -X PATCH -f body=\"x${nl}no approval\""
+check 2 "$T/G2" 'gh api repos/o/r/pulls/7 -X PATCH -F body=@approved.md'
+check 0 "$T/G2" 'gh api repos/o/r/pulls/7 -X PATCH -F body=@plain.md'
+check 2 "$T/G2" 'gh api -X PATCH repos/o/r/pulls/7 --input approved.json'
+check 0 "$T/G2" 'gh api -X PATCH repos/o/r/pulls/7 --input plain.json'
+check 2 "$T/G2" "gh api -X PATCH repos/o/r/pulls/7 --input - <<'EOF'${nl}{\"body\":\"x\\nApproved-by: @owner\"}${nl}EOF"
+check 2 "$T/G2" "gh api repos/o/r/pulls -f title=t -f head=change/x -f base=main -f body=\"Approved-by: @owner\""
+
+# Approved-by elsewhere, not in a pull request body, passes.
+check 0 "$T/G2" "git commit -m \"x${nl}${nl}Approved-by: @owner\""
+check 0 "$T/G2" "git commit -F - <<'EOF'${nl}x${nl}Approved-by: @owner${nl}EOF"
+check 0 "$T/G2" "gh pr comment 7 --body \"Approved-by: @owner\""
+check 0 "$T/G2" "gh pr view 7 --json body | grep -i 'Approved-by:'"
+check 0 "$T/G2" "gh pr create --title 'Approved-by: @owner' --body x"
+check 0 "$T/G2" "gh pr edit 7 --body \"see the Approved-by: line\""
+check 0 "$T/G2" "gh api repos/o/r/issues/7/comments -f body=\"Approved-by: @owner\""
+check 0 "$T/U"  "gh pr edit 7 --body \"Approved-by: @owner\""
 
 # Without jq the router cannot parse; it complains only where the session's
 # own repository is guarded, and never blocks.

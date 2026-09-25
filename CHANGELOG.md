@@ -113,6 +113,20 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ## pap
 
+### [0.6.0] - Unreleased
+
+#### Added
+
+- The `PreToolUse` hook refuses an agent's `gh pr create`, `gh pr edit`
+  or `gh api` pulls write whose body carries an `Approved-by:` line, by
+  `--body`, `--body-file <path>`, `--body-file -` from a heredoc, or a
+  `body=` field or `--input` for `gh api` (decision 0012).
+
+#### Changed
+
+- `/change` drops an `Approved-by:` line when it rewrites a body, and its
+  report says the owner must re-approve.
+
 ### [0.5.0] - Unreleased
 
 #### Added
