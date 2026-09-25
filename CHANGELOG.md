@@ -113,7 +113,9 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ## pap
 
-### [0.6.0] - Unreleased
+### [Unreleased]
+
+### [0.6.0] - 2026-09-25
 
 #### Added
 
@@ -130,7 +132,7 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   <short sha>`, updates it after every push, and ends its report with the
   `Approved-by: @login <sha>` line for the owner to paste (decision 0013).
 
-### [0.5.0] - Unreleased
+### [0.5.0] - 2026-09-24
 
 #### Added
 
