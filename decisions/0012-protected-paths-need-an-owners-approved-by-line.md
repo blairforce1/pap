@@ -110,6 +110,11 @@ check can match against CODEOWNERS.
 - Changed: the protected-path label now means "a changed file has an
   owner", not "a pattern matched". The two differ only for a pattern
   with no owners.
+- Recorded 2026-09-25: the follow-up is built. `guard-route.sh` refuses an
+  agent's `gh pr create`, `gh pr edit` or `gh api` write of a pull request
+  body carrying an `Approved-by:` line, including one the live body
+  already has, so an agent's rewrite now removes an approval and the owner
+  re-approves.
 - Measurement: 0001's median verdict will read inconclusive at this
   floor, as 0004's did, since the after side is 0 or 1 per pull request.
   The count is what this record is judged on. After the change the last
