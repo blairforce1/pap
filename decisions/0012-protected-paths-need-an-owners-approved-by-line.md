@@ -115,6 +115,10 @@ check can match against CODEOWNERS.
   body carrying an `Approved-by:` line, including one the live body
   already has, so an agent's rewrite now removes an approval and the owner
   re-approves.
+- Recorded 2026-09-25, by [0013](0013-an-approval-is-for-one-commit.md):
+  the line names the head commit it approves, `Approved-by: @login <sha>`,
+  and a line naming any other head is stale. Every push needs a new
+  approval.
 - Measurement: 0001's median verdict will read inconclusive at this
   floor, as 0004's did, since the after side is 0 or 1 per pull request.
   The count is what this record is judged on. After the change the last
@@ -127,4 +131,5 @@ Amends [`rules.md`](../rules.md) 4.1 (checks are answered). Taught in the
 pull request template in `blairforce1/.github` and the `/change` skill.
 Enforced by `.github/workflows/pr-checks.yml`, which calls
 `blairforce1/.github/.github/workflows/pr-checks.yml@main`, from
-blairforce1/.github#8, with the key matched in any case from #9.
+blairforce1/.github#8, with the key matched in any case from #9, and the
+head commit required on the line from #10 ([0013](0013-an-approval-is-for-one-commit.md)).

@@ -71,12 +71,12 @@ The verification table: what was run, what it showed. Every check the brief aske
 ## Checks
 Tick a box only if it is true. An unticked box needs a one-line reason below it, otherwise the PR is not ready.
 - [x] Verification run and output shown above
-- [x] No protected path touched, or an owner has written `Approved-by: @login` below
+- [x] No protected path touched, or an owner has approved the head: `Approved-by: @login <sha>` below
 - [x] Generated content carries provenance (model, skill, prompt)
 Provenance: <model> via Claude Code, skill change, prompt "<one-line brief>"; recorded in the commit trailers.
 ```
 
-Answer every box. An unticked box has its reason on the next line. If the diff touches a path in the base branch's `.github/CODEOWNERS`, leave the protected-path box unticked with those paths as its reason, and never write an `Approved-by:` line: it is the owner's, typed by hand before merge (decision 0012). A rewrite of a body drops any `Approved-by:` line, and the report says the owner must re-approve.
+Answer every box. An unticked box has its reason on the next line. If the diff touches a path in the base branch's `.github/CODEOWNERS`, leave the protected-path box unticked with `Head to approve: <short sha>` as its reason, the pushed head's first seven characters (`git rev-parse --short=7 HEAD`), and never write an `Approved-by:` line: it is the owner's, typed by hand before merge (decision 0012), and names the head it approves (decision 0013). After every later push, update that reason to the new head; the rewrite drops any `Approved-by:` line, which the push made stale anyway, and the report says the owner must re-approve.
 
 ```sh
 git push -u origin "change/<slug>"
@@ -101,7 +101,10 @@ Decisions left to you:
   one line each, or "none"
 Revisits due: <record numbers, or "none">
 Once the pull request has merged, run `mise run tidy` to remove this worktree and branch.
+Approved-by: @<owner> <short sha>
 ```
+
+The last line is only for a pull request touching a protected path: the line for the owner to paste into the body, naming the owners from `.github/CODEOWNERS` and the head in the box's reason. Omit it otherwise.
 
 The Revisits line is the records `pap revisits` prints as due (decision 0010): `pap revisits | awk '$2 == "due" { print $1 }'`, run as `bin/pap` in pap itself. If it cannot run, say so on that line.
 
