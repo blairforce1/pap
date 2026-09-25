@@ -2,7 +2,7 @@
 
 Hypotheses, not features. Ordered by value and risk. Rewritten when findings come back.
 
-Every change to pap names one of these in its brief, or says it is reactive and why.
+This file is the backlog (decision 0011). An issue may propose an item; the item exists once it is merged here. Every change names one of these in its `intent.md`, or says it is reactive and why.
 
 Last reviewed: 2026-09-25
 

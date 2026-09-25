@@ -70,7 +70,7 @@ Proposed, not yet confirmed: see the first open question.
 Candidate invariants not yet confirmed. Each becomes an invariant, a convention, or is dropped.
 
 - Protected paths: confirm or trim the list above. Raised because envision requires the section. Today a protected path is labelled and noted by `pr-checks`, not refused; settled by deciding whether a missing approval should fail the check.
-- Change identity: is the `changes/<id>/` folder named on a pull request's `Change:` line the `change.id` every event joins on, and how does it relate to the `change/<slug>` branch? Raised because every measure joins on it. Settled by a decision record before the first event is derived.
+- Change identity: proposed in decision 0011: the id is the slug (`change/<slug>`, `changes/<slug>/`), and events carry `<owner>/<repo>:<slug>`. Becomes an invariant when 0011 is accepted.
 - Events: are outer-loop events derived from the GitHub timeline after the fact, or emitted live by `pap emit`? Raised because INV-010 assumes an emitter. Settled by the first derivation slice (backlog H-004).
 - Rules index: must `rules.md` match what the ruleset and workflows actually enforce, checked mechanically? Raised because its enforcement column for 4.1 and 4.2 no longer matches the ruleset. Settled with H-001.
 - Coverage: must every principle and section of the process document map to a rule, a backlog item or an explicit deferral? Raised because unbuilt parts went unreported until a manual review. Settled with H-001.
