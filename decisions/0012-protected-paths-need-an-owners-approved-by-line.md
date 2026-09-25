@@ -48,8 +48,8 @@ On a pull request whose changed files have an owner in the base branch's
 Approved-by: @login
 ```
 
-naming an owner of every such file, before merge. The key is
-case-sensitive, logins are compared without case, several owners may be
+naming an owner of every such file, before merge. The key and the
+logins are compared without case, several owners may be
 listed with commas or on several lines, and the line may be indented
 under the box. Nothing else may follow on the line. A line inside an
 HTML comment does not count. A file's owners are those on the last
@@ -122,4 +122,4 @@ Amends [`rules.md`](../rules.md) 4.1 (checks are answered). Taught in the
 pull request template in `blairforce1/.github` and the `/change` skill.
 Enforced by `.github/workflows/pr-checks.yml`, which calls
 `blairforce1/.github/.github/workflows/pr-checks.yml@main`, from
-blairforce1/.github#8.
+blairforce1/.github#8, with the key matched in any case from #9.
