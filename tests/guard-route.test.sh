@@ -183,6 +183,12 @@ check 0 "$T/G2" "gh pr create --title 'Approved-by: @owner' --body x"
 check 0 "$T/G2" "gh pr edit 7 --body \"see the Approved-by: line\""
 check 0 "$T/G2" "gh api repos/o/r/issues/7/comments -f body=\"Approved-by: @owner\""
 check 0 "$T/U"  "gh pr edit 7 --body \"Approved-by: @owner\""
+# Decision 0013: the box's "Head to approve:" reason is the agent's, and
+# passes; the Approved-by line it asks for stays the owner's.
+printf 'Summary\n- [ ] No protected path touched, or an owner has approved the head: Approved-by: @login <sha> below\n  Head to approve: 3f9c2a7\n' > "$T/G2/head.md"
+check 0 "$T/G2" 'gh pr edit 7 --body-file head.md'
+check 0 "$T/G2" "gh pr create --draft --title t --body \"x${nl}  Head to approve: 3f9c2a7\""
+check 2 "$T/G2" "gh pr edit 7 --body \"x${nl}  Head to approve: 3f9c2a7${nl}  Approved-by: @owner 3f9c2a7\""
 
 # Without jq the router cannot parse; it complains only where the session's
 # own repository is guarded, and never blocks.
