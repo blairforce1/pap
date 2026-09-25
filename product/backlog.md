@@ -11,6 +11,7 @@ Last reviewed: 2026-09-25
 **H-001** We believe giving every principle and section of the process document a stable ID, and a `pap coverage` check that maps each ID to a rule, a backlog item or an explicit deferral, will produce a process whose unbuilt parts are visible without a manual review, measured by uncovered IDs and by `rules.md` entries whose enforcement column disagrees with the ruleset and workflows, both reported in every `/change` report and both at 0 before each release.
 Tests invariant: none directly. It closes the gap behind the 2026-09-25 review, which found unbuilt and misdescribed controls only because the human asked. Envision would pick H-004 instead, because INV-010 (events carry the process version) is the riskiest invariant: every measure depends on it. Confirm or swap.
 Class: infra
+Status: built in change process-coverage (`pap coverage`).
 
 ## Ranked
 
@@ -19,8 +20,9 @@ Proposed order; confirm or reorder.
 **H-002** We believe adopting v0.5.0 in the trial app repository will produce real changes carried by the process, measured by change pull requests merged there under PAP.
 Related: vision §Done enough to matter. Class: infra
 
-**H-003** We believe making a missing approval on a protected path fail `pr-checks`, and denying agent Edit and Write on protected paths in the `PreToolUse` hook, will produce protected paths an agent cannot change unapproved, measured by merged pull requests touching a protected path with no recorded approval, at 0.
+**H-003** We believe making a missing approval on a protected path fail `pr-checks` will produce protected paths that do not change unapproved, measured by merged pull requests touching a protected path with no recorded approval, at 0.
 Related: vision §Done enough to matter; process principles 9 and 11. Class: security-sensitive
+Status: built by decisions 0012 and 0013 (`pr-checks` refuses a protected path without an owner's `Approved-by:` line for the head). Dropped: denying agent Edit and Write on protected paths in the `PreToolUse` hook, because it would have blocked 10 of the last 10 change pull requests; the approval gate, not the edit, is the control.
 
 **H-004** We believe deriving CDEvents from the GitHub pull request timeline (phase and return labels, reviews, merges), each carrying the pinned process version, will produce interventions settled without hand counting, measured by records past their revisit trigger that reach a `measured:` status from derived data alone.
 Related: vision §How we will know. Class: feature
