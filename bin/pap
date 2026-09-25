@@ -8,6 +8,7 @@
 #        pap codeowners [--owner <owner>] [--check | -]
 #        pap doctor
 #        pap revisits
+#        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
 #        pap version
 #
 # init    Applies base plus the named language layers to the repository at
@@ -41,6 +42,19 @@
 #         from a change/ branch, through gh, since the record's Introduced-in
 #         tag or the `from #<pr>` it names. Always exits 0: it reports and
 #         never blocks.
+# measure Prints, as TSV, the per-pull-request data behind a counted
+#         revisit (decision 0001's ten a side): one row per change PR in
+#         two windows, `before`, the last ten merged before the start the
+#         Revisit line names, and `after`, the first ten merged after it.
+#         --from #<pr> measures around another start. A window with fewer
+#         than ten is named short and never padded. A last line counts the
+#         change/ pull requests closed unmerged in the span of the rows,
+#         scratch previews excluded. --verdict applies 0001's rule to one
+#         numeric column: the median of `after` against the 3rd and 8th of
+#         the ten sorted `before` values, for a direction up, down, not-up
+#         or not-down; it prints confirmed, refuted, inconclusive, held,
+#         broken or cannot run. Always exits 0 after its arguments parse:
+#         it reports and never writes a record.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -93,7 +107,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,11p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,12p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -529,6 +543,189 @@ cmd_revisits() {
   return 0
 }
 
+# measure --------------------------------------------------------------------
+
+# Every pull request to main from a change/ branch, merged or closed, one
+# TSV line each: number, state, created, merged, closed and last
+# ready_for_review in epoch seconds (empty when none), class label, reviews,
+# changes requested, failed pr-checks runs before the merge (empty when the
+# check never ran), title and body. @tsv escapes the body's newlines. Check
+# runs are read from the commits the pull request still has, so runs on a
+# commit a force push dropped are not counted.
+# shellcheck disable=SC2016 # GraphQL and jq variables, not the shell's
+measure_query='query($owner: String!, $name: String!, $endCursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(baseRefName: "main", states: [MERGED, CLOSED], first: 25, after: $endCursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number state headRefName createdAt mergedAt closedAt title body
+        labels(first: 20) { nodes { name } }
+        reviews(first: 100) { nodes { state } }
+        timelineItems(first: 100, itemTypes: [READY_FOR_REVIEW_EVENT]) { nodes { ... on ReadyForReviewEvent { createdAt } } }
+        commits(first: 100) { nodes { commit { checkSuites(first: 50) { nodes { conclusion workflowRun { createdAt workflow { name } } } } } } }
+      }
+    }
+  }
+}'
+# shellcheck disable=SC2016
+measure_jq='.data.repository.pullRequests.nodes[] | select(.headRefName | startswith("change/")) | . as $p
+  | def t: if . then fromdateiso8601 else "" end;
+  ([.commits.nodes[].commit.checkSuites.nodes[] | select(.workflowRun.workflow.name == "pr-checks")]) as $runs
+  | [.number, .state, (.createdAt | t), (.mergedAt | t), (.closedAt | t),
+     ([.timelineItems.nodes[].createdAt] | max | t),
+     ([.labels.nodes[].name | select(startswith("class:")) | ltrimstr("class:")] | first // ""),
+     (.reviews.nodes | length),
+     ([.reviews.nodes[] | select(.state == "CHANGES_REQUESTED")] | length),
+     (if ($runs | length) == 0 then "" else [$runs[] | select(.conclusion == "FAILURE" and ($p.mergedAt == null or .workflowRun.createdAt < $p.mergedAt))] | length end),
+     .title, .body] | @tsv'
+
+cmd_measure() {
+  id="" from="" v_col="" v_dir=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --from) [ $# -ge 2 ] || usage; from="$2"; shift 2 ;;
+      --verdict) [ $# -ge 3 ] || usage; v_col="$2" v_dir="$3"; shift 3 ;;
+      -*) usage ;;
+      *) [ -z "$id" ] || usage; id="$1"; shift ;;
+    esac
+  done
+  [ -n "$id" ] || usage
+  case "$from" in "" | "#"[0-9]*) ;; *) usage ;; esac
+  case "$v_dir" in "" | up | down | not-up | not-down) ;; *) usage ;; esac
+  case "$v_col" in
+    "" | open_min | draft_min | reviews | changes_requested | checks_unticked_unexplained | provenance_declared | pr_checks_failures) ;;
+    *) say "cannot run ($v_col is not a numeric column)"; return 0 ;;
+  esac
+  top="$(git rev-parse --show-toplevel 2>/dev/null)" || { say "Not inside a git repository; nothing to measure."; return 0; }
+  cd "$top"
+  f=""
+  for g in decisions/"$id"-*.md; do [ -f "$g" ] && f="$g" && break; done
+  [ -n "$f" ] || { say "No record $id in decisions/."; return 0; }
+
+  # The start: --from, else the Revisit line's from #<pr>, else the
+  # Introduced-in tag, as pap revisits counts it.
+  if [ -z "$from" ]; then
+    trigger="$(field "$f" Revisit)"
+    case "$trigger" in
+      after\ [0-9]*\ change\ PRs*) ;;
+      *) say "$id cannot be measured: its Revisit line does not count change PRs (decision 0010)"; return 0 ;;
+    esac
+    from="$(printf '%s' "$trigger" | sed -nE 's/^after [0-9]+ change PRs from (#[0-9]+|v[0-9][0-9.]*[0-9]).*/\1/p')"
+    [ -n "$from" ] || from="$(field "$f" "Introduced in")"
+  fi
+  start_pr=""
+  case "$from" in
+    "#"*) start_pr="${from#\#}" since="" ;;
+    v*)
+      since="$(git log -1 --format=%ct "refs/tags/$from" 2>/dev/null)" ||
+        { say "$id cannot be measured: no tag $from here; name the start with --from #<pr>"; return 0; } ;;
+    *) say "$id cannot be measured: introduced in '$from', not a tag; name the start with --from #<pr>"; return 0 ;;
+  esac
+
+  prs="$(gh api graphql --paginate -F owner='{owner}' -F name='{repo}' \
+    -f query="$measure_query" --jq "$measure_jq" 2>&1)" ||
+    { say "$id cannot be measured (gh: $(printf '%s\n' "$prs" | head -n 1))"; return 0; }
+
+  table="$(printf '%s\n' "$prs" | sort -t "$(printf '\t')" -k4,4n | awk -F '\t' -v start_pr="$start_pr" -v since="$since" -v from="$from" '
+    function unesc(s) {
+      gsub(/\\\\/, "\001", s); gsub(/\\n/, "\n", s); gsub(/\\r/, "", s); gsub(/\\t/, "\t", s); gsub(/\001/, "\\", s)
+      return s
+    }
+    function uncomment(s,   i, j) {
+      while ((i = index(s, "<!--")) > 0) {
+        j = index(substr(s, i + 4), "-->")
+        if (j == 0) return substr(s, 1, i - 1)
+        s = substr(s, 1, i - 1) substr(s, i + 4 + j + 2)
+      }
+      return s
+    }
+    function isbox(s) { return s ~ /^[[:space:]]*[-*] \[[ xX]\] / }
+    # Unticked boxes in the Checks section with no reason on the next line,
+    # as the pr-checks workflow of decision 0004 reads them; empty when the
+    # body has no Checks section.
+    function unexplained(body,   n, l, i, inside, seen, pending, c) {
+      n = split(uncomment(body), l, "\n")
+      inside = seen = c = 0; pending = ""
+      for (i = 1; i <= n; i++) {
+        if (l[i] ~ /^## /) { inside = (l[i] ~ /^## Checks[[:space:]]*$/); if (inside) seen = 1; continue }
+        if (!inside) continue
+        if (pending != "") { if (l[i] ~ /^[[:space:]]*$/ || isbox(l[i])) c++; pending = "" }
+        if (l[i] ~ /^[[:space:]]*[-*] \[ \] /) pending = l[i]
+      }
+      if (pending != "") c++
+      return seen ? c : ""
+    }
+    function provenance(body,   n, l, i) {
+      n = split(body, l, "\n")
+      for (i = 1; i <= n; i++) if (l[i] ~ /^Provenance: /) return 1
+      return 0
+    }
+    function mins(a, b) { return sprintf("%.1f", (b - a) / 60) }
+    $2 == "MERGED" { m++; num[m] = $1; created[m] = $3; merged[m] = $4; ready[m] = $6
+      class[m] = $7; rev[m] = $8; chg[m] = $9; fails[m] = $10; title[m] = $11; body[m] = unesc($12)
+      if (start_pr != "" && $1 == start_pr) since = $4 }
+    $2 == "CLOSED" { c++; cnum[c] = $1; cclosed[c] = $5; ctitle[c] = $11; cbody[c] = unesc($12) }
+    END {
+      if (since == "") { print "error\t" from " is not a merged change pull request"; exit }
+      for (i = 1; i <= m; i++) if (merged[i] < since) last = i
+      first = last + 1; if (start_pr != "" && num[first] == start_pr) first++
+      lo = last - 9; if (lo < 1) lo = 1
+      hi = first + 9; if (hi > m) hi = m
+      print "pr\twindow\tclass\topen_min\tdraft_min\treviews\tchanges_requested\tchecks_unticked_unexplained\tprovenance_declared\tpr_checks_failures"
+      span_lo = ""; span_hi = ""
+      for (i = lo; i <= hi; i++) {
+        if (i > last && i < first) continue
+        w = i <= last ? "before" : "after"
+        cl = class[i]
+        if (cl == "") { t = title[i]; sub(/[(:!].*/, "", t); cl = "none (" t ")" }
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", num[i], w, cl, mins(created[i], merged[i]),
+          (ready[i] == "" ? "" : mins(created[i], ready[i])), rev[i], chg[i], unexplained(body[i]),
+          provenance(body[i]), fails[i]
+        if (span_lo == "" || created[i] < span_lo) span_lo = created[i]
+        if (merged[i] > span_hi) span_hi = merged[i]
+      }
+      nb = last - lo + 1; na = hi - first + 1; if (na < 0) na = 0
+      printf "# before: %d of 10%s\n", nb, nb < 10 ? ", short" : ""
+      printf "# after: %d of 10%s\n", na, na < 10 ? ", short" : ""
+      # A rejection (decision 0002): a change/ pull request closed unmerged,
+      # not a scratch preview opened to be closed.
+      r = ""
+      for (i = 1; i <= c; i++) {
+        if (span_lo == "" || cclosed[i] < span_lo || cclosed[i] > span_hi) continue
+        if (ctitle[i] ~ /^[a-z]+\(scratch\)/ || tolower(cbody[i]) ~ /do not merge/) continue
+        r = r (r == "" ? "" : " ") "#" cnum[i]
+      }
+      print "# closed unmerged in the span, scratch excluded: " (r == "" ? "none" : r)
+    }')"
+  case "$table" in error*) say "$id cannot be measured: $(printf '%s' "$table" | cut -f2)"; return 0 ;; esac
+
+  if [ -z "$v_col" ]; then
+    printf '%s\n' "$table"
+    return 0
+  fi
+  # 0001's rule on one column: the median of after against the 3rd and 8th
+  # of the ten sorted before values. Empty cells are not values.
+  printf '%s\n' "$table" | awk -F '\t' -v col="$v_col" -v dir="$v_dir" '
+    function sort(a, n,   i, j, t) { for (i = 2; i <= n; i++) { t = a[i]; for (j = i - 1; j >= 1 && a[j] > t; j--) a[j + 1] = a[j]; a[j + 1] = t } }
+    NR == 1 { for (i = 1; i <= NF; i++) if ($i == col) k = i; next }
+    /^#/ { next }
+    $k == "" { next }
+    $2 == "before" { b[++nb] = $k + 0 }
+    $2 == "after" { a[++na] = $k + 0 }
+    END {
+      if (nb < 10 || na < 10) { printf "cannot run (%s: %d before and %d after, 0001 needs ten a side)\n", col, nb, na; exit }
+      sort(b, nb); sort(a, na)
+      med = (a[5] + a[6]) / 2; q3 = b[3]; q8 = b[8]
+      above = med > q8; below = med < q3
+      if (dir == "up") v = above ? "confirmed" : below ? "refuted" : "inconclusive"
+      else if (dir == "down") v = below ? "confirmed" : above ? "refuted" : "inconclusive"
+      else if (dir == "not-up") v = above ? "broken" : "held"
+      else v = below ? "broken" : "held"
+      printf "%s (%s %s: after median %g, before 3rd to 8th %g to %g)\n", v, col, dir, med, q3, q8
+    }'
+  return 0
+}
+
 opt_version=""
 cmd="${1:-}"
 [ $# -eq 0 ] || shift
@@ -539,6 +736,7 @@ case "$cmd" in
   codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
   doctor) cmd_doctor "$@" ;;
   revisits) cmd_revisits "$@" || true ;;
+  measure) cmd_measure "$@" || true ;;
   version) if [ -n "$own_version" ]; then say "$own_version"; else say "unreleased ${own_commit:-} ($root)"; fi ;;
   *) usage ;;
 esac
