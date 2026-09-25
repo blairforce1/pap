@@ -126,6 +126,9 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 - `/change` drops an `Approved-by:` line when it rewrites a body, and its
   report says the owner must re-approve.
+- `/change` answers an unticked protected-path box with `Head to approve:
+  <short sha>`, updates it after every push, and ends its report with the
+  `Approved-by: @login <sha>` line for the owner to paste (decision 0013).
 
 ### [0.5.0] - Unreleased
 
