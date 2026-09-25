@@ -8,6 +8,7 @@
 #        pap codeowners [--owner <owner>] [--check | -]
 #        pap doctor
 #        pap revisits
+#        pap coverage
 #        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
 #        pap version
 #
@@ -41,6 +42,17 @@
 #         made. `after <n> change PRs` counts pull requests merged to main
 #         from a change/ branch, through gh, since the record's Introduced-in
 #         tag or the `from #<pr>` it names. Always exits 0: it reports and
+#         never blocks.
+# coverage
+#         Reads the <!-- id: ... --> of every principle and section in
+#         process/personal-agentic-process.md and prints one line per ID:
+#         covered, deferred or uncovered, from its line in coverage.md, whose
+#         rules and H-NNN must exist in rules.md and product/backlog.md. Then
+#         one line per rules.md "Enforced by" entry that disagrees with the
+#         repository: a linked or backticked path that does not exist, or a
+#         sentence claiming a "required check" (or one that "does not
+#         block") against .github/rulesets/main.json's required status
+#         checks. Ends with the two counts. Always exits 0: it reports and
 #         never blocks.
 # measure Prints, as TSV, the per-pull-request data behind a counted
 #         revisit (decision 0001's ten a side): one row per change PR in
@@ -107,7 +119,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,12p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,13p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -726,6 +738,133 @@ cmd_measure() {
   return 0
 }
 
+# coverage -------------------------------------------------------------------
+
+# coverage_ids: one line per ID in the process document, the ID, a tab and
+# the principle's bold name or the heading's text.
+coverage_ids() {
+  sed -n 's/^\(.*\) <!-- id: \([PS]-[a-z0-9-]*\) -->$/\2	\1/p' "$1" |
+    sed 's/	[0-9]*\. \*\*\([^*]*\)\.\*\*.*/	\1/; s/	#* */	/'
+}
+
+# coverage_cells: the rules.md enforcement entries as claims to check, one
+# per line, tab separated: rule, kind and value. kind is "file" for a
+# linked or backticked path, or "required" or "optional" for a sentence that
+# claims a required check or one that does not block, with the backticked
+# names and workflow links of that sentence, or of the whole entry when the
+# sentence names none, as its value.
+coverage_cells() {
+  awk '
+    function names(s,   out, t) {
+      out = ""
+      while (match(s, /`[^`]+`/)) { t = substr(s, RSTART + 1, RLENGTH - 2); out = out " " t; s = substr(s, RSTART + RLENGTH) }
+      while (match(s, /\.github\/workflows\/[A-Za-z0-9._-]+\.yml/)) { t = substr(s, RSTART + 18, RLENGTH - 22); out = out " " t; s = substr(s, RSTART + RLENGTH) }
+      return out
+    }
+    /^### [0-9]/ { rule = $2; next }
+    /^- Enforced by: / {
+      cell = substr($0, 16); s = cell
+      while (match(s, /\]\([^)]+\)/)) {
+        t = substr(s, RSTART + 2, RLENGTH - 3); s = substr(s, RSTART + RLENGTH)
+        sub(/#.*/, "", t)
+        if (t != "" && t !~ /^[a-z]+:/) printf "%s\tfile\t%s\n", rule, t
+      }
+      s = cell
+      while (match(s, /`[^`]+`/)) {
+        t = substr(s, RSTART + 1, RLENGTH - 2); s = substr(s, RSTART + RLENGTH)
+        if (t ~ /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)+$/) printf "%s\tfile\t%s\n", rule, t
+      }
+      n = split(cell, sent, /\. /)
+      for (i = 1; i <= n; i++) {
+        kind = ""
+        if (tolower(sent[i]) ~ /required (status )?check/) kind = "required"
+        else if (tolower(sent[i]) ~ /does not block/) kind = "optional"
+        if (kind == "") continue
+        v = names(sent[i]); if (v == "") v = names(cell)
+        printf "%s\t%s\t%s\n", rule, kind, v
+      }
+    }' "$1" | sort -u
+}
+
+cmd_coverage() {
+  [ $# -eq 0 ] || usage
+  top="$(git rev-parse --show-toplevel 2>/dev/null)" || { say "Not inside a git repository; nothing to cover."; return 0; }
+  cd "$top"
+  doc=process/personal-agentic-process.md
+  [ -f "$doc" ] || { say "No $doc; nothing to cover."; return 0; }
+  uncovered=0 disagree=0
+  rules="$( [ -f rules.md ] && sed -n 's/^### \([0-9][0-9.]*\) .*/\1/p' rules.md)"
+  hyps="$( [ -f product/backlog.md ] && sed -n 's/^\*\*\(H-[0-9]*\)\*\*.*/\1/p' product/backlog.md)"
+  ids="$(coverage_ids "$doc")"
+  lines="$( [ -f coverage.md ] && sed -n 's/^- \([PS]-[a-z0-9-]*\): *\(.*\)/\1	\2/p' coverage.md)"
+  tab="$(printf '\t')"
+  while IFS="$tab" read -r id text; do
+    [ -n "$id" ] || continue
+    targets="$(printf '%s\n' "$lines" | awk -F '\t' -v id="$id" '$1 == id { print $2; exit }')"
+    if [ -z "$targets" ]; then
+      say "$id uncovered ($(printf '%s' "$text" | cut -c1-60))"; uncovered=$((uncovered + 1)); continue
+    fi
+    bad=""
+    rest="$targets"
+    while [ -n "$rest" ]; do
+      case "$rest" in deferred:*) break ;; esac
+      t="${rest%%,*}"
+      if [ "$t" = "$rest" ]; then rest=""; else rest="${rest#*,}"; rest="${rest# }"; fi
+      case "$t" in
+        rule\ *) printf '%s\n' "$rules" | grep -qxF "${t#rule }" || bad="$bad${bad:+; }$t is not in rules.md" ;;
+        H-[0-9]*) printf '%s\n' "$hyps" | grep -qxF "$t" || bad="$bad${bad:+; }$t is not in product/backlog.md" ;;
+        *) bad="$bad${bad:+; }'$t' is not a rule, H-NNN or deferred:" ;;
+      esac
+    done
+    if [ -n "$bad" ]; then
+      say "$id uncovered ($bad)"; uncovered=$((uncovered + 1))
+    else
+      case "$targets" in deferred:*) say "$id deferred (${targets#deferred: })" ;; *) say "$id covered ($targets)" ;; esac
+    fi
+  done <<IDS
+$ids
+IDS
+  printf '%s\n' "$lines" | while IFS="$tab" read -r id _; do
+    [ -n "$id" ] || continue
+    printf '%s\n' "$ids" | cut -f1 | grep -qxF "$id" || say "$id stale (in coverage.md, not in $doc)"
+  done
+  if [ -f rules.md ]; then
+    ruleset=.github/rulesets/main.json
+    contexts="$( [ -f "$ruleset" ] && sed -n 's/.*"context": *"\([^"]*\)".*/\1/p' "$ruleset")"
+    required="$(printf '%s\n' "$contexts" | sed 's| / .*||'; printf '%s\n' "$contexts")"
+    known="$(printf '%s\n' "$required"; for w in .github/workflows/*.yml; do
+      [ -f "$w" ] || continue; basename "$w" .yml; sed -n 's/^name: *//p' "$w"; done)"
+    cells="$(coverage_cells rules.md)"
+    while IFS="$tab" read -r rule kind value; do
+      [ -n "$rule" ] || continue
+      case "$kind" in
+        file)
+          [ -e "$value" ] || { say "rule $rule disagrees (names $value, which does not exist)"; disagree=$((disagree + 1)); } ;;
+        required | optional)
+          if [ ! -f "$ruleset" ]; then say "rule $rule unknown (claims a check is $kind; no $ruleset)"; continue; fi
+          checks=""
+          for c in $value; do
+            case " $checks " in *" $c "*) continue ;; esac
+            printf '%s\n' "$known" | grep -qxF "$c" && checks="$checks $c"
+          done
+          if [ -z "$checks" ]; then
+            say "rule $rule disagrees (claims a $kind check and names none the repository has)"; disagree=$((disagree + 1)); continue
+          fi
+          for c in $checks; do
+            if printf '%s\n' "$required" | grep -qxF "$c"; then is=required; else is=optional; fi
+            [ "$is" = "$kind" ] || {
+              if [ "$kind" = required ]; then why="$c is not a required check in $ruleset"; else why="$c is a required check in $ruleset, so it blocks"; fi
+              say "rule $rule disagrees ($why)"; disagree=$((disagree + 1)); }
+          done ;;
+      esac
+    done <<CELLS
+$cells
+CELLS
+  fi
+  say "$uncovered uncovered, $disagree disagreeing"
+  return 0
+}
+
 opt_version=""
 cmd="${1:-}"
 [ $# -eq 0 ] || shift
@@ -736,6 +875,7 @@ case "$cmd" in
   codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
   doctor) cmd_doctor "$@" ;;
   revisits) cmd_revisits "$@" || true ;;
+  coverage) cmd_coverage "$@" || true ;;
   measure) cmd_measure "$@" || true ;;
   version) if [ -n "$own_version" ]; then say "$own_version"; else say "unreleased ${own_commit:-} ($root)"; fi ;;
   *) usage ;;
