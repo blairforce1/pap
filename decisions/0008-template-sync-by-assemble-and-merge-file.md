@@ -6,7 +6,7 @@
 - **Supersedes:** none
 - **PIP:** none; this is a structural record, not an intervention under 0001
 - **Expected effect:** not applicable
-- **Introduced in:** unreleased
+- **Introduced in:** v0.5.0
 - **Revisit:** when a layer needs a file rendered per repository (a name, an owner, a choice), which is what copier does and this tool does not; or per-file merging proves too coarse, for example a sync that keeps producing conflicts a tree-level merge would have avoided
 
 ## Context

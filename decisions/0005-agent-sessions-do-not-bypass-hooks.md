@@ -7,7 +7,7 @@
 - **Supersedes:** none
 - **PIP:** #26 (the refusal added to `.lefthookrc` for a missing lefthook binary is itself skipped by `LEFTHOOK=0 git commit`)
 - **Expected effect:** hook bypasses issued by an agent session in a repository that adopts PAP ↓ to 0; no baseline exists, as nothing recorded them before
-- **Introduced in:** unreleased
+- **Introduced in:** v0.5.0
 - **Revisit:** after 20 change PRs from #27: if the hook refused more than two commands that bypassed nothing; and at once, by hand, if an agent bypass is found in an adopting repository. The record predates the first tag, so the count starts after its pull request
 
 ## Context

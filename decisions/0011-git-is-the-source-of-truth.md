@@ -6,7 +6,7 @@
 - **Supersedes:** none
 - **PIP:** none; this is a structural record, not an intervention under 0001
 - **Expected effect:** not applicable
-- **Introduced in:** unreleased
+- **Introduced in:** v0.6.0
 - **Revisit:** when a change id collides with an earlier one, or a measure needs a join that a slug cannot give
 
 ## Context

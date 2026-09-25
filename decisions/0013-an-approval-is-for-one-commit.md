@@ -6,7 +6,7 @@
 - **Supersedes:** none; amends [0012](0012-protected-paths-need-an-owners-approved-by-line.md)
 - **PIP:** #50 (its `Approved-by: @blairforce1` line was written at 14:18:53 against head `fc95ee6`; `bb6da9a`, which changed the protected `decisions/0012-…md`, reached the head at about 14:20:54, and the pull request merged at 14:23:28 on the earlier approval)
 - **Expected effect:** protected-path pull requests where a commit reached the head after the owner's approval was written ↓ from 1 of the 4 with an approval since #47 (#50; #48, #49 and #51 had none after, #47 had no approval) to 0
-- **Introduced in:** unreleased
+- **Introduced in:** v0.6.0
 - **Revisit:** after 10 change PRs from #52: whether any protected-path pull request merged with a commit after its approval, and how many approvals the check refused as stale
 
 ## Context
