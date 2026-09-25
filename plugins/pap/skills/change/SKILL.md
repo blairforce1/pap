@@ -71,12 +71,12 @@ The verification table: what was run, what it showed. Every check the brief aske
 ## Checks
 Tick a box only if it is true. An unticked box needs a one-line reason below it, otherwise the PR is not ready.
 - [x] Verification run and output shown above
-- [x] No protected path touched, or the approval is recorded here
+- [x] No protected path touched, or an owner has written `Approved-by: @login` below
 - [x] Generated content carries provenance (model, skill, prompt)
 Provenance: <model> via Claude Code, skill change, prompt "<one-line brief>"; recorded in the commit trailers.
 ```
 
-Answer every box. An unticked box has its reason on the next line.
+Answer every box. An unticked box has its reason on the next line. If the diff touches a path in the base branch's `.github/CODEOWNERS`, leave the protected-path box unticked with those paths as its reason, and never write an `Approved-by:` line: it is the owner's, typed by hand before merge (decision 0012). When you rewrite a body that already has one, keep it as it stands.
 
 ```sh
 git push -u origin "change/<slug>"

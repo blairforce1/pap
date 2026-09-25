@@ -166,6 +166,10 @@ answer (each body read by hand, against `.github/CODEOWNERS`).
   accepts any reason under an unticked box, so an approval the reason
   defers ("record here before merge") is never checked for. #46 and #48
   merged that way.
+- Recorded 2026-09-25, by [0012](0012-protected-paths-need-an-owners-approved-by-line.md):
+  a pull request touching a protected path needs an owner's
+  `Approved-by: @login` line, and a reason no longer answers that box.
+  The required-check follow-up above was done in #42.
 
 ## Where it is taught or enforced
 
