@@ -120,6 +120,16 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 - `mise run release` refuses a version whose pap section in `CHANGELOG.md`
   at origin/main still reads `Unreleased`.
 
+#### Fixed
+
+- The release archive holds the whole tree. 0.5.0 and 0.6.0 were built with
+  `git archive`, which left out every path `.gitattributes` marks
+  `export-ignore`: `.github/rulesets/main.json` and `.github/labels.yml`,
+  so `pap repo` failed from an installed release, and the base layer's
+  `.github/` and `.devcontainer/`, so `pap init` from one wrote no security
+  workflow, Renovate configuration or devcontainer. `mise run release` now
+  refuses an archive whose paths are not the tree's.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added
