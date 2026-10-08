@@ -89,6 +89,8 @@ Aim for five to twelve invariants. Fewer than five and the human probably hasn't
 
 Protected paths are mandatory. If the human has no view, propose the default set (migrations, infra, tests, `product/`) and ask them to confirm or trim.
 
+Ask who approves changes to them, and write that as the section's `Owner:` line: a GitHub user (`@login`) or team (`@org/team`), never an organisation's own name, which GitHub does not accept as a code owner. `.github/CODEOWNERS` is generated from the section, and the hook and the check read the owner from this line (decision 0014).
+
 ## Part 3: Hypothesis backlog
 
 Now the features. Each one is rewritten as a hypothesis:

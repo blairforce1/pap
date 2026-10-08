@@ -119,6 +119,14 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 - `mise run release` refuses a version whose pap section in `CHANGELOG.md`
   at origin/main still reads `Unreleased`.
+- `scripts/gen-codeowners.sh` reads the owner of the protected paths from
+  an `Owner:` line in the "Protected paths" section of
+  `product/invariants.md`, before `--owner` and the origin remote
+  (decision 0014). The pre-commit hook and `mise run check:codeowners`
+  pass no `--owner`, so in a repository an organisation owns they failed
+  any CODEOWNERS that named a person. `/envision` asks for the line.
+- `pap repo status` reports what GitHub makes of `.github/CODEOWNERS` on
+  the default branch, with each error by line.
 
 ### [0.6.0] - 2026-09-25
 

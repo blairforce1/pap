@@ -169,9 +169,9 @@ result $? '--owner=<owner> with no origin, @ added' "got: $got"
 out="$(cd "$T/noorigin" && sh "$gen" 2>&1)"
 rc=$?
 [ "$rc" = 1 ] \
-  && [ "$out" = 'gen-codeowners: no owner: pass --owner <owner>, or set an origin remote on github.com/<owner>/<repo>' ] \
+  && [ "$out" = "gen-codeowners: no owner: add an 'Owner: @login' line under '## Protected paths' in product/invariants.md, pass --owner <owner>, or set an origin remote on github.com/<owner>/<repo>" ] \
   && [ ! -e "$T/noorigin/.github" ]
-result $? 'no origin and no --owner exits 1 naming both' "exit $rc; $out"
+result $? 'no Owner line, no --owner and no origin exits 1 naming all three' "exit $rc; $out"
 
 mkrepo gitlab git@gitlab.com:someone/repo.git
 printf '%s\n' "$two" > "$T/gitlab/product/invariants.md"
@@ -209,6 +209,74 @@ out="$(cd "$T/checknew" && sh "$gen" --check 2>&1)"
 rc=$?
 [ "$rc" = 1 ] && [ ! -e "$T/checknew/.github" ]
 result $? '--check fails with no CODEOWNERS in the index, and writes nothing' "exit $rc; $out"
+
+# --- the owner named in the section ------------------------------------------
+
+# A repository an organisation owns. The origin's owner segment is the
+# organisation, which GitHub does not accept as a code owner, and the hook
+# and `mise run check:codeowners` pass no --owner.
+owned='## Protected paths
+No agent may change these without a human approval recorded on the change.
+
+Owner: @alice
+
+- `infra/**`
+
+## Open questions
+Owner: @not-in-the-section'
+
+mkrepo org git@github.com:acme/app.git
+printf '%s\n' "$two" > "$T/org/product/invariants.md"
+(cd "$T/org" && sh "$gen" --owner alice) && git -C "$T/org" add -A
+out="$(cd "$T/org" && sh "$gen" --check 2>&1)"
+rc=$?
+[ "$rc" = 1 ] && [ "$(tail -n 1 "$T/org/.github/CODEOWNERS")" = '/infra/** @alice' ]
+result $? 'without an Owner line, an owner given only by --owner fails the hook'"'"'s --check' "exit $rc; $out"
+
+printf '%s\n' "$owned" > "$T/org/product/invariants.md"
+got="$(cd "$T/org" && sh "$gen" - | tail -n 1)"
+[ "$got" = '/infra/** @alice' ]
+result $? 'an Owner line in the section names the owner, over the origin' "got: $got"
+
+(cd "$T/org" && sh "$gen") && git -C "$T/org" add -A
+out="$(cd "$T/org" && sh "$gen" --check 2>&1)"
+rc=$?
+[ "$rc" = 0 ]
+result $? 'with an Owner line, --check with no --owner passes' "exit $rc; $out"
+
+got="$(cd "$T/org" && sh "$gen" --owner @alice - | tail -n 1)"
+[ "$got" = '/infra/** @alice' ]
+result $? '--owner that agrees with the Owner line is accepted' "got: $got"
+
+out="$(cd "$T/org" && sh "$gen" --owner bob - 2>&1)"
+rc=$?
+[ "$rc" = 1 ] && [ "$out" = 'gen-codeowners: product/invariants.md names the owner (@alice); change it there, not with --owner' ]
+result $? '--owner that disagrees with the Owner line is refused' "exit $rc; $out"
+
+mkrepo several git@github.com:acme/several.git
+printf '## Protected paths\nOwners: `@alice`, @acme/platform\n- `infra/**`\n- `tests/**`\n' > "$T/several/product/invariants.md"
+got="$(cd "$T/several" && sh "$gen" - | tail -n 2)"
+[ "$got" = '/infra/** @alice @acme/platform
+/tests/** @alice @acme/platform' ]
+result $? 'Owners: several users and teams, commas and backticks allowed' "got: $got"
+
+mkrepo twolines git@github.com:acme/twolines.git
+printf '## Protected paths\nOwner: @alice\nOwner: @bob\n- `infra/**`\n' > "$T/twolines/product/invariants.md"
+out="$(cd "$T/twolines" && sh "$gen" 2>&1)"
+rc=$?
+[ "$rc" = 1 ] && [ ! -e "$T/twolines/.github" ] &&
+  [ "$out" = "gen-codeowners: more than one Owner line under '## Protected paths' in product/invariants.md" ]
+result $? 'two Owner lines exit 1 and write nothing' "exit $rc; $out"
+
+for bad in 'Owner:' 'Owner: to be decided' 'Owner: alice' 'Owner: alice@example.com'; do
+  mkrepo unreadable git@github.com:acme/unreadable.git 2>/dev/null
+  printf '## Protected paths\n%s\n- `infra/**`\n' "$bad" > "$T/unreadable/product/invariants.md"
+  out="$(cd "$T/unreadable" && sh "$gen" 2>&1)"
+  rc=$?
+  [ "$rc" = 1 ] && [ ! -e "$T/unreadable/.github" ] && printf '%s' "$out" | grep -q '^gen-codeowners: cannot read an owner from '
+  result $? "'$bad' is not an owner: exits 1 and writes nothing, not the origin's" "exit $rc; $out"
+  rm -rf "$T/unreadable"
+done
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }

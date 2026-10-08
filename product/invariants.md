@@ -53,6 +53,8 @@ No agent may change these without a human approval recorded on the change.
 
 Proposed, not yet confirmed: see the first open question.
 
+Owner: @blairforce1
+
 - `process/**`
 - `decisions/**`
 - `rules.md`

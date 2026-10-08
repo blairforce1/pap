@@ -11,7 +11,8 @@
 # status  Read-only. Reports each item as ok, drift, missing or
 #         unavailable-on-plan, in five groups: repository settings, security,
 #         ruleset (with each required status check by name), enforcement
-#         layers (decision 0002) and labels. Two more
+#         layers (decision 0002, and whether GitHub accepts the owners in
+#         .github/CODEOWNERS, decision 0014) and labels. Two more
 #         states cover what the four cannot: skipped (the check cannot run
 #         from here) and error (the API call itself failed). Exits 1 unless
 #         every item is ok, unavailable-on-plan or skipped.
@@ -309,6 +310,25 @@ for path in lefthook.yml scripts/guard-branch.sh; do
     *) record enforcement error "$path present" "HTTP $code" ;;
   esac
 done
+
+# What GitHub makes of .github/CODEOWNERS on the default branch (decision
+# 0014). An owner it does not know, such as an organisation's own name,
+# protects nothing, and no person's Approved-by line can match it.
+item=".github/CODEOWNERS accepted by GitHub"
+api_get "repos/$repo/codeowners/errors"
+case "$code" in
+  200)
+    owner_errors="$(jq -r '.errors[]? | "line \(.line): \(.kind): \(.source)"' <<<"$body")"
+    if [ -z "$owner_errors" ]; then
+      record enforcement ok "$item"
+    else
+      record enforcement drift "$item" "$(jq -r '.errors | length' <<<"$body") error(s); name the owner on an Owner: line in product/invariants.md"
+      [ "$cmd" = status ] && note "$owner_errors"
+    fi
+    ;;
+  404) record enforcement skipped "$item" "no CODEOWNERS on the default branch" ;;
+  *) record enforcement error "$item" "HTTP $code" ;;
+esac
 
 item="lefthook pre-push hook installed locally"
 if [ -n "$local_repo" ] && [ "$(tr '[:upper:]' '[:lower:]' <<<"$local_repo")" = "$(tr '[:upper:]' '[:lower:]' <<<"$repo")" ]; then
