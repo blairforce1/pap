@@ -6,8 +6,37 @@
 [tools]
 dotnet = "10.0.401"
 
+# dotnet format exits 1 when the directory holds no solution or project
+# ("Could not find a MSBuild project file or solution file"). That failed
+# `mise run check`, and so the required `security / check`, in a repository
+# that had adopted this layer and written no code yet. With neither there is
+# nothing to format, so both tasks say so and pass, as check:codeowners does
+# before product/invariants.md exists. The names are the ones dotnet format
+# itself looks for in the directory.
 [tasks."check:dotnet"]
-run = "dotnet format --verify-no-changes"
+description = "Fail if dotnet format would change a file"
+run = '''
+found=""
+for f in *.sln *.slnx *.slnf *.csproj *.vbproj; do
+  if [ -e "$f" ]; then found="$f"; fi
+done
+if [ -z "$found" ]; then
+  echo "check:dotnet: no solution or project at the repository root; nothing to check"
+  exit 0
+fi
+dotnet format --verify-no-changes
+'''
 
 [tasks."fmt:dotnet"]
-run = "dotnet format"
+description = "Apply dotnet format"
+run = '''
+found=""
+for f in *.sln *.slnx *.slnf *.csproj *.vbproj; do
+  if [ -e "$f" ]; then found="$f"; fi
+done
+if [ -z "$found" ]; then
+  echo "fmt:dotnet: no solution or project at the repository root; nothing to format"
+  exit 0
+fi
+dotnet format
+'''

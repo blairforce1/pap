@@ -120,6 +120,13 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 - `mise run release` refuses a version whose pap section in `CHANGELOG.md`
   at origin/main still reads `Unreleased`.
 
+#### Fixed
+
+- The .NET layer's `check:dotnet` and `fmt:dotnet` pass, with a message,
+  when the repository root has no solution or project. `dotnet format`
+  exits 1 there, which failed `mise run check` and the required `security /
+  check` in a repository that had adopted the layer and written no code.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added

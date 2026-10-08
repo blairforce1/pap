@@ -1,10 +1,13 @@
 #!/bin/sh
-# assemble.test.sh: tests for scripts/assemble.sh.
+# assemble.test.sh: tests for scripts/assemble.sh, and for the .NET layer's
+# check and fmt tasks in a repository assembled from it.
 #
 # Usage: sh tests/assemble.test.sh
 #
 # Assembles the real layers into temporary directories, and a synthetic pair
-# of colliding layers in a copy of the script beside its own templates/.
+# of colliding layers in a copy of the script beside its own templates/. The
+# task scripts are read out of the assembled mise file and run with a stub
+# dotnet on PATH, so neither mise nor the SDK is needed.
 # Prints one TAP-style line per case and exits 1 if any case fails. Touches
 # nothing outside the temporary directory.
 #
@@ -84,6 +87,62 @@ result $? "non-empty target: refused" "$out"
 out="$(sh "$asm" "$T/only" 2>&1)"; rc=$?
 [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q usage
 result $? "no layer: usage" "$out"
+
+# --- the .NET layer's tasks in a repository with no code yet -----------------
+
+# task <name>: the multi-line run script of a mise task in the assembled
+# dotnet.toml, as mise hands it to `sh -c`.
+task() {
+  awk -v h="[tasks.\"$1\"]" -v q="'''" '
+    $0 == h { t = 1; next }
+    /^\[/ { t = 0 }
+    t && $0 == "run = " q { r = 1; next }
+    r && $0 == q { exit }
+    r' "$T/bdg/.config/mise/conf.d/dotnet.toml"
+}
+# A stub dotnet: logs its arguments and exits as told.
+mkdir "$T/stub" "$T/app"
+cat > "$T/stub/dotnet" <<'EOF'
+#!/bin/sh
+echo "$*" >> "$STUB_LOG"
+exit "${STUB_EXIT:-0}"
+EOF
+chmod +x "$T/stub/dotnet"
+export STUB_LOG="$T/dotnet.log"
+# run_task <name>: runs it in $T/app; sets $out and $rc.
+run_task() {
+  : > "$STUB_LOG"
+  out="$(cd "$T/app" && PATH="$T/stub:$PATH" sh -c "$(task "$1")" 2>&1)"; rc=$?
+}
+
+[ -n "$(task check:dotnet)" ] && [ -n "$(task fmt:dotnet)" ]
+result $? "dotnet tasks: check:dotnet and fmt:dotnet are read from the assembled layer"
+
+# 0.6.0 ran dotnet format here, which exits 1 with "Could not find a MSBuild
+# project file or solution file": `mise run check` failed in every
+# repository that had adopted the layer and had no solution yet.
+run_task check:dotnet
+[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ] && printf '%s\n' "$out" | grep -q '^check:dotnet: no solution or project'
+result $? "check:dotnet, no solution or project: passes, says so, dotnet not run" "exit $rc; $out; $(cat "$STUB_LOG")"
+run_task fmt:dotnet
+[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ] && printf '%s\n' "$out" | grep -q '^fmt:dotnet: no solution or project'
+result $? "fmt:dotnet, no solution or project: passes, says so, dotnet not run" "exit $rc; $out; $(cat "$STUB_LOG")"
+
+printf '<Solution>\n</Solution>\n' > "$T/app/App.slnx"
+run_task check:dotnet
+[ "$rc" = 0 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
+result $? "check:dotnet, a solution: runs dotnet format --verify-no-changes" "exit $rc; $out; $(cat "$STUB_LOG")"
+STUB_EXIT=2 run_task check:dotnet
+[ "$rc" = 2 ]
+result $? "check:dotnet: dotnet format's exit status is the task's" "exit $rc; $out"
+run_task fmt:dotnet
+[ "$rc" = 0 ] && [ "$(cat "$STUB_LOG")" = 'format' ]
+result $? "fmt:dotnet, a solution: runs dotnet format" "exit $rc; $out; $(cat "$STUB_LOG")"
+
+rm "$T/app/App.slnx" && : > "$T/app/App.csproj"
+run_task check:dotnet
+[ "$rc" = 0 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
+result $? "check:dotnet, a project and no solution: runs dotnet format" "exit $rc; $out; $(cat "$STUB_LOG")"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]
