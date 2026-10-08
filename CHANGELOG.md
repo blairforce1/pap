@@ -120,6 +120,12 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 - `mise run release` refuses a version whose pap section in `CHANGELOG.md`
   at origin/main still reads `Unreleased`.
 
+#### Fixed
+
+- `pap init` stops with exit 1 when `mise trust`, `mise install` or `mise
+  run setup` fails, and names what is left to run. It used to go on, print
+  "Next:" and exit 0 with no tools and no hooks installed.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added

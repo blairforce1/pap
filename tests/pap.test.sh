@@ -322,5 +322,40 @@ out="$(doctor MISE_SHELL=bash)"; rc=$?
   printf '%s\n' "$out" | grep -q 'ok       pre-commit hook installed'
 result $? "doctor, drifted: a foreign hook and an active version off its pin; exits 1" "$out"
 
+# --- init when the clone setup fails ------------------------------------------
+
+# A mise whose install fails, as it does with no network. 0.6.0 went on to
+# print "Next:" and exit 0 with no tools and no hooks installed: set -e does
+# not stop a script for a failure in the middle of an && list.
+mkdir "$T/failstub"
+cat > "$T/failstub/mise" <<'EOF'
+#!/bin/sh
+echo "$*" >> "$STUB_LOG"
+[ "$1" = install ] && { echo "mise ERROR Failed to install tools" >&2; exit 1; }
+exit 0
+EOF
+chmod +x "$T/failstub/mise"
+git init -q -b main "$T/failapp"
+: > "$STUB_LOG"
+out="$(cd "$T/failapp" && PATH="$T/failstub:$PATH" sh "$pap" init --version 0.1.0 base 2>&1)"; rc=$?
+[ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'pap: clone setup failed' &&
+  ! printf '%s\n' "$out" | grep -q '^Next:'
+result $? "init: a failed mise install stops it, exit 1, with no Next: steps" "exit $rc; $out"
+[ "$(tr '\n' ';' < "$STUB_LOG")" = "trust;install;" ]
+result $? "init: mise run setup is not run after a failed install" "$(cat "$STUB_LOG")"
+[ -f "$T/failapp/.editorconfig" ] && grep -qx 'version = "0.1.0"' "$T/failapp/.config/pap.toml"
+result $? "init: the layers stay applied and recorded, for the setup to be finished by hand"
+printf '%s\n' "$out" | grep -q '^pap: clone setup failed\..*commit and run pap init again.*pap repo apply.*pap codeowners.*pap doctor$'
+result $? "init: the failure names both ways to finish" "$out"
+
+# The first way: commit what init wrote, and run it again with a mise that
+# works.
+: > "$STUB_LOG"
+g -C "$T/failapp" add -A && g -C "$T/failapp" commit -qm "init, setup failed"
+out="$(cd "$T/failapp" && sh "$pap" init --version 0.1.0 base 2>&1)"; rc=$?
+[ "$rc" = 0 ] && [ "$(tr '\n' ';' < "$STUB_LOG")" = "trust;install;run setup;" ] &&
+  [ -z "$(git -C "$T/failapp" status --porcelain)" ] && printf '%s\n' "$out" | grep -q '^Next:'
+result $? "init: run again after a commit, it changes no file and finishes the setup" "exit $rc; $out"
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

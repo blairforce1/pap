@@ -159,7 +159,11 @@ path two layers both carry. It records the version and layers in
 `.config/pap.toml`, pins pap in `.config/mise/conf.d/pap.toml`, runs the
 clone setup below, applies the GitHub settings with `pap repo apply` when
 `origin` is on GitHub, writes `.github/CODEOWNERS` when
-`product/invariants.md` exists, and prints what is left. Run it again with
+`product/invariants.md` exists, and prints what is left. If the clone
+setup fails, for want of a network say, it stops there with exit 1; the
+layers and the record are already written, so fix what mise reported and
+either commit and run `init` again or run the commands it names. Run it
+again with
 another layer to add that layer; run it unchanged and nothing changes. In
 a repository that already has some of these files, a file that differs
 from the template gets conflict markers to resolve.
