@@ -193,7 +193,10 @@ activated, the configuration trusted, the git hooks installed,
 `blame.ignoreRevsFile` set, each pinned tool installed at its pin, and
 how many local branches have a gone upstream (run `mise run tidy`).
 `pap repo status` reports the GitHub side, and `pap codeowners` regenerates
-`.github/CODEOWNERS`.
+`.github/CODEOWNERS`. `pap repo` needs `gh`, signed in as someone who
+administers the repository, `jq`, and mikefarah's `yq`. This layer pins
+`yq`, so `mise install` provides it; `gh` and `jq` are the machine's, and
+the devcontainer has `gh`.
 
 Releases are cut in pap with `mise run release <version>` (see
 `scripts/release.sh`); `--dry-run` builds the archive and creates nothing.

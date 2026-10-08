@@ -57,6 +57,18 @@ jq -e '.rules[] | select(.type == "required_status_checks")
   "$ruleset" >/dev/null
 result $? "ruleset: not strict, every check from GitHub Actions"
 
+# --- the tools pap repo needs -------------------------------------------------
+
+# repo-sync.sh refuses to run without mikefarah yq. 0.6.0's base layer did
+# not pin it, so `pap repo` died with "yq not found" in a repository that
+# had only run `mise install`. The base layer pins it, at the version pap
+# pins for itself.
+pin() { sed -n 's/^yq = "\(.*\)"$/\1/p' "$1"; }
+base_pin="$(pin "$here/templates/base/.config/mise/conf.d/base.toml")"
+[ -n "$base_pin" ] && [ "$base_pin" = "$(pin "$here/.config/mise/conf.d/pap-repo.toml")" ]
+result $? "base layer: pins yq, at the version pap's own repository pins" \
+  "base: '$base_pin'; pap: '$(pin "$here/.config/mise/conf.d/pap-repo.toml")'"
+
 # --- status against a stub gh -------------------------------------------------
 
 # The stub answers the calls status makes. A path with no fixture is a 404.
