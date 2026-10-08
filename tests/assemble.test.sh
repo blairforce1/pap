@@ -102,6 +102,7 @@ task() {
 }
 # A stub dotnet: logs its arguments and exits as told.
 mkdir "$T/stub" "$T/app"
+git init -q -b main "$T/app"
 cat > "$T/stub/dotnet" <<'EOF'
 #!/bin/sh
 echo "$*" >> "$STUB_LOG"
@@ -122,10 +123,10 @@ result $? "dotnet tasks: check:dotnet and fmt:dotnet are read from the assembled
 # project file or solution file": `mise run check` failed in every
 # repository that had adopted the layer and had no solution yet.
 run_task check:dotnet
-[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ] && printf '%s\n' "$out" | grep -q '^check:dotnet: no solution or project'
+[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ] && printf '%s\n' "$out" | grep -q '^check:dotnet: no solution or project in the repository'
 result $? "check:dotnet, no solution or project: passes, says so, dotnet not run" "exit $rc; $out; $(cat "$STUB_LOG")"
 run_task fmt:dotnet
-[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ] && printf '%s\n' "$out" | grep -q '^fmt:dotnet: no solution or project'
+[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ] && printf '%s\n' "$out" | grep -q '^fmt:dotnet: no solution or project in the repository'
 result $? "fmt:dotnet, no solution or project: passes, says so, dotnet not run" "exit $rc; $out; $(cat "$STUB_LOG")"
 
 printf '<Solution>\n</Solution>\n' > "$T/app/App.slnx"
@@ -143,6 +144,26 @@ rm "$T/app/App.slnx" && : > "$T/app/App.csproj"
 run_task check:dotnet
 [ "$rc" = 0 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
 result $? "check:dotnet, a project and no solution: runs dotnet format" "exit $rc; $out; $(cat "$STUB_LOG")"
+
+# A solution below the root is code that would go unchecked if the task
+# skipped. dotnet format finds nothing at the root and fails, as before.
+rm "$T/app/App.csproj" && mkdir -p "$T/app/src" && printf '<Solution>\n</Solution>\n' > "$T/app/src/App.slnx"
+STUB_EXIT=1 run_task check:dotnet
+[ "$rc" = 1 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
+result $? "check:dotnet, a solution below the root only: not skipped, dotnet format runs and its failure stands" "exit $rc; $out; $(cat "$STUB_LOG")"
+
+# Build output is not code: an ignored project does not count.
+rm -r "$T/app/src" && mkdir -p "$T/app/artifacts" && : > "$T/app/artifacts/Gen.csproj" && echo 'artifacts/' > "$T/app/.gitignore"
+run_task check:dotnet
+[ "$rc" = 0 ] && [ ! -s "$STUB_LOG" ]
+result $? "check:dotnet, a project only under an ignored path: nothing to check" "exit $rc; $out; $(cat "$STUB_LOG")"
+
+# Outside a git work tree there is nothing to ask git: dotnet format runs.
+mkdir "$T/nogit"
+: > "$STUB_LOG"
+out="$(cd "$T/nogit" && GIT_CEILING_DIRECTORIES="$T" PATH="$T/stub:$PATH" sh -c "$(task check:dotnet)" 2>&1)"; rc=$?
+[ "$rc" = 0 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
+result $? "check:dotnet, outside a git work tree: runs dotnet format" "exit $rc; $out; $(cat "$STUB_LOG")"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

@@ -9,19 +9,18 @@ dotnet = "10.0.401"
 # dotnet format exits 1 when the directory holds no solution or project
 # ("Could not find a MSBuild project file or solution file"). That failed
 # `mise run check`, and so the required `security / check`, in a repository
-# that had adopted this layer and written no code yet. With neither there is
+# that had adopted this layer and written no code yet. Where git knows of
+# no solution or project at any depth, tracked or not yet added, there is
 # nothing to format, so both tasks say so and pass, as check:codeowners does
-# before product/invariants.md exists. The names are the ones dotnet format
-# itself looks for in the directory.
+# before product/invariants.md exists. One anywhere, and dotnet format runs:
+# a solution below the root still fails as it did, loudly, and is not
+# skipped. Outside a git work tree dotnet format runs as before.
 [tasks."check:dotnet"]
 description = "Fail if dotnet format would change a file"
 run = '''
-found=""
-for f in *.sln *.slnx *.slnf *.csproj *.vbproj; do
-  if [ -e "$f" ]; then found="$f"; fi
-done
-if [ -z "$found" ]; then
-  echo "check:dotnet: no solution or project at the repository root; nothing to check"
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+  [ -z "$(git ls-files --cached --others --exclude-standard -- '*.sln' '*.slnx' '*.slnf' '*.csproj' '*.vbproj' | head -n 1)" ]; then
+  echo "check:dotnet: no solution or project in the repository; nothing to check"
   exit 0
 fi
 dotnet format --verify-no-changes
@@ -30,12 +29,9 @@ dotnet format --verify-no-changes
 [tasks."fmt:dotnet"]
 description = "Apply dotnet format"
 run = '''
-found=""
-for f in *.sln *.slnx *.slnf *.csproj *.vbproj; do
-  if [ -e "$f" ]; then found="$f"; fi
-done
-if [ -z "$found" ]; then
-  echo "fmt:dotnet: no solution or project at the repository root; nothing to format"
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+  [ -z "$(git ls-files --cached --others --exclude-standard -- '*.sln' '*.slnx' '*.slnf' '*.csproj' '*.vbproj' | head -n 1)" ]; then
+  echo "fmt:dotnet: no solution or project in the repository; nothing to format"
   exit 0
 fi
 dotnet format
