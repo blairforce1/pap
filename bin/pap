@@ -18,7 +18,8 @@
 #         when this pap is a release, runs `mise trust && mise install &&
 #         mise run setup`, `pap repo apply` when origin is on GitHub and
 #         `pap codeowners` when product/invariants.md exists, then prints
-#         what to do next. Run again with more layers to add them; run again
+#         what to do next. If the clone setup fails it stops there and exits
+#         1, naming what is left; the layers and the record stay written. Run again with more layers to add them; run again
 #         unchanged and nothing changes.
 # sync    Re-applies the recorded layers at <v> with a three-way merge per
 #         file: the template at the recorded version is the base, the
@@ -334,7 +335,11 @@ EOF
   fi
 
   say "" "Setting up this clone: mise trust && mise install && mise run setup"
-  mise trust && mise install && mise run setup
+  # Not left to set -e, which does not stop a script for a failure in the
+  # middle of an && list: 0.6.0 went on to print "Next:" and exit 0 with no
+  # tools and no hooks installed.
+  { mise trust && mise install && mise run setup; } ||
+    die "clone setup failed. The layers are applied and recorded in $record. Fix what mise reported, then either commit and run pap init again, or finish by hand: the three commands above, pap repo apply (once origin is on GitHub), pap codeowners (once product/invariants.md exists), pap doctor"
 
   if git remote get-url origin 2>/dev/null | grep -q 'github\.com[:/]'; then
     say "" "Applying repository settings: pap repo apply"

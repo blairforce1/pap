@@ -138,6 +138,12 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   workflow, Renovate configuration or devcontainer. `mise run release` now
   refuses an archive whose paths are not the tree's.
 
+#### Fixed
+
+- `pap init` stops with exit 1 when `mise trust`, `mise install` or `mise
+  run setup` fails, and names what is left to run. It used to go on, print
+  "Next:" and exit 0 with no tools and no hooks installed.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added
