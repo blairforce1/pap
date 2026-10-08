@@ -75,6 +75,8 @@ Last reviewed: <date>
 
 No agent may change these without a human approval recorded on the change.
 
+Owner: @<the user or team who approves changes to these paths>
+
 - `migrations/**`
 - `infra/**`
 - `**/*.test.*` and `tests/**`

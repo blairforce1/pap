@@ -1,6 +1,7 @@
 #!/bin/sh
-# repo-sync.test.sh: tests for the required checks in .github/rulesets/main.json
-# and their per-check report in scripts/repo-sync.sh status.
+# repo-sync.test.sh: tests for the required checks in .github/rulesets/main.json,
+# their per-check report in scripts/repo-sync.sh status, and its report of
+# what GitHub makes of .github/CODEOWNERS.
 #
 # Usage: sh tests/repo-sync.test.sh
 #
@@ -71,6 +72,7 @@ case "$path" in
   repos/blairforce1/demo) f=repo ;;
   */rulesets\?*) f=rulesets ;;
   */rulesets/*) f=ruleset ;;
+  */codeowners/errors) f=codeowners ;;
   *) f=none ;;
 esac
 if [ -f "$FIX/$f.json" ]; then
@@ -111,6 +113,34 @@ echo '[]' > "$T/fix/rulesets.json"
 out="$(status)"
 [ "$(lines missing)" = "$want" ]
 result $? "status: no ruleset, all six missing" "$out"
+
+# --- what GitHub makes of CODEOWNERS (decision 0014) --------------------------
+
+# owners: the CODEOWNERS line of the report, state first.
+owners() { printf '%s\n' "$out" | sed -n 's/^  \([a-z-]*\) *\.github\/CODEOWNERS accepted by GitHub.*/\1/p'; }
+
+out="$(status)"
+[ "$(owners)" = skipped ] && printf '%s\n' "$out" | grep -q 'no CODEOWNERS on the default branch'
+result $? "status: no CODEOWNERS on the default branch is skipped, not a failure" "$out"
+
+echo '{"errors": []}' > "$T/fix/codeowners.json"
+out="$(status)"
+[ "$(owners)" = ok ]
+result $? "status: a CODEOWNERS with no errors is ok" "$out"
+
+# An organisation's own name as the owner, as the origin default writes it
+# in a repository the organisation owns.
+cat > "$T/fix/codeowners.json" <<'EOF'
+{"errors": [{"line": 5, "column": 13, "kind": "Unknown owner", "source": "/product/** @acme",
+  "suggestion": "make sure @acme exists and has write access to the repository",
+  "message": "Unknown owner on line 5", "path": ".github/CODEOWNERS"}]}
+EOF
+live '.'
+out="$(status)"; rc=$?
+[ "$rc" = 1 ] && [ "$(owners)" = drift ] &&
+  printf '%s\n' "$out" | grep -q '1 error(s); name the owner on an Owner: line in product/invariants.md' &&
+  printf '%s\n' "$out" | grep -qx '      line 5: Unknown owner: /product/\*\* @acme'
+result $? "status: an owner GitHub does not accept is drift, named by line; exits 1" "exit $rc; $out"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }
