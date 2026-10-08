@@ -115,6 +115,16 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+#### Added
+
+- The base layer ships `.github/workflows/pr-checks.yml` and
+  `.github/workflows/test.yml`, which provide the `pr-checks / checks` and
+  `tests` checks the ruleset has required since 0.5.0. Without them the
+  first pull request after `pap init` could not merge.
+- `mise run test` in the base layer runs every `test:*` task and passes,
+  saying so, when there is none. The .NET layer defines `test:dotnet`
+  (`dotnet test`) and the Go layer `test:go` (`go test ./...`).
+
 #### Changed
 
 - `mise run release` refuses a version whose pap section in `CHANGELOG.md`

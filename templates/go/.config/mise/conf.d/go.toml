@@ -1,5 +1,5 @@
-# Go layer: the toolchain and analysers, and this layer's steps in check
-# and fmt. mise reads this beside the base layer's conf.d/base.toml; nothing
+# Go layer: the toolchain and analysers, and this layer's steps in check,
+# fmt and test. mise reads this beside the base layer's conf.d/base.toml; nothing
 # is merged (decision 0003). The go line must name the same version as the
 # go directive in each go.mod, or the go command downloads another toolchain.
 #
@@ -12,6 +12,21 @@ go = "1.27.1"
 golangci-lint = "2.14.0"
 # Not in mise's registry; built from source by the go backend.
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+
+[tasks."test:go"]
+description = "Run every Go test from the repository root"
+# go test's exit status is the task's. Where git knows of no go.mod at any
+# depth, tracked or not yet added, there is nothing to test, and go test
+# would fail for want of a module; the task says so and passes. Outside a
+# git work tree it runs as well.
+run = '''
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+  [ -z "$(git ls-files --cached --others --exclude-standard -- 'go.mod' '*/go.mod' | head -n 1)" ]; then
+  echo "test:go: no go.mod in the repository; nothing to test"
+  exit 0
+fi
+go test ./...
+'''
 
 [tasks."check:go"]
 # One script, not a task per tool, so check:* does not pick the parts up

@@ -7,7 +7,9 @@
 # runs that sequence; `pap doctor` checks it.
 #
 # check and fmt run every task named check:* and fmt:*. A language layer adds
-# its steps by defining check:<lang> and fmt:<lang> in its own file.
+# its steps by defining check:<lang> and fmt:<lang> in its own file. test
+# runs every task named test:* the same way; the base layer has none of its
+# own.
 
 [tools]
 lefthook = "2.1.14"
@@ -49,6 +51,22 @@ run = [
   '''(git ls-files -z --cached --others --exclude-standard | LC_ALL=C xargs -0 -r grep -lIsZ "$(printf '^\357\273\277')" -- || true) | xargs -0 -r perl -pi -e 's/\A\xEF\xBB\xBF// if $. == 1; close ARGV if eof' ''',
   "mise run --continue-on-error 'fmt:*'",
 ]
+
+[tasks.test]
+description = "Run every test task the layers and this repository define"
+# Every task named test:*, with --continue-on-error so one run reports every
+# failure. A language layer defines test:<lang>; a repository adds its own
+# in its own conf.d file. With none defined `mise run 'test:*'` fails on the
+# empty match, so this says there is nothing to test and passes: the
+# required `tests` check, which .github/workflows/test.yml provides by
+# running this task, has something to report from the first pull request.
+run = '''
+if mise tasks ls --json | grep -q '"name": *"test:'; then
+  mise run --continue-on-error 'test:*'
+else
+  echo "test: no test:* task is defined; nothing to test"
+fi
+'''
 
 [tasks.tidy]
 description = "Remove the worktrees and branches of merged changes (upstream gone)"
