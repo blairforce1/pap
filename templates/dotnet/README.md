@@ -193,6 +193,19 @@ Planned hardening:
 - The sync tool verifying that `global.json` and `dotnet.toml` name the same
   SDK version.
 
+## Tests
+
+`test:dotnet` in `.config/mise/conf.d/dotnet.toml` runs `dotnet test` from
+the repository root, which builds the solution there and runs every test
+project in it. The base `test` task picks it up, and the base layer's
+`.github/workflows/test.yml` runs that as the required `tests` check.
+`dotnet test`'s exit status is the task's. Where git knows of no solution or
+project anywhere in the repository, the task says there is nothing to test
+and passes, so a repository that has adopted the layer and written no code
+can merge its first pull request. A test framework that runs on
+Microsoft.Testing.Platform needs its runner named in `global.json` for
+`dotnet test` on .NET 10; this layer does not set it.
+
 ## Checking a repository
 
 ```sh

@@ -1,8 +1,25 @@
-# .NET layer: the SDK pin, and this layer's steps in check and fmt. mise
+# .NET layer: the SDK pin, and this layer's steps in check, fmt and test. mise
 # reads this beside the base layer's conf.d/base.toml; nothing is merged
-# (decision 0003). global.json is authoritative for the SDK version; this
-# line must name the same one so `mise install` provides the SDK global.json
-# asks for.
+# (decision 0003).
+
+[tasks."test:dotnet"]
+description = "Build the solution at the repository root and run its tests"
+# dotnet test's exit status is the task's: a failing test or build fails
+# `mise run test`. Where git knows of no solution or project at any depth,
+# tracked or not yet added, there is nothing to test, and dotnet test would
+# exit 1 with MSB1003; the task says so and passes. One anywhere, and
+# dotnet test runs. Outside a git work tree it runs as well.
+run = '''
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+  [ -z "$(git ls-files --cached --others --exclude-standard -- '*.sln' '*.slnx' '*.slnf' '*.csproj' '*.vbproj' | head -n 1)" ]; then
+  echo "test:dotnet: no solution or project in the repository; nothing to test"
+  exit 0
+fi
+dotnet test
+'''
+
+# global.json is authoritative for the SDK version; this line must name the
+# same one so `mise install` provides the SDK global.json asks for.
 [tools]
 dotnet = "10.0.401"
 
