@@ -151,6 +151,13 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   there, which failed `mise run check` and the required `security / check`
   in a repository that had adopted the layer and written no code.
 
+#### Fixed
+
+- The base layer pins mikefarah's `yq`, which `pap repo status` and `pap
+  repo apply` need. In a repository that had only run `mise install` they
+  stopped with "yq not found", or refused the Python `yq` a distribution
+  had installed.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added

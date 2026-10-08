@@ -18,6 +18,11 @@ shellcheck = "0.11.0"
 # not ship, and the github backend fails its attestation check (mise
 # 2026.5.12). ubi is deprecated and removed in mise 2027.1.0; move before then.
 "ubi:editorconfig-checker/editorconfig-checker" = "4.0.2"
+# mikefarah's yq, which `pap repo status` and `pap repo apply` read
+# .github/labels.yml with. Not a hook's tool: it is here because pap runs in
+# every repository that adopts this layer, and the yq a distribution
+# packages is often the Python one, which pap refuses.
+yq = "4.53.6"
 
 [tasks.setup]
 description = "Install the git hooks and point git blame at the ignore list"
