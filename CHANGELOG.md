@@ -115,6 +115,8 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+### [0.7.0] - 2026-10-08
+
 #### Added
 
 - The base layer ships `.github/workflows/pr-checks.yml` and
@@ -147,22 +149,13 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   `.github/` and `.devcontainer/`, so `pap init` from one wrote no security
   workflow, Renovate configuration or devcontainer. `mise run release` now
   refuses an archive whose paths are not the tree's.
-
-#### Fixed
-
 - `pap init` stops with exit 1 when `mise trust`, `mise install` or `mise
   run setup` fails, and names what is left to run. It used to go on, print
   "Next:" and exit 0 with no tools and no hooks installed.
-
-#### Fixed
-
 - The .NET layer's `check:dotnet` and `fmt:dotnet` pass, with a message,
   when the repository has no solution or project. `dotnet format` exits 1
   there, which failed `mise run check` and the required `security / check`
   in a repository that had adopted the layer and written no code.
-
-#### Fixed
-
 - The base layer pins mikefarah's `yq`, which `pap repo status` and `pap
   repo apply` need. In a repository that had only run `mise install` they
   stopped with "yq not found", or refused the Python `yq` a distribution

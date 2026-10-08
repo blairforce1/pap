@@ -6,7 +6,7 @@
 - **Supersedes:** none; amends how [0012](0012-protected-paths-need-an-owners-approved-by-line.md)'s owner is chosen
 - **PIP:** none; this is a structural record, not an intervention under 0001
 - **Expected effect:** not applicable
-- **Introduced in:** the release after v0.6.0
+- **Introduced in:** v0.7.0
 - **Revisit:** when a repository needs different owners for different protected paths, or works with a code host that has no CODEOWNERS
 
 ## Context
