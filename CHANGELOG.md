@@ -144,6 +144,13 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   run setup` fails, and names what is left to run. It used to go on, print
   "Next:" and exit 0 with no tools and no hooks installed.
 
+#### Fixed
+
+- The .NET layer's `check:dotnet` and `fmt:dotnet` pass, with a message,
+  when the repository has no solution or project. `dotnet format` exits 1
+  there, which failed `mise run check` and the required `security / check`
+  in a repository that had adopted the layer and written no code.
+
 ### [0.6.0] - 2026-09-25
 
 #### Added
