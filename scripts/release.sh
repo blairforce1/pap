@@ -5,8 +5,10 @@
 #        mise run release <version> [--dry-run]
 #
 # Builds pap-<version>.tar.gz from origin/main as it is on GitHub now: the
-# tree at that commit, symlinks dereferenced, plus a VERSION file, under one
-# pap-<version>/ directory, so mise's github backend finds bin/pap. Then
+# tree at that commit, every path of it whatever .gitattributes marks
+# export-ignore, symlinks dereferenced, plus a VERSION file, under one
+# pap-<version>/ directory, so mise's github backend finds bin/pap. Refuses
+# to go on if the archive's paths are not the tree's. Then
 # creates the GitHub release v<version> at that commit with the archive
 # attached. The tag is made by GitHub, not pushed: the pre-push guard
 # refuses every push from main (decision 0002), and a tag made from the
@@ -58,11 +60,23 @@ esac
 
 out="$(mktemp -d)"
 name="pap-$version"
-mkdir "$out/raw"
-git archive "$sha" | tar -x -C "$out/raw"
+# The tree through a scratch index, not `git archive`: an archive leaves out
+# every path .gitattributes marks export-ignore, which is .github and
+# .devcontainer at any depth. 0.5.0 and 0.6.0 were built that way and
+# shipped without the ruleset and labels `pap repo` reads, and without the
+# base layer's workflow, Renovate configuration and devcontainer. The
+# checkout's own index and working tree are not touched.
+GIT_INDEX_FILE="$out/index" git read-tree "$sha"
+GIT_INDEX_FILE="$out/index" git checkout-index --all --prefix="$out/raw/"
+rm -f "$out/index"
 # cp -L, not tar -h: the archive carries plain files, neither symlinks nor
 # the hard links tar -h makes of two paths to one file.
 cp -RL "$out/raw" "$out/$name"
+# The archive is the tree: refuse one that has lost or gained a path.
+want="$(git -c core.quotePath=false ls-tree -r --name-only "$sha" | LC_ALL=C sort)"
+have="$(cd "$out/$name" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)"
+[ "$want" = "$have" ] || die "the archive does not hold the tree at $sha; paths in one and not the other:
+$({ printf '%s\n' "$want"; printf '%s\n' "$have"; } | LC_ALL=C sort | uniq -u)"
 printf '%s\n' "$version" > "$out/$name/VERSION"
 tar -C "$out" -czf "$out/$name.tar.gz" "$name"
 rm -rf "${out:?}/raw" "${out:?}/$name"
