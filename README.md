@@ -1,5 +1,7 @@
 # Personal Agentic Process (PAP)
 
+<img src="assets/pap-social.png" alt="PAP, Personal Agentic Process" width="640">
+
 > [!IMPORTANT]
 > **Work in progress.** PAP is still being built. The process document is usable; the tooling is incomplete, and anything here may change without notice.
 
