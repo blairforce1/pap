@@ -9,9 +9,9 @@
 #
 # A heavy build (an Android, iOS or Mac Catalyst target, a Release
 # configuration, AOT) takes minutes and every core. Agent sessions on one
-# machine do not know of each other, so two can start one each, and both
-# take longer than the two in sequence would. This script takes the one
-# lock the machine has, ${XDG_RUNTIME_DIR:-/tmp}/pap-heavy-build.lock, runs
+# machine do not know of each other, so two can start one each and contend
+# for the same cores. This script takes the one lock the machine has,
+# ${XDG_RUNTIME_DIR:-/tmp}/pap-heavy-build.lock, runs
 # `dotnet <verb> <arguments>` and releases it when dotnet exits. A second
 # build says it is waiting and waits. On battery it adds -m:2, two MSBuild
 # nodes instead of one per core, unless the arguments already set a count.

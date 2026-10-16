@@ -5,7 +5,7 @@
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none
 - **PIP:** the 2026-10-16 measurement on a Framework 16 (Fedora, AMD) on battery: 53 W drawn against 8 to 15 W in light use, load average 9.7, from several Claude Code sessions building at once (one running `dotnet build -f net10.0-android -c Release` in an agent loop), an Android emulator (`-gpu swangle`, software rendering) left at about 9% CPU between uses, and two .NET SDKs (nix 10.0.302, mise 10.0.401) each with its own MSBuild nodes and VBCSCompiler; the battery itself at 94.5% capacity after 40 cycles
-- **Expected effect:** heavy builds running at once on one machine ↓ from 2 or more to 1; .NET SDKs with live build servers ↓ from 2 to 1; battery draw with two agent sessions building ↓ from 53 W to under 30 W
+- **Expected effect:** heavy builds running at once on one machine at most 1 (the baseline was not counted; one was seen, beside other sessions' builds); .NET SDKs with live build servers ↓ from 2 to 1; battery draw with two agent sessions building ↓ from 53 W to under 30 W
 - **Introduced in:** v0.8.0
 - **Revisit:** after 10 change PRs: whether a session transcript shows a heavy build run outside `scripts/heavy-build.sh`, whether a session's end ever disturbed another session's build, and the battery draw re-measured with two sessions building
 
@@ -15,10 +15,10 @@ Agent sessions on one machine do not know of each other. Each builds as if
 it had the machine to itself, and the machine is a laptop. Four things
 added up to 53 W:
 
-- Release Android builds. Two sessions each started one; with AOT a
-  Release build costs several times what Debug does, and two at once take
-  longer than two in sequence. Neither session needed Release: the change
-  under test concerned Debug behaviour.
+- A Release Android build, started by one session in an agent loop while
+  other sessions built beside it. With AOT a Release build costs several
+  times what Debug does, and two heavy builds at once contend for the
+  same cores. Whether that session needed Release was not checked.
 - An emulator a project script started (`experiments/kit/emulator.sh` in
   replete) and nothing stopped. Software rendering kept it at 9% CPU with
   nothing building. That project's own fix is deferred and is not part of
@@ -123,9 +123,9 @@ Chrome native host is a `claude` process too and is not a session.
 - **Cap MSBuild on mains too.** Lost: on mains the cores are the point.
 - **`nodeReuse:false` for heavy builds**, so they leave no nodes. Not
   taken: the nodes' cost is RAM, and the session's end covers them.
-- **Keep `latestPatch`**, bumping lagging pins faster. Lost: Renovate
-  already proposes the bump weekly and the lag still happened; one lagging
-  repository is enough for a second SDK.
+- **Keep `latestPatch`**, bumping lagging pins faster. Lost: a pin lags
+  for any reason (the repository that lagged here, fleetnotes, has no
+  Renovate), and one lagging repository is enough for a second SDK.
 - **`latestMajor`.** Lost: an 11.0 SDK would build net10.0 projects with a
   compiler the repository was not written against.
 
