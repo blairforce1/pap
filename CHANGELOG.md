@@ -115,6 +115,23 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+#### Added
+
+- A `SessionEnd` hook (decision 0015). Detached from the session's exit,
+  it runs `dotnet build-server shutdown` when no other Claude Code session
+  is on the machine, and `mise run session-end` when the repository
+  defines that task.
+- The .NET layer ships `scripts/heavy-build.sh`: `dotnet <verb> <args>`
+  under the machine's one heavy-build lock, with `-m:2` on battery
+  (rule 15.1).
+
+#### Changed
+
+- `/change` builds Debug unless the change concerns Release behaviour, and
+  sends a heavy build through `scripts/heavy-build.sh`.
+- The .NET layer's `global.json` rolls forward with `latestFeature`, not
+  `latestPatch`, so one installed 10.0 SDK serves every project.
+
 ### [0.7.0] - 2026-10-08
 
 #### Added
