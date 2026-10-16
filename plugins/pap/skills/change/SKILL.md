@@ -42,7 +42,7 @@ Read what the brief names, plus `rules.md` and the decision records it cites for
 
 - Commit each logical step as it lands, conventional commit subject, with the co-author trailer for generated content. Never bypass a hook (rule 5.1); a failing hook is fixed or handed to the human.
 - Stay in scope. Protected paths the brief names are not touched; `tests/` may gain tests unless the brief says otherwise.
-- Build Debug unless the change concerns Release behaviour. A Release, AOT, Android, iOS or Mac Catalyst build is a heavy build (rule 15.1): run it through the repository's `scripts/heavy-build.sh`, which takes the machine's one heavy-build lock and caps MSBuild on battery, because parallel sessions share one machine's cores and power.
+- Build Debug unless the change concerns Release behaviour. A Release, AOT, Android, iOS or Mac Catalyst build is a heavy build (rule 15.1): run it through the repository's `scripts/heavy-build.sh`, which takes the machine's one heavy-build lock and caps MSBuild on battery, because parallel sessions share one machine's cores and power. A repository without the script (it has not taken the .NET layer) runs `flock -o "${XDG_RUNTIME_DIR:-/tmp}/pap-heavy-build.lock" dotnet <verb> <arguments>`, adding `-m:2` on battery; `-o` keeps the lock from the build servers that outlive the build.
 - Slow waits go in the background: CI (`gh pr checks --watch` with `run_in_background`, or `Monitor`), and any batch of `claude -p` eval runs, which run in parallel (`xargs -P`, or background jobs), never one after another.
 - A judgement call beyond the brief (design, taste, a tradeoff with no clear answer) goes to a Fable subagent with the context it needs; the main session keeps executing.
 
