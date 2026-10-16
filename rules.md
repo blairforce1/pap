@@ -96,3 +96,10 @@ Its `intent.md` names a source (an issue URL, or `none`) and a hypothesis (`H-NN
 
 - Decision: [0011](decisions/0011-git-is-the-source-of-truth.md)
 - Enforced by: Partly: the `/change` skill names the branch and the `Change:` line by slug. Planned: `pr-checks` checks the source and hypothesis lines.
+
+### 15.1 Heavy builds are capped and serialised per machine
+
+An Android, iOS or Mac Catalyst target, a Release configuration or an AOT build holds the machine's one heavy-build lock, `${XDG_RUNTIME_DIR:-/tmp}/pap-heavy-build.lock`, while it runs, and on battery runs with at most two MSBuild nodes (`-m:2`).
+
+- Decision: [0015](decisions/0015-agent-sessions-share-one-machines-power-and-cores.md)
+- Enforced by: Nothing yet. The .NET layer's [`templates/dotnet/scripts/heavy-build.sh`](templates/dotnet/scripts/heavy-build.sh) does both for a build run through it, and the `/change` skill sends heavy builds through it; nothing refuses a bare `dotnet build` of a heavy target. Planned: the `PreToolUse` hook refuses an agent's bare `dotnet build` or `dotnet publish` of a heavy target in an adopting repository and names the script.
