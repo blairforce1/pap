@@ -135,11 +135,16 @@ out="$(CLAUDE_PROJECT_DIR="$T/repo" "$hook" </dev/null 2>&1)"; rc=$?
 [ "$rc" = 0 ] && settle "mise run session-end in $T/repo"
 result $? "no stdin: the cleanup runs in CLAUDE_PROJECT_DIR" "exit $rc; $(cat "$STUB_LOG")"
 
-# No dotnet on PATH: the shutdown is skipped, the task still runs.
+# No dotnet on PATH: the shutdown is skipped, the task still runs. PATH is
+# only the stubs and the system tools the hook and stubs call, so a dotnet
+# the machine has (a CI runner's /usr/bin/dotnet) cannot stand in.
 mkdir "$T/nodotnet"
 for b in mise pgrep ps; do ln -s "$T/stub/$b" "$T/nodotnet/$b"; done
+for b in sh jq setsid nohup timeout cut awk sleep; do
+  p="$(command -v "$b")" && ln -s "$p" "$T/nodotnet/$b"
+done
 : > "$STUB_LOG"
-out="$(printf '%s' "$(session "$T/repo")" | PATH="$T/nodotnet:$(printf '%s' "$PATH" | sed "s|$T/stub:||")" "$hook" 2>&1)"; rc=$?
+out="$(printf '%s' "$(session "$T/repo")" | PATH="$T/nodotnet" "$hook" 2>&1)"; rc=$?
 [ "$rc" = 0 ] && settle 'mise run session-end' && ! grep -q dotnet "$STUB_LOG"
 result $? "no dotnet: skipped; the task still runs" "exit $rc; $(cat "$STUB_LOG")"
 
