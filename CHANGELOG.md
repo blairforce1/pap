@@ -115,6 +115,8 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+### [0.8.0] - 2026-10-17
+
 #### Added
 
 - A `SessionEnd` hook (decision 0015). Detached from the session's exit,
