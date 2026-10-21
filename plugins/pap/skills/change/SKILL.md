@@ -109,4 +109,4 @@ The last line is only for a pull request touching a protected path: the line for
 
 The Revisits line is the records `pap revisits` prints as due (decision 0010): `pap revisits | awk '$2 == "due" { print $1 }'`, run as `bin/pap` in pap itself. If it cannot run, say so on that line.
 
-Stop. Do not merge, do not mark the pull request ready, do not start the next change. One pull request per session; the human runs `/clear` before the next.
+Stop. Do not merge, do not mark the pull request ready, do not start the next change. One pull request per agent context (a top-level session, or a background sub-agent run under a project-manager session); the human runs `/clear` before the next change in a session, and a fresh sub-agent takes the next one.
