@@ -5,8 +5,12 @@
 - Use `/change <slug> <class> [Record: NNNN]` followed by the brief. The
   skill carries the branch, worktree, commits, checks and draft pull
   request; the brief only says what to build.
-- One pull request per session. After it is opened, stop; the human runs
-  `/clear` before the next change.
+- One pull request per agent context. A context is a top-level session or a
+  background sub-agent run under a project-manager session. After it opens
+  its draft pull request it stops; the human runs `/clear` before the next
+  change in a session, and a fresh sub-agent takes the next one. The
+  project-manager session opens no change pull requests, bar process
+  housekeeping when the owner asks.
 
 ## Where the rules live
 

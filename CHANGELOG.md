@@ -115,6 +115,12 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+#### Changed
+
+- `/change` states the stop rule per agent context, not per session: a
+  background sub-agent under a project-manager session opens one pull
+  request and stops, as a top-level session does.
+
 ### [0.8.0] - 2026-10-17
 
 #### Added
