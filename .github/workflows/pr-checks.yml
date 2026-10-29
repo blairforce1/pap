@@ -22,22 +22,6 @@
 name: pr-checks
 
 on:
-  # transitional: pull_request stays beside pull_request_target until the
-  # pull request after the one that added pull_request_target merges, so
-  # each of the two runs its own required check (see "Moving pr-checks to
-  # pull_request_target" in templates/base/README.md). That pull request
-  # deletes this comment and the pull_request block, and the assemble test
-  # goes back to comparing this file with the template as it is.
-  pull_request:
-    types: [
-      opened,
-      edited,
-      reopened,
-      synchronize,
-      ready_for_review,
-      labeled,
-      unlabeled,
-    ]
   pull_request_target:
     types: [
       opened,
