@@ -100,8 +100,12 @@ for context in $(sed -n 's/.*"context": *"\([^"]*\)".*/\1/p' "$here/.github/rule
 done
 [ -z "$unprovided" ] && [ -n "$context" ]
 result $? "base: every check the ruleset requires has a workflow that provides it" "no provider for:$unprovided"
-cmp -s "$T/b/.github/workflows/pr-checks.yml" "$here/.github/workflows/pr-checks.yml"
-result $? "base: the pr-checks caller is the one pap itself runs"
+# Transitional: pap's own caller keeps a pull_request block, marked, beside
+# the template's pull_request_target until the next pull request drops it
+# and this goes back to a plain cmp. Everything else must match.
+sed '/^  # transitional:/,/^  pull_request_target:$/{/^  pull_request_target:$/!d;}' \
+  "$here/.github/workflows/pr-checks.yml" | cmp -s "$T/b/.github/workflows/pr-checks.yml" -
+result $? "base: the pr-checks caller is the one pap itself runs, bar its transitional pull_request block"
 
 # --- the test task and each layer's part of it --------------------------------
 

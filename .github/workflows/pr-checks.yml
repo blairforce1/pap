@@ -3,12 +3,42 @@
 # without a Record line, an unanswered Checks box, undeclared generated
 # content, a missing or dangling Change: line, and anything but one class:*
 # label, and keeps the protected-path label in step with .github/CODEOWNERS.
+# With .github/risk.yml on the base branch (decision 0016) it also sets one
+# risk:* label and the review-focus comment, and fails risk:high without
+# the owner's owner-reviewed label, which it removes on every push.
 # `edited` re-runs it when the body is fixed, `labeled` and `unlabeled`
-# when the class label is. pull-requests: write is for that label only.
+# when the class or owner-reviewed label is, `synchronize` on a push.
+#
+# pull_request_target, not pull_request: under pull_request GitHub runs
+# this file as the pull request's head has it, so a pull request could edit
+# its own caller and turn the required check green. pull_request_target
+# runs the base branch's copy, and its token can write labels on every
+# pull request, forks included. That is safe only because the reusable
+# workflow never checks out or runs head code: it reads the title, body,
+# file names and diff through the API as data, and risk.yml and CODEOWNERS
+# at the base commit. Never add a checkout of the head, or a step that runs
+# anything from it, here or there. pull-requests: write is for the labels
+# and the comment only.
 name: pr-checks
 
 on:
+  # transitional: pull_request stays beside pull_request_target until the
+  # pull request after the one that added pull_request_target merges, so
+  # each of the two runs its own required check (see "Moving pr-checks to
+  # pull_request_target" in templates/base/README.md). That pull request
+  # deletes this comment and the pull_request block, and the assemble test
+  # goes back to comparing this file with the template as it is.
   pull_request:
+    types: [
+      opened,
+      edited,
+      reopened,
+      synchronize,
+      ready_for_review,
+      labeled,
+      unlabeled,
+    ]
+  pull_request_target:
     types: [
       opened,
       edited,

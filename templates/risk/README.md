@@ -13,13 +13,18 @@ it merges, and a sync should not make that choice for a repository.
 
 ## Adopting it
 
-1. Run `pap init base risk` (with the repository's other layers), and
+1. Take pap 0.9.0 or later first: its `pr-checks` caller runs on
+   `pull_request_target`, so a pull request cannot edit the caller to pass
+   its own risk gate. Switching the caller takes one extra step or a
+   bypass, once; see "Moving pr-checks to pull_request_target" in the
+   [base README](../base/README.md).
+2. Run `pap init base risk` (with the repository's other layers), and
    edit `.github/risk.yml`: add a rule, with its question, for each part
    of the code where a review is worth the owner's time, and check that the
    `tests` and `coverage` globs match where the repository keeps them.
-2. Merge it. Risk mode starts with the next pull request, since the check
+3. Merge it. Risk mode starts with the next pull request, since the check
    reads the base branch's copy.
-3. Agents never add `owner-reviewed` and never merge (rule 16.2). The
+4. Agents never add `owner-reviewed` and never merge (rule 16.2). The
    owner reads the review-focus comment of a `risk:high` pull request and
    adds the label to its head.
 
