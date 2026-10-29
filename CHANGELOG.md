@@ -115,6 +115,8 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+### [0.9.0] - 2026-10-29
+
 #### Added
 
 - Decision 0016 (proposed): in a repository that opts in, a risk label and
@@ -137,7 +139,11 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   `Risk: high; add owner-reviewed after review` for a high-risk pull
   request instead of an `Approved-by:` line.
 - The base README describes risk mode in its `pr-checks` row.
-
+- The base layer's `pr-checks` caller runs on `pull_request_target`, so a
+  pull request runs the base branch's copy and cannot edit its own check.
+  Switching takes one pull request that cannot run the check: the base
+  README's "Moving pr-checks to pull_request_target" gives a two-step way
+  with no bypass, and the one-step way with a temporary ruleset bypass.
 - `/change` states the stop rule per agent context, not per session: a
   background sub-agent under a project-manager session opens one pull
   request and stops, as a top-level session does.
