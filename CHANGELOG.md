@@ -122,6 +122,13 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   `Approved-by:` line of 0012 and 0013. Rules 16.1 and 16.2.
 - The `risk` template layer: a sample `.github/risk.yml`, the opt-in to
   0016's risk mode, added with `pap init base risk`.
+- The `guard-route.sh` hook enforces rule 16.2 in every adopting
+  repository: it refuses an agent's `gh` call that adds the
+  `owner-reviewed` label (`gh pr`/`gh issue` `edit --add-label` or
+  `create --label`, `gh label edit --name`, `gh api` on an issue's labels
+  or a label's `new_name`) and any merge (`gh pr merge`, `gh api -X PUT`
+  on `pulls/<n>/merge`). Removing the label and other `gh` calls pass;
+  GraphQL, `bash -c` and `eval` are not followed.
 
 #### Changed
 

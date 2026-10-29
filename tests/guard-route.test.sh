@@ -190,6 +190,56 @@ check 0 "$T/G2" 'gh pr edit 7 --body-file head.md'
 check 0 "$T/G2" "gh pr create --draft --title t --body \"x${nl}  Head to approve: 3f9c2a7\""
 check 2 "$T/G2" "gh pr edit 7 --body \"x${nl}  Head to approve: 3f9c2a7${nl}  Approved-by: @owner 3f9c2a7\""
 
+# Decision 0016: an agent may not add the owner-reviewed label or merge, by
+# any route, in an adopting repository (rule 16.2).
+printf '{"labels":["bug","Owner-Reviewed"]}' > "$T/G2/labels.json"
+printf '[{"name":"owner-reviewed"}]' > "$T/G2/named.json"
+printf '{"labels":["owner-reviewed-not"]}' > "$T/G2/other.json"
+check 2 "$T/G2" 'gh pr edit 7 --add-label owner-reviewed'
+check 2 "$T/G2" 'gh pr edit 7 --add-label=OWNER-REVIEWED'
+check 2 "$T/G2" 'gh pr edit 7 --add-label "bug, owner-reviewed"'
+check 2 "$T/G2" 'gh pr edit 7 --add-label bug --add-label owner-reviewed'
+check 2 "$T/G2" 'gh issue edit 7 --add-label owner-reviewed'
+check 2 "$T/U"  "cd $T/G2 && gh pr edit 7 --add-label owner-reviewed"
+check 2 "$T/G2" 'gh pr create --draft --title t --body x -l owner-reviewed'
+check 2 "$T/G2" 'gh pr create --draft --title t --body x --label class:feature,owner-reviewed'
+check 2 "$T/G2" 'gh issue create --title t --body x --label Owner-reviewed'
+check 2 "$T/G2" 'gh label edit approved --name owner-reviewed'
+check 2 "$T/G2" 'gh api repos/o/r/issues/7/labels -f "labels[]=owner-reviewed"'
+check 2 "$T/G2" 'gh api -X PUT repos/o/r/issues/7/labels -f labels[]=bug -f labels[]=owner-reviewed'
+check 2 "$T/G2" 'gh api -X PATCH repos/o/r/issues/7 -F labels=owner-reviewed'
+check 2 "$T/G2" 'gh api repos/o/r/issues/7/labels --input labels.json'
+check 2 "$T/G2" "gh api repos/o/r/issues/7/labels --input $T/G2/named.json"
+check 2 "$T/G2" "gh api repos/o/r/issues/7/labels --input - <<'EOF'${nl}{\"labels\":[\"owner-reviewed\"]}${nl}EOF"
+check 2 "$T/G2" 'gh api -X PATCH repos/o/r/labels/approved -f new_name=owner-reviewed'
+check 2 "$T/G2" 'gh pr merge 7'
+check 2 "$T/G2" 'gh pr merge --auto --squash 7'
+check 2 "$T/G2" 'git push && gh pr merge 7 --merge --delete-branch'
+check 2 "$T/U"  "cd $T/G2; gh pr merge"
+check 2 "$T/G2" 'gh api -X PUT repos/o/r/pulls/7/merge'
+check 2 "$T/G2" 'gh api --method=put repos/o/r/pulls/7/merge -f merge_method=squash'
+
+# Near misses that must pass: removing the label, other labels and reads.
+check 0 "$T/G2" 'gh pr edit 7 --remove-label owner-reviewed'
+check 0 "$T/G2" 'gh pr edit 7 --add-label owner-reviewed-not'
+check 0 "$T/G2" 'gh pr edit 7 --add-label class:feature --remove-label owner-reviewed'
+check 0 "$T/G2" 'gh pr create --draft --title owner-reviewed --body x --label class:feature'
+check 0 "$T/G2" 'gh pr view 7'
+check 0 "$T/G2" "gh pr view 7 --json labels -q '.labels[].name' | grep owner-reviewed"
+check 0 "$T/G2" 'git commit -m "docs: say why gh pr merge is refused"'
+check 0 "$T/G2" "gh pr comment 7 --body 'please run gh pr merge and add owner-reviewed'"
+check 0 "$T/G2" 'gh pr checks 7 --watch'
+check 0 "$T/G2" 'gh label create owner-reviewed-not'
+check 0 "$T/G2" 'gh label edit owner-reviewed --description "the owner reviewed it"'
+check 0 "$T/G2" 'gh api -X DELETE repos/o/r/issues/7/labels/owner-reviewed'
+check 0 "$T/G2" 'gh api repos/o/r/issues/7/labels -f "labels[]=owner-reviewed-not"'
+check 0 "$T/G2" 'gh api repos/o/r/issues/7/labels --input other.json'
+check 0 "$T/G2" 'gh api -X PATCH repos/o/r/issues/7 -f body="owner-reviewed"'
+check 0 "$T/G2" 'gh api repos/o/r/pulls/7/merge'
+check 0 "$T/G2" 'gh api repos/o/r/issues/7/comments -f body="gh pr merge"'
+check 0 "$T/U"  'gh pr merge 7'
+check 0 "$T/U"  'gh pr edit 7 --add-label owner-reviewed'
+
 # Without jq the router cannot parse; it complains only where the session's
 # own repository is guarded, and never blocks.
 mkdir -p "$T/bin"

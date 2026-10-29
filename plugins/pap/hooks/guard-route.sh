@@ -1,8 +1,9 @@
 #!/bin/sh
 # guard-route.sh: Claude Code PreToolUse hook for decisions 0002
 # (decisions/0002-skills-stop-at-draft-pr.md), 0005
-# (decisions/0005-agent-sessions-do-not-bypass-hooks.md) and 0012
-# (decisions/0012-protected-paths-need-an-owners-approved-by-line.md).
+# (decisions/0005-agent-sessions-do-not-bypass-hooks.md), 0012
+# (decisions/0012-protected-paths-need-an-owners-approved-by-line.md) and
+# 0016 (decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md).
 #
 # Reads the tool-call JSON on stdin. For every git command in a Bash command,
 # works out the directory it runs in: the session's cwd, then any `cd <dir>`
@@ -22,6 +23,16 @@
 #         <path> (the file is read) or --body-file - fed by a heredoc in the
 #         command, and `gh api` on a pulls or pulls/<n> endpoint with a
 #         body= field (-f, -F, @file) or --input <file> or - (a JSON body).
+#   0016  adding the owner-reviewed label (any case, alone or in a comma
+#         list, any of repeated flags) is refused: `gh pr` or `gh issue`
+#         `edit --add-label`, `create` or `new` with --label/-l or
+#         --add-label, `gh label edit --name owner-reviewed` (a rename
+#         into it), and `gh api` on issues/<n> or issues/<n>/labels with a
+#         labels or labels[] field or an --input JSON body naming it, or on
+#         labels/<name> with new_name=owner-reviewed. Merging is refused:
+#         `gh pr merge` with any flags, --auto included, and `gh api -X PUT`
+#         on pulls/<n>/merge. In every repository that adopts PAP, opted in
+#         to risk mode or not. Removing a label and every other gh call pass.
 #
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
@@ -42,6 +53,12 @@
 # (echo, cat <file>) passes; GraphQL mutations through `gh api graphql`
 # pass. An `Approved-by:` line elsewhere, as in a commit message, passes.
 # The pr-checks workflow still cannot tell who typed a line that got through.
+#
+# 0016 reads the same words, with the same limits: a label or merge through
+# `gh api graphql` (addLabelsToLabelable, mergePullRequest), bash -c, eval,
+# a script, or a label held in a variable or command substitution passes,
+# as does an --input body piped from anything but a heredoc. Neither the
+# label nor the merge can be traced to who did it once it is through.
 
 set -u
 
@@ -82,6 +99,60 @@ targets="$(jq -r '
        elif .[2] != null then .[2] | gsub("\\\\n"; "\n") | gsub("\\\\t"; "\t")
        elif .[3] != null then .[3] else .[4] end] | add // "";
   def marks: [scan("<<@HD([0-9]+)") | .[0] | tonumber];
+  # optat($a; $i; $long; $short): the value of --long v, --long=v, -s v, -sv
+  # or -s=v at word $i of $a.
+  def optat($a; $i; $long; $short):
+    $a[$i] as $w
+    | if $w == $long or $w == $short then $a[$i + 1] // empty
+      elif ($w | startswith($long + "=")) then $w[($long | length) + 1:]
+      elif ($w | startswith($short)) and ($short | test("^-[A-Za-z]$")) then $w[2:] | ltrimstr("=")
+      else empty end;
+
+  # Decision 0016: the owner-reviewed label and the merge belong to the owner.
+  # One finding per write: "label" or "merge" when the command shows it,
+  # "labelfile" when gh api reads a JSON body from a file.
+  def ownerlabel: ascii_downcase | gsub("^\\s+|\\s+$"; "") == "owner-reviewed";
+  def listed: unword | split(",") | any(ownerlabel);
+  def jsonlabels:
+    (if type == "object" then .labels? else . end)
+    | arrays | .[] | (strings, (objects | .name? | strings));
+  def owner($dir; $docs; $stmt):
+    . as $a | ($a | length) as $n
+    | [$stmt[] | marks[]] as $all
+    | def adds($route): "label\t\($dir)\t\($route)";
+      def field($i): optat($a; $i; "--raw-field"; "-f"), optat($a; $i; "--field"; "-F");
+      if $a[0] == "pr" and $a[1] == "merge" then "merge\t\($dir)\tgh pr merge"
+      elif ($a[0] | IN("pr", "issue")) and ($a[1] | IN("edit", "create", "new")) then
+        ("gh \($a[0]) \($a[1])") as $r
+        | range(2; $n) as $i
+        | ((optat($a; $i; "--add-label"; "--add-label") | select(listed) | adds($r + " --add-label")),
+           (if $a[1] == "edit" then empty
+            else optat($a; $i; "--label"; "-l") | select(listed) | adds($r + " --label") end))
+      elif $a[0] == "label" and $a[1] == "edit" then
+        range(2; $n) as $i
+        | optat($a; $i; "--name"; "-n") | select(unword | ownerlabel) | adds("gh label edit --name")
+      elif $a[0] == "api" then
+        [$a[] | unword] as $u
+        | ([range(1; $n) as $i | optat($a; $i; "--method"; "-X") | unword | ascii_upcase] | last) as $method
+        | (if $method == "PUT" and ($u | any(test("(^|/)pulls/[0-9]+/merge/?([?].*)?$")))
+           then "merge\t\($dir)\tgh api PUT pulls/<n>/merge" else empty end),
+          (if $u | any(test("(^|/)issues/[0-9]+(/labels)?/?([?].*)?$")) then
+             range(1; $n) as $i
+             | ((field($i) | unword | select(test("^labels(\\[\\])?="))
+                 | select(sub("^[^=]*="; "") | split(",") | any(ownerlabel))
+                 | adds("gh api labels")),
+                (optat($a; $i; "--input"; "--input") | unword
+                 | if . == "-" then
+                     first($all[] | $docs[.] | fromjson? | select(any(jsonlabels; ownerlabel)))
+                     | adds("gh api --input")
+                   else "labelfile\t\($dir)\tgh api --input\t\(if startswith("/") then . else $dir + "/" + . end)" end))
+           else empty end),
+          (if $u | any(test("(^|/)labels/[^/?]+/?([?].*)?$")) then
+             range(1; $n) as $i
+             | field($i) | unword | select(test("^new_name="))
+             | select(sub("^[^=]*="; "") | ownerlabel) | adds("gh api labels new_name")
+           else empty end)
+      else empty end;
   # One finding per body the command writes: "approval" when the text is in
   # the command, "bodyfile" or "jsonfile" when gh reads it from a file.
   def bodies($dir; $docs; $stmt):
@@ -95,13 +166,7 @@ targets="$(jq -r '
       def file($kind; $route; $f):
         if $f == "-" then stdin($kind; $route)
           else "\($kind)\t\($dir)\t\($route)\t\(if ($f | startswith("/")) then $f else $dir + "/" + $f end)" end;
-      # opt($long; $short): the value of --long v, --long=v, -s v, -sv or -s=v at $i.
-      def opt($i; $long; $short):
-        $a[$i] as $w
-        | if $w == $long or $w == $short then $a[$i + 1] // empty
-          elif ($w | startswith($long + "=")) then $w[($long | length) + 1:]
-          elif ($w | startswith($short)) and ($short | test("^-[A-Za-z]$")) then $w[2:] | ltrimstr("=")
-          else empty end;
+      def opt($i; $long; $short): optat($a; $i; $long; $short);
       if $a[0] == "pr" and ($a[1] | IN("create", "new", "edit")) then
         ("gh pr " + $a[1]) as $r
         | range(2; $n) as $i
@@ -135,7 +200,7 @@ targets="$(jq -r '
               | ([.[] | select(test("^(env|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)] | .[0]) as $head
               | select($head == "gh")
               | .[(index("gh") + 1):]
-              | bodies($s.dir; $l.docs; $st) ]
+              | (bodies($s.dir; $l.docs; $st), owner($s.dir; $l.docs; $st)) ]
           end)
     | .out[];
 
@@ -193,6 +258,15 @@ approved() {
   grep -qi '^[[:space:]]*approved-by:' "$1"
 }
 
+# labelled <file>: the JSON file gh api --input reads adds owner-reviewed, as
+# a labels array or a bare array of names or {name} objects.
+labelled() {
+  [ -f "$1" ] || return 1
+  jq -e '[(if type == "object" then .labels? else . end) | arrays | .[]
+          | (strings, (objects | .name? | strings))]
+         | any(ascii_downcase | gsub("^\\s+|\\s+$"; "") == "owner-reviewed")' "$1" >/dev/null 2>&1
+}
+
 while IFS="$tab" read -r kind target reason file; do
   root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || continue
   guard="$root/scripts/guard-branch.sh"
@@ -210,6 +284,17 @@ while IFS="$tab" read -r kind target reason file; do
       [ "$kind" = approval ] || approved "$file" "$kind" || continue
       printf 'guard-route: refusing an Approved-by line in a pull request body (%s) in %s\n' "$reason" "$root" >&2
       printf 'guard-route: decision 0012: the line is the owner'"'"'s to type by hand; a rewritten body must drop it, and the owner re-approves.\n' >&2
+      status=2
+      ;;
+    label | labelfile)
+      [ "$kind" = label ] || labelled "$file" || continue
+      printf 'guard-route: refusing the owner-reviewed label (%s) in %s\n' "$reason" "$root" >&2
+      printf 'guard-route: decision 0016: the owner adds owner-reviewed after review; an agent never does (rule 16.2).\n' >&2
+      status=2
+      ;;
+    merge)
+      printf 'guard-route: refusing a merge (%s) in %s\n' "$reason" "$root" >&2
+      printf 'guard-route: decision 0016: the owner merges; an agent stops at the draft pull request (rule 16.2).\n' >&2
       status=2
       ;;
   esac
