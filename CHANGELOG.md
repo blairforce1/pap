@@ -129,7 +129,7 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   repository in risk mode, and ends its report with
   `Risk: high; add owner-reviewed after review` for a high-risk pull
   request instead of an `Approved-by:` line.
-- The base `pr-checks` caller and README describe risk mode.
+- The base README describes risk mode in its `pr-checks` row.
 
 - `/change` states the stop rule per agent context, not per session: a
   background sub-agent under a project-manager session opens one pull
