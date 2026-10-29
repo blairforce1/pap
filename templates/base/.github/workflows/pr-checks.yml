@@ -3,11 +3,8 @@
 # without a Record line, an unanswered Checks box, undeclared generated
 # content, a missing or dangling Change: line, and anything but one class:*
 # label, and keeps the protected-path label in step with .github/CODEOWNERS.
-# With .github/risk.yml (decision 0016) it also sets a risk:* label, keeps
-# the review-focus comment and removes owner-reviewed on a push.
 # `edited` re-runs it when the body is fixed, `labeled` and `unlabeled`
-# when the class or owner-reviewed label is. pull-requests: write is for
-# those labels and the comment only.
+# when the class label is. pull-requests: write is for that label only.
 name: pr-checks
 
 on:

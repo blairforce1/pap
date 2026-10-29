@@ -109,7 +109,7 @@ An Android, iOS or Mac Catalyst target, a Release configuration or an AOT build 
 In a repository with `.github/risk.yml` on its base branch, every pull request carries exactly one of `risk:high`, `risk:medium` or `risk:low`, computed from its diff, and a `risk:high` pull request merges only with the `owner-reviewed` label, which any push removes.
 
 - Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
-- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow in `blairforce1/.github` sets the label, keeps the review-focus comment, removes `owner-reviewed` on a push and fails a `risk:high` pull request without it.
+- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow in blairforce1/.github sets the label, keeps the review-focus comment, removes `owner-reviewed` on a push and fails a `risk:high` pull request without it.
 
 ### 16.2 Agents never add `owner-reviewed`, never write `Approved-by:`, and never merge
 
