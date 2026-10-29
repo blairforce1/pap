@@ -1,6 +1,7 @@
 # 0013. An approval is for one commit
 
-- **Status:** accepted
+- **Status:** measured:confirmed (2026-10-29)
+- **Disposition:** kept
 - **Date:** 2026-09-25
 - **Deciders:** blairforce1, with Claude Code
 - **Supersedes:** none; amends [0012](0012-protected-paths-need-an-owners-approved-by-line.md)
@@ -69,6 +70,47 @@ still never writes the line itself (0012, and the `PreToolUse` hook).
 The reason that carried it: an approval of a diff the owner has not seen
 is not an approval, and the head SHA is the one thing both the check and
 the owner can see that changes whenever the diff does.
+
+## Result
+
+Evaluated 2026-10-29 over #53 to #62, the first ten change pull requests
+after #52, from `gh`: each body's edit history against its commits, and
+the annotations of every failed `pr-checks` run, as the Context table
+was read.
+
+Trigger: no protected-path pull request merged with a commit after its
+approval, and the check refused no approval as stale.
+
+| PR    | Class   | Protected | Approvals | Commit after approval | Stale refusals |
+| ----- | ------- | --------- | --------- | --------------------- | -------------- |
+| #53   | docs    | yes       | 1         | no                    | 0              |
+| #54   | infra   | yes       | 1         | no                    | 0              |
+| #55   | docs    | yes       | 1         | no                    | 0              |
+| #56   | feature | yes       | 1         | no                    | 0              |
+| #57   | bugfix  | yes       | 1         | no                    | 0              |
+| #58   | infra   | yes       | 1         | no                    | 0              |
+| #59   | bugfix  | yes       | 1         | no                    | 0              |
+| #60   | bugfix  | yes       | 1         | no                    | 0              |
+| #61   | bugfix  | yes       | 1         | no                    | 0              |
+| #62   | infra   | yes       | 1         | no                    | 0              |
+| Total |         | 10 of 10  | 10        | 0                     | 0              |
+
+In every one the last commit predates the approval, by 4 minutes to about
+an hour and a half. No re-approval was needed in the window.
+
+Outside it, #65 shows the record working: two commits reached the head
+six minutes after its approval of `d69a3de`, three runs on `efabd6f`
+refused the line as stale, the owner approved `efabd6f`, and it merged on
+that. It is the only stale refusal and the only re-approval from #53 to
+#69.
+
+Expected effect: 1 of 4 before, 0 of 10 after, and 0 of 17 to #69, since
+#65's stale line was refused before the merge. Judged on the count, as
+Consequences registered: confirmed. Cost: one approval per pull request
+in the window, three stale refusals and one re-approval outside it.
+
+Kept. 0016 replaces this record in a repository that opts in; pap has
+not, so it applies here unchanged.
 
 ## Considered options
 

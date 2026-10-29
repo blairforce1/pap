@@ -1,6 +1,7 @@
 # 0012. A protected path needs an owner's Approved-by line, not a reason
 
-- **Status:** accepted
+- **Status:** measured:confirmed (2026-10-29)
+- **Disposition:** kept
 - **Date:** 2026-09-25
 - **Deciders:** blairforce1, with Claude Code
 - **Supersedes:** none; amends [0004](0004-pull-request-checks-are-answered.md)
@@ -71,6 +72,46 @@ touched, or an owner has written `Approved-by: @login` below".
 The reason that carried it: "later" was being accepted as an answer to a
 question whose only valid answer is a name, and a name is something a
 check can match against CODEOWNERS.
+
+## Result
+
+Evaluated 2026-10-29 over #51 to #60, the first ten change pull requests
+after #50, from `gh`: each body's edit history (GraphQL
+`userContentEdits`), its commits, and the annotations of every failed
+`pr-checks` run. Protected means the check's `protected-path` label.
+
+Trigger: no. No pull request the check labelled protected-path merged
+without an owner's `Approved-by:` line, and the check refused no body that
+carried a valid one.
+
+| PR    | Class              | Protected | Lines written | Failed runs, all "no Approved-by line" | False refusals | Merged without a valid line |
+| ----- | ------------------ | --------- | ------------- | -------------------------------------- | -------------- | --------------------------- |
+| #51   | security-sensitive | yes       | 1             | 5                                      | 0              | no                          |
+| #52   | infra              | yes       | 1             | 4                                      | 0              | no                          |
+| #53   | docs               | yes       | 1             | 3                                      | 0              | no                          |
+| #54   | infra              | yes       | 1             | 2                                      | 0              | no                          |
+| #55   | docs               | yes       | 1             | 2                                      | 0              | no                          |
+| #56   | feature            | yes       | 1             | 3                                      | 0              | no                          |
+| #57   | bugfix             | yes       | 1             | 4                                      | 0              | no                          |
+| #58   | infra              | yes       | 1             | 4                                      | 0              | no                          |
+| #59   | bugfix             | yes       | 1             | 4                                      | 0              | no                          |
+| #60   | bugfix             | yes       | 1             | 6                                      | 0              | no                          |
+| Total |                    | 10 of 10  | 10            | 37                                     | 0              | 0                           |
+
+#51's line has no SHA: 0013's check was not live yet. Each push runs the
+check twice, so the failed runs count runs, not refusals; every one came
+before the owner's line and was the check asking for it.
+
+Expected effect: 3 of 4 before, 0 of 10 after, and 0 of 19 counting #61
+to #69. Judged on the count, as Consequences registered, since 0001's
+median rule cannot move at this floor: confirmed. The cost is the one the
+record accepted: every change pull request in the window was protected,
+so every merge waited on a hand-typed line, after a median of 4 failed
+runs.
+
+Kept. 0016, introduced in v0.9.0, replaces this record in a repository
+that opts in, on that cost; pap has not opted in, so it applies here
+unchanged.
 
 ## Considered options
 
