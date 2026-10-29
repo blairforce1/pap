@@ -124,6 +124,11 @@ check can match against CODEOWNERS.
   The count is what this record is judged on. After the change the last
   `pr-checks` run before a merge is green only with the line; the before
   side is the edit history 0004's revisit read.
+- Recorded 2026-10-29, by [0016](0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md):
+  a repository with `.github/risk.yml` on its base branch no longer needs
+  the line; a `risk:high` pull request there needs the owner's
+  `owner-reviewed` label instead, which any push removes. Without the
+  file this record applies unchanged.
 
 ## Where it is taught or enforced
 

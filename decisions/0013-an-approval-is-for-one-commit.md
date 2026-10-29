@@ -107,6 +107,11 @@ the owner can see that changes whenever the diff does.
 - Measurement: the before side is 1 of 4, read from edit histories; the
   after side is structural, since a merge on a stale line needs a red
   required check. The count of stale refusals is the cost side.
+- Recorded 2026-10-29, by [0016](0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md):
+  a repository with `.github/risk.yml` on its base branch no longer needs
+  the line; a `risk:high` pull request there needs the owner's
+  `owner-reviewed` label instead, which any push removes. Without the
+  file this record applies unchanged.
 
 ## Where it is taught or enforced
 
