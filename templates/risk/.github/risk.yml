@@ -1,0 +1,48 @@
+# .github/risk.yml: decision 0016. Its presence on the base branch opts the
+# repository into risk mode of the reusable pr-checks workflow in
+# blairforce1/.github: every pull request gets one of risk:high,
+# risk:medium or risk:low and a review-focus comment, a risk:high pull
+# request passes only with the owner's owner-reviewed label, which any push
+# removes, and the Approved-by line of decisions 0012 and 0013 is no longer
+# asked for. Drop the risk layer and delete the file to go back.
+#
+# A changed file's level is the first of: high for .github/workflows/**,
+# .github/CODEOWNERS, this file, decisions/** and product/invariants.md
+# (fixed, not lowered here); high for a weakened test (a file under `tests`
+# deleted, assertions removed, a skip added; a number lowered in a file
+# under `coverage`); the last rule below whose paths match; low for any
+# other file under `tests`; high for a file with a CODEOWNERS owner;
+# `default`. The pull request's level is the highest of its files. Globs
+# are matched as CODEOWNERS patterns are. The check reads this file from the
+# base branch, so a pull request cannot lower its own level.
+
+# Level for a file nothing else decides.
+default: low
+
+# Test files: low when only added to or extended, high when weakened.
+tests:
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/*.Tests/**"
+  - "**/*_test.go"
+  - "**/*.test.*"
+
+# Files that hold coverage thresholds: a lowered number is high.
+coverage:
+  - "coverage*.json"
+  - "**/coverage*.json"
+  - ".config/coverage*"
+
+# Each rule: paths, a level, and the question the review focus asks of a
+# file it matches. The last matching rule wins.
+rules:
+  - paths:
+      - "**/prompts/**"
+      - "**/*.prompt.md"
+    level: medium
+    question: "prompt changed: confirm an eval ran on this head and its result is in Verification"
+  # A repository's own sensitive code, for example:
+  # - paths:
+  #     - "src/Payments/BankDetailFilter*"
+  #   level: high
+  #   question: "touches the bank-detail filter: confirm nothing is stored or logged"

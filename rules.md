@@ -50,9 +50,9 @@ A template layer adds files; it may append a `[*.ext]` section to `.editorconfig
 
 ### 4.1 Checks are answered
 
-Every box in a pull request's Checks section is ticked, or has a one-line reason on the line below it. A pull request touching a protected path carries an `Approved-by: @login <sha>` line naming a CODEOWNERS owner of every protected file and the head it approves; a reason does not stand in for it, and a line naming any other head is stale.
+Every box in a pull request's Checks section is ticked, or has a one-line reason on the line below it. In a repository without `.github/risk.yml`, a pull request touching a protected path carries an `Approved-by: @login <sha>` line naming a CODEOWNERS owner of every protected file and the head it approves; a reason does not stand in for it, and a line naming any other head is stale.
 
-- Decision: [0004](decisions/0004-pull-request-checks-are-answered.md), [0012](decisions/0012-protected-paths-need-an-owners-approved-by-line.md), [0013](decisions/0013-an-approval-is-for-one-commit.md)
+- Decision: [0004](decisions/0004-pull-request-checks-are-answered.md), [0012](decisions/0012-protected-paths-need-an-owners-approved-by-line.md), [0013](decisions/0013-an-approval-is-for-one-commit.md); narrowed by [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
 - Enforced by: The reusable `pr-checks` workflow via [`.github/workflows/pr-checks.yml`](.github/workflows/pr-checks.yml), a required check since #42. It cannot tell who typed an `Approved-by:` line; [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses an agent's `gh` write of a pull request body that carries one.
 
 ### 4.2 Generated content is declared
@@ -103,3 +103,17 @@ An Android, iOS or Mac Catalyst target, a Release configuration or an AOT build 
 
 - Decision: [0015](decisions/0015-agent-sessions-share-one-machines-power-and-cores.md)
 - Enforced by: Nothing yet. The .NET layer's [`templates/dotnet/scripts/heavy-build.sh`](templates/dotnet/scripts/heavy-build.sh) does both for a build run through it, and the `/change` skill sends heavy builds through it; nothing refuses a bare `dotnet build` of a heavy target. Planned: the `PreToolUse` hook refuses an agent's bare `dotnet build` or `dotnet publish` of a heavy target in an adopting repository and names the script.
+
+### 16.1 High risk waits for the owner's `owner-reviewed` label
+
+In a repository with `.github/risk.yml` on its base branch, every pull request carries exactly one of `risk:high`, `risk:medium` or `risk:low`, computed from its diff, and a `risk:high` pull request merges only with the `owner-reviewed` label, which any push removes.
+
+- Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
+- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow in `blairforce1/.github` sets the label, keeps the review-focus comment, removes `owner-reviewed` on a push and fails a `risk:high` pull request without it.
+
+### 16.2 Agents never add `owner-reviewed`, never write `Approved-by:`, and never merge
+
+The owner's review is the owner's act: an agent session adds no `owner-reviewed` label, writes no `Approved-by:` line (rule 4.1, for repositories still on 0012), and merges no pull request.
+
+- Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md), [0012](decisions/0012-protected-paths-need-an-owners-approved-by-line.md)
+- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses an agent's pull request body carrying an `Approved-by:` line. The label and the merge are taught in the `/change` skill and not checked. Planned: the hook refuses an agent's `gh pr edit --add-label owner-reviewed`, the same through `gh api`, and `gh pr merge`.
