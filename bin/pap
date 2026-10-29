@@ -12,7 +12,7 @@
 #        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
 #        pap version
 #
-# init    Applies base plus the named language layers to the repository at
+# init    Applies base plus the named layers (dotnet, go, risk) to the repository at
 #         the current directory, records the version and layers in
 #         .config/pap.toml, pins pap itself in .config/mise/conf.d/pap.toml
 #         when this pap is a release, runs `mise trust && mise install &&

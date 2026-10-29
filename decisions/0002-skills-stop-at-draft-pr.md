@@ -97,6 +97,65 @@ one extension 0001 allows, measured from session transcripts rather than
 timestamps, and the next look ends in a `measured:` status whatever it
 shows.
 
+### Revisit of 2026-10-29, proposed
+
+Proposed, not accepted: the owner accepts it by setting the two header
+lines below and deleting this sentence. Until then the Status above
+stands.
+
+```text
+- **Status:** measured:inconclusive (2026-10-29)
+- **Disposition:** kept
+```
+
+The window is #48 to #57, the first ten change pull requests after #47.
+The registered method cannot run: no session transcript exists for any
+of them. Claude Code removes transcripts after about 30 days by default,
+the oldest on the machine is from 2026-09-30, and the ten were opened on
+2026-09-25 (#48 to #56) and 2026-10-08 (#57). Only the timestamp proxy
+remains, which the Result above already ruled out as the method because
+it cannot tell idle time from review.
+
+| PR     | Class              | Draft     | Ready to merge | Open to merge |
+| ------ | ------------------ | --------- | -------------- | ------------- |
+| #48    | feature            | 6.1 min   | 0.5 min        | 6.5 min       |
+| #49    | docs               | 3.5 min   | 0.3 min        | 3.8 min       |
+| #50    | infra              | 127.5 min | 7.3 min        | 134.9 min     |
+| #51    | security-sensitive | 36.9 min  | 6.9 min        | 43.8 min      |
+| #52    | infra              | 52.1 min  | 6.1 min        | 58.3 min      |
+| #53    | docs               | 5.6 min   | 0.8 min        | 6.4 min       |
+| #54    | infra              | 12.1 min  | 0.3 min        | 12.4 min      |
+| #55    | docs               | 3.3 min   | 3.6 min        | 7.0 min       |
+| #56    | feature            | 16.2 min  | 4.3 min        | 20.5 min      |
+| #57    | bugfix             | 39.5 min  | 11.1 min       | 50.5 min      |
+| Median |                    | 14.1 min  | 4.0 min        | 16.4 min      |
+
+Rejections: none. No `change/` pull request was closed unmerged from #48
+opening to #57 merging, and none of the ten has a review or a comment.
+
+Read literally, the proxy makes the cost arm of the original revert
+condition true (16.4 min against five) and the rejection arm true again
+by default. It is not read literally, for two reasons. The method was
+registered as transcripts precisely because timestamps fold idle time
+in, and switching back now would be the post-hoc choice 0001 forbids.
+And 0012 and 0013 landed at #50 and #52, inside the window: from then on
+every pull request waited on the owner's hand-typed `Approved-by:` line
+after a run of failed checks, and the four slowest (#50, #51, #52, #57)
+are among them. 0001 does not let a window run across another
+intervention. The pre-registered effect is true by construction, as
+before: all ten reached main by pull request, and none carries a review.
+
+So inconclusive, kept: nothing is refuted on a method that could run,
+and every later gate (0004, 0012, 0016) stands on this one. The Revisit
+line spent 0001's one extension and asked for a `measured:` status
+whatever the result, so the record closes here. Draft-to-merge time is
+measured next under 0016, which replaces the hand-typed line in a
+repository that opts in.
+
+Lesson for later records: a method that reads session transcripts must
+be run within about 30 days of its window, or register a step that keeps
+them.
+
 ## Considered options
 
 - **Instruct skills not to commit to main.** Lost: that is what failed on the 16th.

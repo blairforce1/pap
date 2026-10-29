@@ -49,7 +49,7 @@ What PAP adds is the product layer above per-change intent, task classes that se
 1. Install the plugin in Claude Code from this repository's marketplace:
    `claude plugin marketplace add blairforce1/pap` then `claude plugin install pap@blairforce1-pap`.
 2. In a new or existing repo, run `/envision` to produce the product layer (vision, invariants, hypothesis backlog).
-3. Apply the template, the ruleset and the hooks with `pap init base [dotnet] [go]`, and take later template versions with `pap sync`. See "Adopting and syncing the template" in `templates/base/README.md`.
+3. Apply the template, the ruleset and the hooks with `pap init base [dotnet] [go] [risk]`, and take later template versions with `pap sync`. See "Adopting and syncing the template" in `templates/base/README.md`.
 
 Repository templates (editorconfig, .NET analyzers, formatting, devcontainer) and the metrics pipeline are on the roadmap; see the decision records and open pull requests for current state.
 

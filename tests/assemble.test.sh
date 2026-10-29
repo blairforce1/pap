@@ -62,6 +62,16 @@ result $? "base+dotnet+go: every layer's files present"
 [ "$(printf '%s\n' "$out" | wc -l)" -eq "$(find "$T/bdg" -type f | wc -l)" ]
 result $? "base+dotnet+go: printed list matches the files on disk"
 
+# The risk layer on top of every other: it adds .github/risk.yml and nothing
+# base or a language layer carries (decision 0016).
+out="$(sh "$asm" base dotnet go risk "$T/bdgr" 2>&1)"; rc=$?
+result "$rc" "base+dotnet+go+risk: no collision, exits 0" "$out"
+[ -f "$T/bdgr/.github/risk.yml" ] && [ ! -e "$T/bdg/.github/risk.yml" ] &&
+  cmp -s "$T/bdgr/.github/risk.yml" "$here/templates/risk/.github/risk.yml"
+result $? "risk: adds .github/risk.yml, which no other layer carries"
+[ "$(cd "$here/templates/risk" && find . \( -type f -o -type l \) ! -path ./README.md | wc -l)" -eq 1 ]
+result $? "risk: the layer carries one file besides its README"
+
 # --- every required check has a provider in the base layer -------------------
 
 # The ruleset pap applies requires these checks on every pull request.
@@ -90,8 +100,12 @@ for context in $(sed -n 's/.*"context": *"\([^"]*\)".*/\1/p' "$here/.github/rule
 done
 [ -z "$unprovided" ] && [ -n "$context" ]
 result $? "base: every check the ruleset requires has a workflow that provides it" "no provider for:$unprovided"
-cmp -s "$T/b/.github/workflows/pr-checks.yml" "$here/.github/workflows/pr-checks.yml"
-result $? "base: the pr-checks caller is the one pap itself runs"
+# Transitional: pap's own caller keeps a pull_request block, marked, beside
+# the template's pull_request_target until the next pull request drops it
+# and this goes back to a plain cmp. Everything else must match.
+sed '/^  # transitional:/,/^  pull_request_target:$/{/^  pull_request_target:$/!d;}' \
+  "$here/.github/workflows/pr-checks.yml" | cmp -s "$T/b/.github/workflows/pr-checks.yml" -
+result $? "base: the pr-checks caller is the one pap itself runs, bar its transitional pull_request block"
 
 # --- the test task and each layer's part of it --------------------------------
 
