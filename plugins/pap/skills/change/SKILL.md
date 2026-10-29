@@ -72,12 +72,16 @@ The verification table: what was run, what it showed. Every check the brief aske
 ## Checks
 Tick a box only if it is true. An unticked box needs a one-line reason below it, otherwise the PR is not ready.
 - [x] Verification run and output shown above
-- [x] No protected path touched, or an owner has approved the head: `Approved-by: @login <sha>` below
+- [x] No protected path touched, or the owner has approved the head: `Approved-by: @login <sha>` below, or (risk mode) the `owner-reviewed` label
 - [x] Generated content carries provenance (model, skill, prompt)
 Provenance: <model> via Claude Code, skill change, prompt "<one-line brief>"; recorded in the commit trailers.
 ```
 
-Answer every box. An unticked box has its reason on the next line. If the diff touches a path in the base branch's `.github/CODEOWNERS`, leave the protected-path box unticked with `Head to approve: <short sha>` as its reason, the pushed head's first seven characters (`git rev-parse --short=7 HEAD`), and never write an `Approved-by:` line: it is the owner's, typed by hand before merge (decision 0012), and names the head it approves (decision 0013). After every later push, update that reason to the new head; the rewrite drops any `Approved-by:` line, which the push made stale anyway, and the report says the owner must re-approve.
+Answer every box. An unticked box has its reason on the next line. The protected-path box depends on the mode: the repository is in risk mode when its base branch has `.github/risk.yml` (`git cat-file -e origin/main:.github/risk.yml`, decision 0016).
+
+Not in risk mode: if the diff touches a path in the base branch's `.github/CODEOWNERS`, leave the protected-path box unticked with `Head to approve: <short sha>` as its reason, the pushed head's first seven characters (`git rev-parse --short=7 HEAD`), and never write an `Approved-by:` line: it is the owner's, typed by hand before merge (decision 0012), and names the head it approves (decision 0013). After every later push, update that reason to the new head; the rewrite drops any `Approved-by:` line, which the push made stale anyway, and the report says the owner must re-approve.
+
+In risk mode there is no `Approved-by:` line and no `Head to approve:` reason. Once the pull request is open, wait for the `pr-checks` run on the head (a short wait, seconds), read its `risk:*` label (`gh pr view --json labels -q '.labels[].name'`), and answer the box: for `risk:low` or `risk:medium`, tick it with `Risk: <level>` on the next line; for `risk:high`, leave it unticked with `Risk: high; the owner adds owner-reviewed after review` as its reason. After every later push, read the label again and update the answer; the push removed any `owner-reviewed` label, and the report says the owner must review the new head. Never add `owner-reviewed` and never merge (rule 16.2): the label is the owner's, as the line is.
 
 ```sh
 git push -u origin "change/<slug>"
@@ -86,7 +90,7 @@ gh pr view --json labels -q '.labels[].name'   # read back: the label can race c
 gh pr edit --add-label "class:<class>"         # only if the read-back lacks it
 ```
 
-Then start the CI wait in the background and report without waiting for it.
+Then, in risk mode, answer the protected-path box as above. Start the CI wait in the background and report without waiting for it.
 
 ## 6. Report in chat, then stop
 
@@ -105,7 +109,7 @@ Once the pull request has merged, run `mise run tidy` to remove this worktree an
 Approved-by: @<owner> <short sha>
 ```
 
-The last line is only for a pull request touching a protected path: the line for the owner to paste into the body, naming the owners from `.github/CODEOWNERS` and the head in the box's reason. Omit it otherwise.
+The last line depends on the mode. Not in risk mode, it is only for a pull request touching a protected path: the line for the owner to paste into the body, naming the owners from `.github/CODEOWNERS` and the head in the box's reason; omit it otherwise. In risk mode it is always there, in place of the `Approved-by:` line: `Risk: high; add owner-reviewed after review` for a `risk:high` pull request, `Risk: <level>` for the others.
 
 The Revisits line is the records `pap revisits` prints as due (decision 0010): `pap revisits | awk '$2 == "due" { print $1 }'`, run as `bin/pap` in pap itself. If it cannot run, say so on that line.
 
