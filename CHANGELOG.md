@@ -115,7 +115,21 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+#### Added
+
+- Decision 0016 (proposed): in a repository that opts in, a risk label and
+  the owner's `owner-reviewed` label on high-risk pull requests replace the
+  `Approved-by:` line of 0012 and 0013. Rules 16.1 and 16.2.
+- The `risk` template layer: a sample `.github/risk.yml`, the opt-in to
+  0016's risk mode, added with `pap init base risk`.
+
 #### Changed
+
+- `/change` answers the protected-path box from the `risk:*` label in a
+  repository in risk mode, and ends its report with
+  `Risk: high; add owner-reviewed after review` for a high-risk pull
+  request instead of an `Approved-by:` line.
+- The base `pr-checks` caller and README describe risk mode.
 
 - `/change` states the stop rule per agent context, not per session: a
   background sub-agent under a project-manager session opens one pull
