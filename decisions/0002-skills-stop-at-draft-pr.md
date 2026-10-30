@@ -1,6 +1,7 @@
 # 0002. Stop skills at a draft PR; nothing reaches main except by PR
 
-- **Status:** accepted
+- **Status:** measured:inconclusive (2026-10-29)
+- **Disposition:** kept
 - **Date:** 2026-09-17
 - **Deciders:** blairforce1, with Claude Code
 - **Supersedes:** none
@@ -97,16 +98,7 @@ one extension 0001 allows, measured from session transcripts rather than
 timestamps, and the next look ends in a `measured:` status whatever it
 shows.
 
-### Revisit of 2026-10-29, proposed
-
-Proposed, not accepted: the owner accepts it by setting the two header
-lines below and deleting this sentence. Until then the Status above
-stands.
-
-```text
-- **Status:** measured:inconclusive (2026-10-29)
-- **Disposition:** kept
-```
+### Revisit of 2026-10-29
 
 The window is #48 to #57, the first ten change pull requests after #47.
 The registered method cannot run: no session transcript exists for any
