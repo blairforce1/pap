@@ -1,0 +1,18 @@
+# labels/risk.yml: the risk layer's labels (decision 0016), synced by
+# `scripts/repo-sync.sh apply` to a repository whose .config/pap.toml names
+# the risk layer, on top of labels.yml and under its rules. The colours of
+# the three risk labels are the ones the reusable pr-checks workflow gives a
+# risk label it has to create, so the two never fight over them.
+
+- name: risk:high
+  color: "b60205"
+  description: "Set by pr-checks from .github/risk.yml: merges only with owner-reviewed"
+- name: risk:medium
+  color: "fbca04"
+  description: Set by pr-checks from .github/risk.yml
+- name: risk:low
+  color: "0e8a16"
+  description: Set by pr-checks from .github/risk.yml
+- name: owner-reviewed
+  color: "0052cc"
+  description: The owner reviewed this head of a risk:high pull request; the owner adds it, any push removes it

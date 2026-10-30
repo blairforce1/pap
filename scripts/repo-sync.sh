@@ -2,11 +2,22 @@
 # repo-sync.sh: make a GitHub repository conform to PAP defaults; safe to re-run.
 #
 # Usage: repo-sync.sh status [--repo owner/name]
-#        repo-sync.sh apply  [--repo owner/name] [--dry-run]
+#        repo-sync.sh apply  [--repo owner/name] [--dry-run] [--remove-checks]
 #
 # The repository defaults to the one gh resolves from the current directory.
 # The reference files come from the blairforce1/pap checkout this script lives
-# in, not from the target: .github/rulesets/main.json and .github/labels.yml.
+# in, not from the target: .github/rulesets/main.json, .github/labels.yml, and
+# .github/labels/<layer>.yml for each layer the target's .config/pap.toml
+# names. Two files come from the target: .config/pap.toml, and
+# .github/required-checks.yml, a YAML list of the names of the required status
+# checks (from GitHub Actions) the repository adds to the ruleset's. Each is
+# read from this checkout when the current directory is one of the target, so
+# pap init can apply before the first push, else from the default branch.
+#
+# Required status checks: the ruleset applied is main.json's checks, plus the
+# declared ones, plus any check the live ruleset requires that neither names.
+# Apply never removes a required check unless --remove-checks is given; it
+# lists the ones it keeps, and the ruleset diff shows the rest.
 #
 # status  Read-only. Reports each item as ok, drift, missing or
 #         unavailable-on-plan, in five groups: repository settings, security,
@@ -22,9 +33,10 @@
 #         enforcement group is report-only. The ruleset is created or updated
 #         by name through the rulesets API, never legacy branch protection.
 #         Labels are created or have colour and description updated; labels
-#         not in labels.yml are reported and never deleted. Ends with a
+#         not in the label files are reported and never deleted. Ends with a
 #         summary: newly applied, already correct, skipped, failed. Exits 1
-#         if anything failed.
+#         if anything failed. --remove-checks drops the live required checks
+#         that neither main.json nor .github/required-checks.yml names.
 #
 # Push protection and CodeQL default setup need GitHub Advanced Security on
 # private repositories, which a Pro personal account does not have. They are
@@ -39,6 +51,8 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 ruleset_file="$root/.github/rulesets/main.json"
 labels_file="$root/.github/labels.yml"
 sep=$'\x1f'
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 
 die() {
   printf 'repo-sync: %s\n' "$1" >&2
@@ -54,16 +68,18 @@ cmd="${1:-}"
 [ $# -gt 0 ] && shift
 repo=""
 dry_run=false
+remove_checks=false
 while [ $# -gt 0 ]; do
   case "$1" in
     --repo) [ $# -ge 2 ] || usage; repo="$2"; shift 2 ;;
     --repo=*) repo="${1#--repo=}"; shift ;;
     --dry-run) dry_run=true; shift ;;
+    --remove-checks) remove_checks=true; shift ;;
     *) usage ;;
   esac
 done
 case "$cmd" in status | apply) ;; *) usage ;; esac
-[ "$cmd" = apply ] || [ "$dry_run" = false ] || usage
+[ "$cmd" = apply ] || { [ "$dry_run" = false ] && [ "$remove_checks" = false ]; } || usage
 
 for tool in gh jq yq; do
   command -v "$tool" >/dev/null 2>&1 || die "$tool not found"
@@ -75,6 +91,8 @@ case "$(yq --version 2>&1)" in *mikefarah*) ;; *) die "yq must be mikefarah/yq v
 local_repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)"
 repo="${repo:-$local_repo}"
 [ -n "$repo" ] || die "no --repo given and the current directory is not a GitHub repository"
+is_local=false
+[ -n "$local_repo" ] && [ "$(tr '[:upper:]' '[:lower:]' <<<"$local_repo")" = "$(tr '[:upper:]' '[:lower:]' <<<"$repo")" ] && is_local=true
 
 # api_get <path>: sets $code to the HTTP status and $body to the response
 # body. Never fails, so callers decide what each status means.
@@ -86,6 +104,20 @@ api_get() {
   code="${code%% *}"
   [ -n "$out" ] || code=000
   body="$(printf '%s\n' "$out" | sed '1,/^\r\{0,1\}$/d')"
+}
+
+# target_file <path>: the target's copy of <path>, from this checkout when it
+# is one of the target, else from the default branch. Empty when it has none.
+target_file() {
+  local top
+  if [ "$is_local" = true ]; then
+    top="$(git rev-parse --show-toplevel 2>/dev/null)" || return 0
+    [ ! -f "$top/$1" ] || cat "$top/$1"
+    return 0
+  fi
+  api_get "repos/$repo/contents/$1"
+  [ "$code" != 200 ] || jq -r '.content | gsub("\n"; "") | @base64d' <<<"$body"
+  return 0
 }
 
 # Every check ends in record(); fixable ones also call plan().
@@ -216,9 +248,10 @@ fi
 # --- 3. Ruleset -------------------------------------------------------------
 
 # Both sides lose the fields GitHub owns. The live side is then pruned to the
-# keys the file carries, recursively, with rules matched by type, so a field
-# GitHub adds or returns by default cannot cause permanent drift. Rules are
-# sorted by type so order alone is not drift.
+# keys the wanted ruleset carries, recursively, with rules matched by type, so
+# a field GitHub adds or returns by default cannot cause permanent drift.
+# Rules are sorted by type and required checks by name, so order alone is not
+# drift.
 # shellcheck disable=SC2016 # jq's $variables, not the shell's
 normalise='
   def prune($t):
@@ -235,15 +268,29 @@ normalise='
   def owned: del(.id, .source, .source_type, .created_at, .updated_at);
   ($t[0] | owned) as $want
   | owned | prune($want)
-  | if has("rules") then .rules |= sort_by(.type) else . end
+  | if has("rules") then
+      .rules |= (sort_by(.type)
+        | map(if .type == "required_status_checks"
+                 and (.parameters.required_status_checks | type) == "array"
+              then .parameters.required_status_checks |= sort_by(.context) else . end))
+    else . end
 '
+# shellcheck disable=SC2016
+checks='[.rules[]? | select(.type == "required_status_checks") | .parameters.required_status_checks[]?]'
 
 group "Ruleset"
 ruleset_name="$(jq -r .name "$ruleset_file")"
-ruleset_want="$(jq -S --slurpfile t "$ruleset_file" "$normalise" "$ruleset_file")"
 ruleset_enforcement=""
 ruleset_live=""
 item="ruleset '$ruleset_name'"
+
+# The checks the target declares, as GitHub Actions checks.
+declared="$(target_file .github/required-checks.yml | yq -o=json '. // []')" ||
+  die ".github/required-checks.yml is not YAML"
+jq -e 'type == "array" and all(.[]; type == "string" and length > 0)' <<<"$declared" >/dev/null ||
+  die ".github/required-checks.yml must be a list of check names"
+declared="$(jq -c 'unique | map({context: ., integration_id: 15368})' <<<"$declared")"
+
 api_get "repos/$repo/rulesets?per_page=100"
 if [ "$code" != 200 ]; then
   record ruleset error "$item" "HTTP $code"
@@ -252,9 +299,6 @@ else
     'map(select(.name == $n and .source_type == "Repository")) | first | .id // empty' <<<"$body")"
   if [ -z "$ruleset_id" ]; then
     ruleset_live="{}"
-    record ruleset missing "$item"
-    plan "$item" "+ ruleset: create '$ruleset_name' from .github/rulesets/main.json" \
-      gh api -X POST "repos/$repo/rulesets" --input "$ruleset_file"
   else
     api_get "repos/$repo/rulesets/$ruleset_id"
     if [ "$code" != 200 ]; then
@@ -262,34 +306,59 @@ else
     else
       ruleset_live="$body"
       ruleset_enforcement="$(jq -r .enforcement <<<"$body")"
-      have="$(jq -S --slurpfile t "$ruleset_file" "$normalise" <<<"$body")"
-      if [ "$have" = "$ruleset_want" ]; then
-        record ruleset ok "$item" "id $ruleset_id"
-      else
-        delta="$(diff -u --label "live ruleset $ruleset_id" --label .github/rulesets/main.json \
-          <(printf '%s\n' "$have") <(printf '%s\n' "$ruleset_want") | tail -n +3 || true)"
-        record ruleset drift "$item" "id $ruleset_id"
-        [ "$cmd" = status ] && note "$delta"
-        plan "$item" "~ ruleset: update '$ruleset_name' (id $ruleset_id)"$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')" \
-          gh api -X PUT "repos/$repo/rulesets/$ruleset_id" --input "$ruleset_file"
-      fi
     fi
   fi
 fi
 
-# Each required check by name, so a drifting list reads without the diff.
-# Report-only: the ruleset update above is what fixes them.
 if [ -n "$ruleset_live" ]; then
-  # shellcheck disable=SC2016 # jq's $variables, not the shell's
-  checks='[.rules[]? | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context]'
-  live_checks="$(jq -c "$checks" <<<"$ruleset_live")"
+  # Wanted: main.json's checks, then the declared ones, then the live checks
+  # neither names, which only --remove-checks lets go.
+  # shellcheck disable=SC2016
+  named="$(jq -c --argjson d "$declared" "$checks"' + $d
+    | reduce .[] as $x ([]; if any(.[]; .context == $x.context) then . else . + [$x] end)' "$ruleset_file")"
+  extra="$(jq -c --argjson n "$named" "$checks | map(select(.context as \$c | \$n | map(.context) | index(\$c) | not))" <<<"$ruleset_live")"
+  keep="$extra"
+  [ "$remove_checks" = false ] || keep='[]'
+  ruleset_body="$tmp/ruleset.json"
+  jq --argjson c "$(jq -c --argjson k "$keep" '. + $k' <<<"$named")" \
+    '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks) = $c' \
+    "$ruleset_file" > "$ruleset_body"
+  ruleset_want="$(jq -S --slurpfile t "$ruleset_body" "$normalise" "$ruleset_body")"
+  if [ "$ruleset_live" = "{}" ]; then
+    record ruleset missing "$item"
+    plan "$item" "+ ruleset: create '$ruleset_name' from .github/rulesets/main.json and the declared checks" \
+      gh api -X POST "repos/$repo/rulesets" --input "$ruleset_body"
+  else
+    have="$(jq -S --slurpfile t "$ruleset_body" "$normalise" <<<"$ruleset_live")"
+    if [ "$have" = "$ruleset_want" ]; then
+      record ruleset ok "$item" "id $ruleset_id"
+    else
+      delta="$(diff -u --label "live ruleset $ruleset_id" --label "wanted ruleset" \
+        <(printf '%s\n' "$have") <(printf '%s\n' "$ruleset_want") | tail -n +3 || true)"
+      record ruleset drift "$item" "id $ruleset_id"
+      [ "$cmd" = status ] && note "$delta"
+      plan "$item" "~ ruleset: update '$ruleset_name' (id $ruleset_id)"$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')" \
+        gh api -X PUT "repos/$repo/rulesets/$ruleset_id" --input "$ruleset_body"
+    fi
+  fi
+
+  # Each required check by name, so a drifting list reads without the diff.
+  # Report-only: the ruleset update above is what fixes them.
+  live_checks="$(jq -c "$checks | map(.context)" <<<"$ruleset_live")"
   while IFS= read -r check; do
     if jq -e --arg c "$check" 'index($c) != null' <<<"$live_checks" >/dev/null; then
       record ruleset ok "required check '$check'"
     else
       record ruleset missing "required check '$check'"
     fi
-  done < <(jq -r "${checks}[]" "$ruleset_file")
+  done < <(jq -r '.[].context' <<<"$named")
+  extra_names="$(jq -r 'map(.context) | join(", ")' <<<"$extra")"
+  if [ -n "$extra_names" ] && [ "$remove_checks" = true ]; then
+    removed_checks="required checks not in main.json or .github/required-checks.yml, removed (--remove-checks): $extra_names"
+  elif [ -n "$extra_names" ]; then
+    kept_checks="required checks not in main.json or .github/required-checks.yml, kept (--remove-checks removes them): $extra_names"
+    [ "$cmd" != status ] || note "$kept_checks"
+  fi
 fi
 
 # --- 4. Enforcement layers (decision 0002), report-only ---------------------
@@ -331,7 +400,7 @@ case "$code" in
 esac
 
 item="lefthook pre-push hook installed locally"
-if [ -n "$local_repo" ] && [ "$(tr '[:upper:]' '[:lower:]' <<<"$local_repo")" = "$(tr '[:upper:]' '[:lower:]' <<<"$repo")" ]; then
+if [ "$is_local" = true ]; then
   hook="$(git rev-parse --git-path hooks)/pre-push"
   if [ ! -f "$hook" ]; then
     record enforcement missing "$item" "run lefthook install"
@@ -347,7 +416,12 @@ fi
 # --- 5. Labels --------------------------------------------------------------
 
 group "Labels"
-labels_want="$(yq -o=json '.' "$labels_file" | jq -c 'map(.description //= "")')"
+# labels.yml, then each recorded layer's own file.
+label_files=("$labels_file")
+for layer in $(target_file .config/pap.toml | sed -n 's/^layers *= *\[\(.*\)\]$/\1/p' | tr -d '",'); do
+  [ ! -f "$root/.github/labels/$layer.yml" ] || label_files+=("$root/.github/labels/$layer.yml")
+done
+labels_want="$(for f in "${label_files[@]}"; do yq -o=json '.' "$f"; done | jq -sc 'add | map(.description //= "")')"
 bad="$(jq -r '.[] | select((.color | type) != "string" or (.color | test("^[0-9a-f]{6}$") | not)) | .name' <<<"$labels_want")"
 [ -z "$bad" ] || die "labels.yml: colour must be a quoted six-digit lower-case hex string: $bad"
 
@@ -387,7 +461,7 @@ else
     ($want | map(.name | ascii_downcase)) as $names
     | map(select((.name | ascii_downcase) as $n | $names | index($n) | not) | .name)
     | join(", ")' <<<"$labels_live")"
-  [ -z "$extras" ] || [ "$cmd" != status ] || note "not in labels.yml, kept: $extras"
+  [ -z "$extras" ] || [ "$cmd" != status ] || note "not in the label files, kept: $extras"
 fi
 
 # --- Report -----------------------------------------------------------------
@@ -423,7 +497,9 @@ done
 printf 'Intended changes to %s (%s):\n' "$repo" "$visibility"
 [ "${#plan_cmd[@]}" -gt 0 ] || printf '  none\n'
 for i in "${!plan_desc[@]}"; do printf '  %s\n' "${plan_desc[$i]}"; done
-[ -z "${extras:-}" ] || printf '  = labels not in labels.yml, kept: %s\n' "$extras"
+[ -z "${kept_checks:-}" ] || printf '  = %s\n' "$kept_checks"
+[ -z "${removed_checks:-}" ] || printf '  - %s\n' "$removed_checks"
+[ -z "${extras:-}" ] || printf '  = labels not in the label files, kept: %s\n' "$extras"
 
 if [ "$dry_run" = false ]; then
   printf '\nApplying:\n'

@@ -1,6 +1,7 @@
-# labels.yml: the PAP label set, synced to a repository by
-# `scripts/repo-sync.sh apply`. Sync creates missing labels and updates colour
-# and description; it never deletes a label that is not listed here.
+# labels.yml: the PAP label set, synced to every repository by
+# `scripts/repo-sync.sh apply`. A layer's own labels are in labels/<layer>.yml,
+# synced only where the layer is adopted. Sync creates missing labels and
+# updates colour and description; it never deletes a label it does not list.
 #
 # Colours carry meaning: class labels are distinct hues, phase labels are one
 # teal ramp in phase order (light = early), reds mark something that needs
