@@ -117,3 +117,31 @@ The owner's review is the owner's act: an agent session adds no `owner-reviewed`
 
 - Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md), [0012](decisions/0012-protected-paths-need-an-owners-approved-by-line.md)
 - Enforced by: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses an agent's pull request body carrying an `Approved-by:` line, an agent's `gh` call adding `owner-reviewed` (`gh pr` or `gh issue` `edit --add-label` or `create --label`, `gh api` on an issue's labels), and `gh pr merge` or `gh api -X PUT` on `pulls/<n>/merge`. GraphQL, `bash -c` and `eval` are not followed; the hook's header lists its limits.
+
+### 17.1 Every scenario is bound or pending
+
+A scenario in `features/` carries `@id:<slug>-<n>`, and is named by a passing test (traced) or passes as an executed scenario, or carries `@pending:<slug>`.
+
+- Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
+- Enforced by: Nothing yet. Planned: a binding check in the base layer's `tests` workflow fails a scenario that is neither bound nor pending.
+
+### 17.2 A change closes with no pending scenarios
+
+A change's `findings.md` merges only when no scenario carries `@pending:<slug>` for that change.
+
+- Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
+- Enforced by: Nothing yet. Planned: the binding check refuses a pull request that adds `changes/<slug>/findings.md` while that slug's scenarios are pending.
+
+### 17.3 Scenarios change only in the spec phase
+
+A pull request that edits `features/` changes a `changes/<slug>/spec.md` in the same diff or carries the `return:spec` label.
+
+- Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
+- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow refuses it.
+
+### 17.4 The class sets whether a spec has scenarios
+
+The spec of a feature, security-sensitive or bugfix change adds or changes at least one scenario; a bugfix's scenario fails before the fix.
+
+- Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
+- Enforced by: Nothing yet. Planned: `/spec` writes them, and `pr-checks` refuses a spec pull request of those classes that touches no scenario.
