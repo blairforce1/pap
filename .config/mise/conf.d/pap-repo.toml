@@ -5,7 +5,7 @@
 [tools]
 yq = "4.53.6"
 
-[tasks.test]
+[tasks."test:pap"]
 description = "Run the repository test suites"
 run = [
   "sh tests/guard-route.test.sh",
