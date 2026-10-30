@@ -115,6 +115,8 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+### [0.10.0] - 2026-10-30
+
 #### Added
 
 - `.github/labels/risk.yml`: `pap repo apply` creates `risk:high`,
