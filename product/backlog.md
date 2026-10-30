@@ -27,9 +27,12 @@ Status: built by decisions 0012 and 0013 (`pr-checks` refuses a protected path w
 **H-004** We believe deriving CDEvents from the GitHub pull request timeline (phase and return labels, reviews, merges), each carrying the pinned process version, will produce interventions settled without hand counting, measured by records past their revisit trigger that reach a `measured:` status from derived data alone.
 Related: vision §How we will know. Class: feature
 
-**H-005** We believe `/intent`, a `/spec` whose scenarios are written in a shared domain vocabulary and bound to tests, and `/findings` will produce closed changes whose escapes are attributed to a phase and whose conformance to the spec is checked rather than judged, measured by the share of closed changes with a merged `findings.md`, and by `fix:` or `revert:` pull requests within 14 days of a scenario-carrying change (decision 0017).
-Related: vision §How we will know; process 5.4, 5.6, 5.11; decision 0017. Class: feature
-Widened 2026-10-30 from `/intent` and `/findings` alone, to one slice from intent to findings, so the spec phase between them is built too.
+**H-005** We believe `/intent` and `/findings` skills will produce closed changes whose escapes are attributed to a phase, measured by the share of closed changes with a merged `findings.md`.
+Related: vision §How we will know; process 5.11. Class: feature
+
+**H-011** We believe a spec whose acceptance scenarios are written in a shared domain vocabulary and bound to tests will produce conformance to the spec that is checked rather than judged, measured by `fix:` or `revert:` pull requests merged within 14 days that touch a file a scenario-carrying change changed (decision 0017).
+Related: process 5.4, 5.6, 5.8; decision 0017. Class: feature
+Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with scenarios and the process amendments; the binding check (rule 17.1); `pr-checks` for rules 17.3 and 17.4; a vocabulary pass in `spec-review-qa`; executed runners in the dotnet and go layers. The first three ship in one release, the intervention's boundary. `/spec` reads `intent.md`, so H-005's `/intent` comes first; rule 17.2 needs its `/findings`.
 
 ## Unranked
 

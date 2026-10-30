@@ -22,16 +22,20 @@ Nothing ties one to the other, or either to the code. Three things follow.
 - Each spec invents its own words for the domain. Two specs can describe
   one state under two names, and nothing catches it until the code does.
 
-There is no tooling for intent, spec or findings yet (H-005); `/change`
+There is no tooling for intent, spec or findings yet (H-005, H-011); `/change`
 goes from a brief to code. This record settles what a spec carries before
 `/spec` is written, so the skill is built to it rather than the other way
 round.
 
 ## Decision
 
-One backlog slice, H-005, carries the work: `/intent`, `/spec` with
-scenarios, the domain vocabulary, the binding check and `/findings`.
-`/change` stays as it is and reads the spec.
+Backlog item H-011 carries the work, built in slices: `product/domain.md`
+and `/envision` seeding it; `/spec` with scenarios and the process
+amendments below; the binding check (17.1); `pr-checks` for 17.3 and
+17.4; the vocabulary pass in `spec-review-qa`; executed runners per
+layer. `/spec` reads the `intent.md` that H-005's `/intent` writes, and
+17.2 waits for H-005's `/findings`. `/change` stays as it is and reads
+the spec.
 
 1. **Scenarios live in a living tree.** Acceptance scenarios are Gherkin
    in `features/` at the repository root, not in the change folder. The
@@ -74,7 +78,9 @@ scenarios, the domain vocabulary, the binding check and `/findings`.
 
 The process document changes with the first tooling, not with this record,
 so the tag that changes what the process asks of a human also ships the
-skill that does it (0001).
+skill that does it (0001). The vocabulary, `/spec` and the binding check
+ship in that one release, so the intervention has a single boundary; the
+other slices enforce or extend it and can follow.
 
 The reason that carried it: a spec that can fail is one that conformance,
 and attribution, can be measured against.
@@ -128,5 +134,5 @@ and attribution, can be measured against.
 Backs [`rules.md`](../rules.md) 17.1 (every scenario is bound or pending),
 17.2 (a change closes with no pending scenarios), 17.3 (scenarios change
 only in the spec phase) and 17.4 (the class sets whether a spec has
-scenarios). Nothing enforces them yet; backlog item H-005 builds the
-skills and checks.
+scenarios). Nothing enforces them yet; backlog item H-011 builds the
+skills and checks, and H-005 the `/findings` that 17.2 needs.

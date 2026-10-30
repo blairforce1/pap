@@ -120,8 +120,8 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 - Decision 0017 (proposed): a spec carries Gherkin scenarios in a living
   `features/` tree, each bound to a test or tagged pending, in words
   defined in `product/domain.md`; scenarios change only in the spec phase.
-  Rules 17.1 to 17.4, enforced by nothing yet. Backlog item H-005 widens
-  to one slice from `/intent` through `/spec` to `/findings`.
+  Rules 17.1 to 17.4, enforced by nothing yet. Backlog item H-011 carries
+  the build, in slices.
 
 #### Added
 
