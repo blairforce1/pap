@@ -4,7 +4,7 @@ Hypotheses, not features. Ordered by value and risk. Rewritten when findings com
 
 This file is the backlog (decision 0011). An issue may propose an item; the item exists once it is merged here. Every change names one of these in its `intent.md`, or says it is reactive and why.
 
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-30
 
 ## Recommended first slice
 
@@ -27,8 +27,9 @@ Status: built by decisions 0012 and 0013 (`pr-checks` refuses a protected path w
 **H-004** We believe deriving CDEvents from the GitHub pull request timeline (phase and return labels, reviews, merges), each carrying the pinned process version, will produce interventions settled without hand counting, measured by records past their revisit trigger that reach a `measured:` status from derived data alone.
 Related: vision §How we will know. Class: feature
 
-**H-005** We believe `/intent` and `/findings` skills will produce closed changes whose escapes are attributed to a phase, measured by the share of closed changes with a merged `findings.md`.
-Related: vision §How we will know; process 5.11. Class: feature
+**H-005** We believe `/intent`, a `/spec` whose scenarios are written in a shared domain vocabulary and bound to tests, and `/findings` will produce closed changes whose escapes are attributed to a phase and whose conformance to the spec is checked rather than judged, measured by the share of closed changes with a merged `findings.md`, and by `fix:` or `revert:` pull requests within 14 days of a scenario-carrying change (decision 0017).
+Related: vision §How we will know; process 5.4, 5.6, 5.11; decision 0017. Class: feature
+Widened 2026-10-30 from `/intent` and `/findings` alone, to one slice from intent to findings, so the spec phase between them is built too.
 
 ## Unranked
 
