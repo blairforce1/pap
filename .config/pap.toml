@@ -2,4 +2,4 @@
 # version and layers applied to this repository (decision 0008): pap sync
 # merges from this version, and the event emitter reports it.
 version = "0.10.0"
-layers = ["base"]
+layers = ["base", "risk"]
