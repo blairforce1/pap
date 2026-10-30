@@ -24,7 +24,11 @@ it merges, and a sync should not make that choice for a repository.
    `tests` and `coverage` globs match where the repository keeps them.
 3. Merge it. Risk mode starts with the next pull request, since the check
    reads the base branch's copy.
-4. Agents never add `owner-reviewed` and never merge (rule 16.2). The
+4. `pap repo apply` creates the `risk:high`, `risk:medium`, `risk:low`
+   and `owner-reviewed` labels in any repository whose `.config/pap.toml`
+   names this layer; `pap init base risk` runs it when `origin` is on
+   GitHub.
+5. Agents never add `owner-reviewed` and never merge (rule 16.2). The
    owner reads the review-focus comment of a `risk:high` pull request and
    adds the label to its head.
 

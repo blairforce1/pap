@@ -4,7 +4,7 @@
 #
 # Usage: pap init <layer>... [--version <v>]
 #        pap sync [--version <v>]
-#        pap repo status|apply [--repo owner/name] [--dry-run]
+#        pap repo status|apply [--repo owner/name] [--dry-run] [--remove-checks]
 #        pap codeowners [--owner <owner>] [--check | -]
 #        pap doctor
 #        pap revisits

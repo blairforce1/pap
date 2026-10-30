@@ -202,7 +202,12 @@ activated, the configuration trusted, the git hooks installed,
 `blame.ignoreRevsFile` set, each pinned tool installed at its pin, and
 how many local branches have a gone upstream (run `mise run tidy`).
 `pap repo status` reports the GitHub side, and `pap codeowners` regenerates
-`.github/CODEOWNERS`. `pap repo` needs `gh`, signed in as someone who
+`.github/CODEOWNERS`. `pap repo apply` never removes a required status
+check from the `main` ruleset unless given `--remove-checks`: a check it
+does not know is listed as kept. To have it add a check of the
+repository's own, a workflow job PAP does not ship, list the job's check
+name in `.github/required-checks.yml`, one YAML list item each, such as
+`- coverage`. `pap repo` needs `gh`, signed in as someone who
 administers the repository, `jq`, and mikefarah's `yq`. This layer pins
 `yq`, so `mise install` provides it; `gh` and `jq` are the machine's, and
 the devcontainer has `gh`.

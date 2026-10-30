@@ -115,6 +115,25 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+#### Added
+
+- `.github/labels/risk.yml`: `pap repo apply` creates `risk:high`,
+  `risk:medium`, `risk:low` and `owner-reviewed` in a repository whose
+  `.config/pap.toml` names the risk layer. Nothing created
+  `owner-reviewed` before, so the owner could not add it.
+- `.github/required-checks.yml` in an adopting repository lists required
+  status checks of its own, which `pap repo apply` adds to the `main`
+  ruleset and `pap repo status` reports by name.
+
+#### Fixed
+
+- `pap repo apply` no longer drops a required status check the live
+  `main` ruleset has and `.github/rulesets/main.json` does not: adopting
+  the risk layer in a repository removed its `coverage` check. It keeps
+  such checks, lists them, and shows the ruleset diff; `--remove-checks`
+  removes them. A check present only in a different order, or only kept,
+  is not reported as drift.
+
 ### [0.9.0] - 2026-10-29
 
 #### Added
