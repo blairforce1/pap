@@ -117,6 +117,9 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 #### Added
 
+- `/pap:reviewed <PR#> [sha7+]`: a skill only a person can invoke that adds
+  `owner-reviewed` to an open `risk:high` pull request through `gh`, after
+  checking the head; the model cannot invoke it (rule 16.1).
 - Decision 0017 (proposed): a spec carries Gherkin scenarios in a living
   `features/` tree, each bound to a test or tagged pending, in words
   defined in `product/domain.md`; scenarios change only in the spec phase.

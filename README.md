@@ -13,17 +13,17 @@ This repository is the process definition and the toolkit. It is being built in 
 
 ## What is here
 
-| Path                                  | What it is                                                                                                                                                                                                                   |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `process/personal-agentic-process.md` | The process itself. Tool-agnostic. Says what must happen, not how.                                                                                                                                                           |
-| `rules.md`                            | The rule register: every enforceable rule, the decision that introduced it, and what enforces it today. Gaps are written down, not hidden.                                                                                   |
-| `decisions/`                          | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited.                                                            |
-| `plugins/pap/`                        | A Claude Code plugin: one skill per process phase (`/envision` so far), plus hooks that enforce the rules an agent must not be able to talk its way around.                                                                  |
-| `plugins/spec-review/`                | A Claude Code plugin for phase 3, spec review: eleven reviewer perspectives, from security to the EU AI Act, plus `spec-review-full` to run the whole board. Works on any design document, with or without the `pap` plugin. |
-| `bin/pap`                             | The `pap` CLI: `init` and `sync` apply the template layers, `repo` and `codeowners` configure GitHub, `doctor` checks the local machine.                                                                                     |
-| `scripts/`                            | Guards shared by the git hooks and the Claude Code hooks, the template assembler and the release script.                                                                                                                     |
-| `.github/rulesets/`                   | The branch ruleset applied to every repo that adopts the process.                                                                                                                                                            |
-| `lefthook.yml`, `mise.toml`           | Pinned local tooling. `mise install && lefthook install` is the whole setup.                                                                                                                                                 |
+| Path                                  | What it is                                                                                                                                                                                                                                |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `process/personal-agentic-process.md` | The process itself. Tool-agnostic. Says what must happen, not how.                                                                                                                                                                        |
+| `rules.md`                            | The rule register: every enforceable rule, the decision that introduced it, and what enforces it today. Gaps are written down, not hidden.                                                                                                |
+| `decisions/`                          | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited.                                                                         |
+| `plugins/pap/`                        | A Claude Code plugin: one skill per process phase (`/envision`, `/change`), `/reviewed` for the owner's review label, which only a person can invoke, plus hooks that enforce the rules an agent must not be able to talk its way around. |
+| `plugins/spec-review/`                | A Claude Code plugin for phase 3, spec review: eleven reviewer perspectives, from security to the EU AI Act, plus `spec-review-full` to run the whole board. Works on any design document, with or without the `pap` plugin.              |
+| `bin/pap`                             | The `pap` CLI: `init` and `sync` apply the template layers, `repo` and `codeowners` configure GitHub, `doctor` checks the local machine.                                                                                                  |
+| `scripts/`                            | Guards shared by the git hooks and the Claude Code hooks, the template assembler and the release script.                                                                                                                                  |
+| `.github/rulesets/`                   | The branch ruleset applied to every repo that adopts the process.                                                                                                                                                                         |
+| `lefthook.yml`, `mise.toml`           | Pinned local tooling. `mise install && lefthook install` is the whole setup.                                                                                                                                                              |
 
 ## Core ideas
 
@@ -50,6 +50,7 @@ What PAP adds is the product layer above per-change intent, task classes that se
    `claude plugin marketplace add blairforce1/pap` then `claude plugin install pap@blairforce1-pap`.
 2. In a new or existing repo, run `/envision` to produce the product layer (vision, invariants, hypothesis backlog).
 3. Apply the template, the ruleset and the hooks with `pap init base [dotnet] [go] [risk]`, and take later template versions with `pap sync`. See "Adopting and syncing the template" in `templates/base/README.md`.
+4. On a `risk:high` pull request you have reviewed, run `/pap:reviewed <PR#> [sha7+]` to add the `owner-reviewed` label; only you can invoke it.
 
 Repository templates (editorconfig, .NET analyzers, formatting, devcontainer) and the metrics pipeline are on the roadmap; see the decision records and open pull requests for current state.
 

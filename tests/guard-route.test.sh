@@ -213,6 +213,12 @@ check 2 "$T/G2" "gh api repos/o/r/issues/7/labels --input $T/G2/named.json"
 check 2 "$T/G2" "gh api repos/o/r/issues/7/labels --input - <<'EOF'${nl}{\"labels\":[\"owner-reviewed\"]}${nl}EOF"
 check 2 "$T/G2" 'gh api -X PATCH repos/o/r/labels/approved -f new_name=owner-reviewed'
 check 2 "$T/G2" 'gh pr merge 7'
+# The /pap:reviewed skill runs its script through the Bash tool when a person
+# invokes it; the hook lets the script through, as it does any script, and
+# still refuses the direct gh call above. Rule 16.2 and the skill's
+# disable-model-invocation keep the agent from the script.
+check 0 "$T/G2" 'sh plugins/pap/skills/reviewed/reviewed.sh "7 abc1234"'
+check 0 "$T/G2" '/home/u/.claude/plugins/cache/pap/skills/reviewed/reviewed.sh "7" "abc1234"'
 check 2 "$T/G2" 'gh pr merge --auto --squash 7'
 check 2 "$T/G2" 'git push && gh pr merge 7 --merge --delete-branch'
 check 2 "$T/U"  "cd $T/G2; gh pr merge"
