@@ -117,11 +117,9 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 #### Added
 
-- Decision 0018 (proposed): a new `/reviewed` comment from a login in the
-  base branch's CODEOWNERS adds the `owner-reviewed` label and re-runs the
-  gate, so a `risk:high` pull request can be reviewed from a phone; the
-  gate strips the label on a push only on a run's first attempt, so the
-  re-run keeps it. One sentence in rule 16.1; nothing is built.
+- `/pap:reviewed <PR#> [sha7+]`: a skill only a person can invoke that adds
+  `owner-reviewed` to an open `risk:high` pull request through `gh`, after
+  checking the head; the model cannot invoke it (rule 16.1).
 - Decision 0017 (proposed): a spec carries Gherkin scenarios in a living
   `features/` tree, each bound to a test or tagged pending, in words
   defined in `product/domain.md`; scenarios change only in the spec phase.
