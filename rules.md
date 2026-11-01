@@ -104,19 +104,19 @@ An Android, iOS or Mac Catalyst target, a Release configuration or an AOT build 
 - Decision: [0015](decisions/0015-agent-sessions-share-one-machines-power-and-cores.md)
 - Enforced by: Nothing yet. The .NET layer's [`templates/dotnet/scripts/heavy-build.sh`](templates/dotnet/scripts/heavy-build.sh) does both for a build run through it, and the `/change` skill sends heavy builds through it; nothing refuses a bare `dotnet build` of a heavy target. Planned: the `PreToolUse` hook refuses an agent's bare `dotnet build` or `dotnet publish` of a heavy target in an adopting repository and names the script.
 
-### 16.1 High risk waits for the owner's review
+### 16.1 High risk waits for the owner's `owner-reviewed` label
 
-In a repository with `.github/risk.yml` on its base branch, every pull request carries exactly one of `risk:high`, `risk:medium` or `risk:low`, computed from its diff, and a `risk:high` pull request merges only with the `owner-reviewed` label, which any push removes, or with an owner's unedited `/reviewed <sha>` comment naming its head.
+In a repository with `.github/risk.yml` on its base branch, every pull request carries exactly one of `risk:high`, `risk:medium` or `risk:low`, computed from its diff, and a `risk:high` pull request merges only with the `owner-reviewed` label, which any push removes. A new `/reviewed` comment by a login the base branch's CODEOWNERS names adds the label (0018).
 
 - Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md); the comment by [0018](decisions/0018-a-reviewed-comment-approves-a-high-risk-head.md)
-- Enforced by: the reusable `pr-checks` workflow in blairforce1/.github (blairforce1/.github#13), which sets the label, keeps the review-focus comment, removes `owner-reviewed` on a push and fails a `risk:high` pull request without it, from a caller on `pull_request_target` so a pull request cannot edit its own check. The comment: nothing yet. Planned: the gate reads the pull request's comments and accepts one from a CODEOWNERS login that names the head, and a `pr-reviewed` workflow on `issue_comment` re-runs the head's latest gate run (0018).
+- Enforced by: the reusable `pr-checks` workflow in blairforce1/.github (blairforce1/.github#13), which sets the label, keeps the review-focus comment, removes `owner-reviewed` on a push and fails a `risk:high` pull request without it, from a caller on `pull_request_target` so a pull request cannot edit its own check. The comment: nothing yet (0018).
 
-### 16.2 Agents never add `owner-reviewed`, never post `/reviewed`, never write `Approved-by:`, and never merge
+### 16.2 Agents never add `owner-reviewed`, never write `Approved-by:`, and never merge
 
-The owner's review is the owner's act: an agent session adds no `owner-reviewed` label, posts no `/reviewed` comment, writes no `Approved-by:` line (rule 4.1, for repositories still on 0012), and merges no pull request.
+The owner's review is the owner's act: an agent session adds no `owner-reviewed` label, writes no `Approved-by:` line (rule 4.1, for repositories still on 0012), and merges no pull request.
 
-- Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md), [0012](decisions/0012-protected-paths-need-an-owners-approved-by-line.md); the comment by [0018](decisions/0018-a-reviewed-comment-approves-a-high-risk-head.md)
-- Enforced by: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses an agent's pull request body carrying an `Approved-by:` line, an agent's `gh` call adding `owner-reviewed` (`gh pr` or `gh issue` `edit --add-label` or `create --label`, `gh api` on an issue's labels), and `gh pr merge` or `gh api -X PUT` on `pulls/<n>/merge`. GraphQL, `bash -c` and `eval` are not followed; the hook's header lists its limits. The comment: nothing yet. Planned: the same hook refuses an agent's `gh pr comment`, `gh issue comment` or `gh api` post to `issues/<n>/comments` whose body starts with `/reviewed` (0018).
+- Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md), [0012](decisions/0012-protected-paths-need-an-owners-approved-by-line.md)
+- Enforced by: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses an agent's pull request body carrying an `Approved-by:` line, an agent's `gh` call adding `owner-reviewed` (`gh pr` or `gh issue` `edit --add-label` or `create --label`, `gh api` on an issue's labels), and `gh pr merge` or `gh api -X PUT` on `pulls/<n>/merge`. GraphQL, `bash -c` and `eval` are not followed; the hook's header lists its limits.
 
 ### 17.1 Every scenario is bound or pending
 

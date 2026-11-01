@@ -117,12 +117,10 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 #### Added
 
-- Decision 0018 (proposed): in risk mode an owner's unedited
-  `/reviewed <sha>` comment naming the head approves a `risk:high` pull
-  request beside the `owner-reviewed` label, so the owner can review from
-  a phone; an `issue_comment` workflow re-runs the gate so the check lands
-  on the head. Rules 16.1 and 16.2 widened; enforced by nothing yet.
-  Nothing is built.
+- Decision 0018 (proposed): a new `/reviewed` comment from a login in the
+  base branch's CODEOWNERS adds the `owner-reviewed` label and re-runs the
+  gate, so a `risk:high` pull request can be reviewed from a phone. The
+  gate is unchanged. One sentence in rule 16.1; nothing is built.
 - Decision 0017 (proposed): a spec carries Gherkin scenarios in a living
   `features/` tree, each bound to a test or tagged pending, in words
   defined in `product/domain.md`; scenarios change only in the spec phase.
