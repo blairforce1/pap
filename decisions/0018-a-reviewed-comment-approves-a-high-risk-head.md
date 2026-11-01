@@ -31,9 +31,15 @@ one into the label. Three facts from GitHub's documentation shape how:
 A new comment on a `risk:high` pull request whose first line is
 `/reviewed`, or `/reviewed <sha>` with 7 to 40 hex characters, posted by a
 login the base branch's `.github/CODEOWNERS` names as a `@login` owner,
-adds the `owner-reviewed` label. That is the whole mechanism. The
-`pr-checks` gate is unchanged: it reads only the label, and a push still
-removes it.
+adds the `owner-reviewed` label. The SHA is optional: a plain `/reviewed`
+approves the head as it stands; with a SHA, the SHA must prefix the head,
+or the workflow does nothing but reply why. The `pr-checks` gate still
+reads only the label, and a push still removes it, with one change: it
+strips the label on `synchronize` only on a run's first attempt
+(`github.run_attempt` is 1). A re-run replays the original event, so
+without that rule the re-run below would strip the label it was given;
+a label present at a later attempt was added after the push, which is
+what the rule wants.
 
 A reusable workflow `pr-reviewed.yml` in `blairforce1/.github` does it,
 on `issue_comment` with type `created` only; edits and deletions of
@@ -81,9 +87,9 @@ act from a phone.
 
 - **The gate reads the comments itself, instead of a label.** Lost: a
   second form of approval to read, remove and guard; the label is enough.
-- **A GitHub App or fine-grained token adds the label.** Not chosen: the
-  `labeled` event it fires would re-run the gate with no re-run call, but
-  it is a secret to hold and rotate; the token's own re-run is one call.
+- **A GitHub App or fine-grained token adds the label.** Not chosen: its
+  `labeled` event would start a fresh gate run, but it is a secret to hold
+  and rotate; the re-run and the first-attempt rule are two lines.
 - **`author_association` as the test.** Lost: COLLABORATOR includes read
   access, MEMBER is any member of the organisation.
 
@@ -98,13 +104,10 @@ act from a phone.
   comment and an agent with `gh` can post it; rule 16.2 covers the act,
   and `guard-route.sh` should refuse an agent's `gh pr comment` or `gh
   api` post whose body starts with `/reviewed`.
-- Limit, open: a re-run replays the original event. When the head's
-  latest `pr-checks` run came from the push itself (`synchronize`), the
-  gate strips `owner-reviewed` before judging and refuses, undoing the
-  label the workflow just added. The common case after a push with no
-  body edit. One of two one-line fixes before the build: the gate strips
-  only on a run's first attempt (`github.run_attempt`), or the token
-  alternative above, whose `labeled` event starts a fresh run.
+- Changed: a re-run of a push's `pr-checks` run keeps `owner-reviewed`.
+  Before, every attempt of a `synchronize` run stripped it; a person
+  re-running such a run from the Actions page after adding the label
+  would have lost the label too. `tests/risk.test.sh` gains the case.
 - Limit: a team owner (`@org/team`) is not matched by login; a repository
   with no CODEOWNERS on its base has no login to match, and the reply
   says so.
@@ -116,5 +119,6 @@ act from a phone.
 
 Adds one sentence to [`rules.md`](../rules.md) 16.1. Taught, once built,
 in the risk layer's README and the `/change` skill's report line.
-Enforced, once built, by `pr-reviewed.yml` in `blairforce1/.github`.
-Nothing yet: this record ships no workflow.
+Enforced, once built, by `pr-reviewed.yml` and the first-attempt rule in
+the reusable `pr-checks` workflow, both in `blairforce1/.github`. Nothing
+yet: this record ships no workflow.
