@@ -159,6 +159,10 @@ what to look at, is a review.
   `owner-reviewed` label added, from the issue events. A fix of a high-risk
   path is a pull request merged within 14 days that touches a file a
   `risk:high` pull request changed and whose title is `fix:` or `revert:`.
+- Recorded 2026-11-01, by [0018](0018-a-reviewed-comment-approves-a-high-risk-head.md):
+  the gate on `risk:high` also accepts an owner's unedited
+  `/reviewed <sha>` comment naming the head, for the phone, where no label
+  can be added; the label stays. Proposed, not built.
 
 ## Where it is taught or enforced
 
