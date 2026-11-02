@@ -21,7 +21,7 @@ dotnet test
 # global.json is authoritative for the SDK version; this line must name the
 # same one so `mise install` provides the SDK global.json asks for.
 [tools]
-dotnet = "10.0.401"
+dotnet = "10.0.403"
 
 # dotnet format exits 1 when the directory holds no solution or project
 # ("Could not find a MSBuild project file or solution file"). That failed
