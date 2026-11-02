@@ -115,6 +115,8 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 ### [Unreleased]
 
+### [0.11.0] - 2026-11-02
+
 #### Added
 
 - `/pap:reviewed <PR#> [sha7+]`: a skill only a person can invoke that adds
