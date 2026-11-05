@@ -190,6 +190,16 @@ not carry.
   `accepted (<login>, YYYY-MM-DD)` on a new `change/accept-<ids>` branch,
   and opens a draft `class:docs` pull request; the model cannot invoke it.
 
+#### Fixed
+
+- `/pap:accept` printed nothing about the repository it acted on, so a run
+  from a session in another adopting repository accepted that repository's
+  records of the same numbers unnoticed. Its first line is now
+  `Repository: owner/name (path)`, and `--repo <path>` (before or after the
+  ids) runs it against another checkout, refusing a path that is not a git
+  checkout with an origin. The skill tells the model to relay that line
+  first and to flag a repository the ids do not seem to fit.
+
 #### Changed
 
 - `/change` has a new step 5, "Review cold", between the local checks and
