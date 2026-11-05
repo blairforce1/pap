@@ -9,6 +9,22 @@ not carry.
 
 ## pm-console
 
+### [0.2.0] - 2026-11-05
+
+#### Added
+
+- A class band above the prompt while `/intent`, `/change` or
+  `/pap:pm launch` is typed: the seven classes with the ceremony each gets.
+  `/spec <slug>` takes no class: only its slug is checked, with a warning
+  when the branch holds no `changes/<slug>/intent.md`.
+  A bad class or slug is painted red and refused at submit with the reason
+  (`process`: not a class; process records use infra). An existing
+  `change/<slug>` branch is warned about, not refused.
+- `/pm exit`: asks the PM to pause every cycle, push the tracker and save
+  its memory, then call the new `exit_ready` tool, which puts `/exit` in the
+  prompt box. An exit that skips it while cycles run leaves an inbox item
+  for the next session.
+
 ### [0.1.1] - 2026-11-05
 
 #### Added
@@ -205,6 +221,22 @@ not carry.
   open questions, restates the intent for a yes, then writes and commits
   `changes/<slug>/intent.md` on `change/<slug>` and hands on to the spec.
   Main session only. The first slice of backlog item H-005.
+
+- `/pap:accept <NNNN> [NNNN ...]`: a skill only a person can invoke that
+  checks each decision record is on main and `proposed`, shows its title
+  and Decision items, sets only its Status line to
+  `accepted (<login>, YYYY-MM-DD)` on a new `change/accept-<ids>` branch,
+  and opens a draft `class:docs` pull request; the model cannot invoke it.
+
+#### Fixed
+
+- `/pap:accept` printed nothing about the repository it acted on, so a run
+  from a session in another adopting repository accepted that repository's
+  records of the same numbers unnoticed. Its first line is now
+  `Repository: owner/name (path)`, and `--repo <path>` (before or after the
+  ids) runs it against another checkout, refusing a path that is not a git
+  checkout with an origin. The skill tells the model to relay that line
+  first and to flag a repository the ids do not seem to fit.
 
 #### Changed
 
