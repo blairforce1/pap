@@ -168,6 +168,12 @@ not carry.
   the skill and enforced by nothing yet. The control arm for backlog H-013
   (decision 0018).
 
+- `/pap:accept <NNNN> [NNNN ...]`: a skill only a person can invoke that
+  checks each decision record is on main and `proposed`, shows its title
+  and Decision items, sets only its Status line to
+  `accepted (<login>, YYYY-MM-DD)` on a new `change/accept-<ids>` branch,
+  and opens a draft `class:docs` pull request; the model cannot invoke it.
+
 #### Changed
 
 - `/change` has a new step 5, "Review cold", between the local checks and
