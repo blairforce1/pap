@@ -1,8 +1,9 @@
 #!/bin/sh
 # repo-sync.test.sh: tests for the required checks in .github/rulesets/main.json,
-# their per-check report in scripts/repo-sync.sh status, its report of what
-# GitHub makes of .github/CODEOWNERS, and what apply writes: the required
-# checks it keeps, adds and removes, and the risk layer's labels.
+# their per-check report in scripts/repo-sync.sh status, the all-branches
+# ruleset (decision 0022) as status reports it and apply restores it, the
+# report of what GitHub makes of .github/CODEOWNERS, and what apply writes:
+# the required checks it keeps, adds and removes, and the risk layer's labels.
 #
 # Usage: sh tests/repo-sync.test.sh
 #
@@ -20,6 +21,7 @@ set -u
 here="$(cd "$(dirname "$0")/.." && pwd)"
 sync="$here/scripts/repo-sync.sh"
 ruleset="$here/.github/rulesets/main.json"
+branches="$here/.github/rulesets/all-branches.json"
 
 for tool in jq yq bash; do
   command -v "$tool" >/dev/null 2>&1 || { printf 'Bail out! %s not found\n' "$tool"; exit 1; }
@@ -84,7 +86,8 @@ result $? "base layer: pins yq, at the version pap's own repository pins" \
 # repo view names another repository, so the local hook check is skipped and
 # the target's files are read through the contents API. A write (any -X other
 # than GET) is logged to $LOG with its -f fields, its --input copied to
-# $T/input.json, and answered with {}.
+# $T/input-<name>.json by the body's name (main, all-branches), and answered
+# with {}. A ruleset is served from ruleset-<id>.json.
 mkdir "$T/stub" "$T/fix" "$T/fix/contents"
 cat > "$T/stub/gh" <<'EOF'
 #!/bin/sh
@@ -101,7 +104,7 @@ while [ $# -gt 0 ]; do
 done
 if [ "$method" != GET ]; then
   printf '%s %s%s\n' "$method" "$path" "$fields" >> "$LOG"
-  [ -z "$input" ] || cp "$input" "$FIX/../input.json"
+  [ -z "$input" ] || cp "$input" "$FIX/../input-$(jq -r .name "$input").json"
   echo '{}'
   exit 0
 fi
@@ -109,7 +112,7 @@ case "$path" in
   */labels*) if [ -f "$FIX/labels.json" ]; then cat "$FIX/labels.json"; else echo '[[]]'; fi; exit 0 ;;
   repos/blairforce1/demo) f=repo ;;
   */rulesets\?*) f=rulesets ;;
-  */rulesets/*) f=ruleset ;;
+  */rulesets/*) f="ruleset-${path##*/}" ;;
   */codeowners/errors) f=codeowners ;;
   */contents/*) f="contents/${path#*/contents/}" ;;
   *) f=none ;;
@@ -130,10 +133,13 @@ status() { (cd "$T" && PATH="$T/stub:$PATH" bash "$sync" status --repo blairforc
 # lines <state>: the required checks reported in that state, one per line.
 lines() { printf '%s\n' "$out" | sed -n "s/^  $1 *required check '\(.*\)'\$/\1/p"; }
 
-# live <jq filter>: the live ruleset is main.json with an id and the filter applied.
+# live <jq filter>: the live ruleset is main.json with an id and the filter
+# applied, beside all-branches.json as id 8, unchanged.
 live() {
-  echo '[{"id": 7, "name": "main", "source_type": "Repository"}]' > "$T/fix/rulesets.json"
-  jq ".id = 7 | $1" "$ruleset" > "$T/fix/ruleset.json"
+  echo '[{"id": 7, "name": "main", "source_type": "Repository"},
+         {"id": 8, "name": "all-branches", "source_type": "Repository"}]' > "$T/fix/rulesets.json"
+  jq ".id = 7 | $1" "$ruleset" > "$T/fix/ruleset-7.json"
+  jq ".id = 8" "$branches" > "$T/fix/ruleset-8.json"
 }
 
 live '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks)
@@ -147,7 +153,7 @@ out="$(status)"
 [ "$(lines ok)" = "$want" ] && [ -z "$(lines missing)" ]
 result $? "status: the live ruleset matches, all six ok" "$out"
 
-rm "$T/fix/ruleset.json"
+rm "$T/fix/ruleset-7.json" "$T/fix/ruleset-8.json"
 echo '[]' > "$T/fix/rulesets.json"
 out="$(status)"
 [ "$(lines missing)" = "$want" ]
@@ -188,9 +194,9 @@ serve() {
   mkdir -p "$(dirname "$T/fix/contents/$1")"
   jq -n --arg c "$(printf '%s\n' "$2" | base64)" '{content: $c}' > "$T/fix/contents/$1.json"
 }
-apply() { rm -f "$LOG" "$T/input.json"; (cd "$T" && PATH="$T/stub:$PATH" bash "$sync" apply --repo blairforce1/demo "$@" 2>&1); }
+apply() { rm -f "$LOG" "$T"/input-*.json; (cd "$T" && PATH="$T/stub:$PATH" bash "$sync" apply --repo blairforce1/demo "$@" 2>&1); }
 # sent: the required checks in the ruleset apply sent, one per line, sorted.
-sent() { jq -r "$checks_of" "$T/input.json" 2>/dev/null | sort; }
+sent() { jq -r "$checks_of" "$T/input-main.json" 2>/dev/null | sort; }
 checks_of='.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
 sorted() { printf '%s\n' "$@" | sort; }
 rm -f "$T/fix/codeowners.json"
@@ -244,10 +250,10 @@ result $? "status: a declared check the live ruleset lacks is missing" "$out"
 out="$(apply)"; rc=$?
 [ "$rc" = 0 ] && [ "$(sent)" = "$(sorted "$want" coverage)" ] &&
   jq -e '.rules[] | select(.type == "required_status_checks")
-    | .parameters.required_status_checks[] | select(.context == "coverage") | .integration_id == 15368' "$T/input.json" >/dev/null
+    | .parameters.required_status_checks[] | select(.context == "coverage") | .integration_id == 15368' "$T/input-main.json" >/dev/null
 result $? "apply: a declared check is added, from GitHub Actions" "exit $rc; $out; sent: $(sent)"
 
-rm "$T/fix/ruleset.json"; echo '[]' > "$T/fix/rulesets.json"
+rm "$T/fix/ruleset-7.json" "$T/fix/ruleset-8.json"; echo '[]' > "$T/fix/rulesets.json"
 out="$(apply)"
 grep -q '^POST repos/blairforce1/demo/rulesets$' "$LOG" && [ "$(sent)" = "$(sorted "$want" coverage)" ]
 result $? "apply: a new ruleset carries the declared check" "$out; sent: $(sent)"
@@ -258,6 +264,52 @@ out="$(apply)"; rc=$?
 [ "$rc" != 0 ] && printf '%s\n' "$out" | grep -q 'must be a list of check names'
 result $? "apply: a required-checks.yml that is not a list is refused" "exit $rc; $out"
 rm -r "$T/fix/contents/.github"
+
+# --- the all-branches ruleset (decision 0022) ---------------------------------
+
+jq -e '.target == "branch" and .enforcement == "active"
+  and .conditions.ref_name.include == ["~ALL"]
+  and .bypass_actors == [] and [.rules[].type] == ["non_fast_forward"]' "$branches" >/dev/null
+result $? "all-branches: every branch, active, no bypass actors, only non_fast_forward (creation and deletion allowed)"
+
+# state <item>: the state status reports for that item.
+state() { printf '%s\n' "$out" | sed -n "s/^  \([a-z-]*\) *$1\$/\1/p; s/^  \([a-z-]*\) *$1  (.*/\1/p"; }
+
+live '.'
+out="$(status)"
+[ "$(state "ruleset 'all-branches'")" = ok ] && [ "$(state "ruleset 'all-branches' active on GitHub")" = ok ]
+result $? "status: a live all-branches matching the file is ok, and active" "$out"
+
+# The deliberate override: the human disabled it to force-push.
+jq '.enforcement = "disabled"' "$T/fix/ruleset-8.json" > "$T/r8" && mv "$T/r8" "$T/fix/ruleset-8.json"
+out="$(status)"; rc=$?
+[ "$rc" = 1 ] && [ "$(state "ruleset 'all-branches'")" = drift ] &&
+  [ "$(state "ruleset 'all-branches' active on GitHub")" = drift ] &&
+  printf '%s\n' "$out" | grep -q 'enforcement disabled; pap repo apply restores it' &&
+  printf '%s\n' "$out" | grep -q '^ *+ *"enforcement": "active",$'
+result $? "status: a disabled all-branches is drift twice, with the diff; exits 1" "exit $rc; $out"
+
+out="$(apply)"; rc=$?
+[ "$rc" = 0 ] && grep -q '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG" &&
+  jq -e '.enforcement == "active" and .bypass_actors == []' "$T/input-all-branches.json" >/dev/null
+result $? "apply: restores a disabled all-branches, active, by id" "exit $rc; $out"
+
+# A bypass actor added by hand is drift too: agents push as the human.
+live '.'
+jq '.bypass_actors = [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]' \
+  "$T/fix/ruleset-8.json" > "$T/r8" && mv "$T/r8" "$T/fix/ruleset-8.json"
+out="$(status)"
+[ "$(state "ruleset 'all-branches'")" = drift ]
+result $? "status: an all-branches with a bypass actor is drift" "$out"
+
+echo '[{"id": 7, "name": "main", "source_type": "Repository"}]' > "$T/fix/rulesets.json"
+out="$(status)"
+[ "$(state "ruleset 'all-branches'")" = missing ] && [ "$(state "ruleset 'all-branches' active on GitHub")" = missing ]
+result $? "status: no all-branches is missing" "$out"
+out="$(apply)"
+grep -q '^POST repos/blairforce1/demo/rulesets$' "$LOG" && cmp -s "$T/input-all-branches.json" "$branches" &&
+  ! grep -q '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG"
+result $? "apply: creates all-branches from the file, as it stands" "$out"
 
 # --- apply: the risk layer's labels -------------------------------------------
 

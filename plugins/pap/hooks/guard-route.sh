@@ -2,8 +2,9 @@
 # guard-route.sh: Claude Code PreToolUse hook for decisions 0002
 # (decisions/0002-skills-stop-at-draft-pr.md), 0005
 # (decisions/0005-agent-sessions-do-not-bypass-hooks.md), 0012
-# (decisions/0012-protected-paths-need-an-owners-approved-by-line.md) and
-# 0016 (decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md).
+# (decisions/0012-protected-paths-need-an-owners-approved-by-line.md),
+# 0016 (decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
+# and 0022 (decisions/0022-no-branch-takes-a-force-push.md).
 #
 # Reads the tool-call JSON on stdin. For every git command in a Bash command,
 # works out the directory it runs in: the session's cwd, then any `cd <dir>`
@@ -33,6 +34,10 @@
 #         `gh pr merge` with any flags, --auto included, and `gh api -X PUT`
 #         on pulls/<n>/merge. In every repository that adopts PAP, opted in
 #         to risk mode or not. Removing a label and every other gh call pass.
+#   0022  a `git push` with --force, -f, --force-with-lease,
+#         --force-if-includes, --mirror or a `+<refspec>` runs guard-branch.sh's
+#         push-args check, which refuses it, on any branch. A push is
+#         let through if the repository's guard predates push-args.
 #
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
@@ -229,6 +234,8 @@ targets="$(jq -r '
                  ($st.dir; . as $d | $c | resolve($d))) as $t
               | ([$m.rest | scan(arg) | .[0]]) as $args
               | (if $m.sub == "commit" or $m.sub == "push" then .out += ["branch\t\($t)"] else . end)
+              | (if $m.sub == "push" and ($args | length) > 0
+                 then .out += ["push\t\($t)\t\($args | map(unquote) | join("\u001f"))"] else . end)
               | (if $lh != null then .out += ["bypass\t\($t)\t\($lh)"] else . end)
               | (if ($m.opts | test("core\\.hookspath"; "i"))
                     or ($m.sub == "config" and ($m.rest | test("core\\.hookspath"; "i")))
@@ -274,6 +281,22 @@ while IFS="$tab" read -r kind target reason file; do
   case "$kind" in
     branch)
       (cd "$root" && "$guard" branch) || status=2
+      ;;
+    push)
+      # Each word after `git push`; guard-branch.sh decides what is a force
+      # push. An older guard without push-args exits 64 and lets it through.
+      words="$(printf '%s' "$reason" | tr '\037' '\n')"
+      (
+        cd "$root" || exit 0
+        set -f
+        IFS='
+'
+        # shellcheck disable=SC2086 # split on newlines on purpose
+        "$guard" push-args $words
+        rc=$?
+        [ "$rc" = 64 ] && exit 0
+        exit "$rc"
+      ) || status=2
       ;;
     bypass)
       printf 'guard-route: refusing %s in %s\n' "$reason" "$root" >&2

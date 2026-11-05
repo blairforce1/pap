@@ -222,3 +222,10 @@ The `spec.md` of a feature, infra or security-sensitive change has an Operations
 
 - Decision: [0021](decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md)
 - Enforced by: Nothing yet. Taught by the `/spec` skill ([`plugins/pap/skills/spec/SKILL.md`](plugins/pap/skills/spec/SKILL.md), step 5) and the `/change` skill's step 6, whose body template carries "How to revert". Planned: the reusable `pr-checks` workflow refuses a pull request of those classes whose `spec.md` lacks the four headings.
+
+### 22.1 No branch takes a force push
+
+No push to any branch rewrites its history; a branch behind main merges main. The human overrides on purpose by disabling the `all-branches` ruleset, pushing, and running `pap repo apply`.
+
+- Decision: [0022](decisions/0022-no-branch-takes-a-force-push.md)
+- Enforced by: Repository ruleset [`.github/rulesets/all-branches.json`](.github/rulesets/all-branches.json) (`non_fast_forward` on `~ALL`, no bypass actors, Renovate's and Dependabot's branches excluded), applied by `pap repo apply`; `pap repo status` reports it disabled or changed as drift ([`scripts/repo-sync.sh`](scripts/repo-sync.sh)). Claude Code `PreToolUse` hook [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) running [`scripts/guard-branch.sh`](scripts/guard-branch.sh) `push-args`, which refuses an agent's `git push` with `--force`, `-f`, `--force-with-lease`, `--force-if-includes`, `--mirror` or a `+<refspec>`. It does not follow `bash -c`, `eval`, scripts or a push refspec in git config, and on `renovate/` and `dependabot/` branches it is the only enforcer; nothing refuses an agent disabling the ruleset through `gh api`.

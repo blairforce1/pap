@@ -246,6 +246,40 @@ check 0 "$T/G2" 'gh api repos/o/r/issues/7/comments -f body="gh pr merge"'
 check 0 "$T/U"  'gh pr merge 7'
 check 0 "$T/U"  'gh pr edit 7 --add-label owner-reviewed'
 
+# Decision 0022: no force push from an agent, on any branch. G2 is on
+# change/x, so the branch check passes and only the force check can refuse.
+for force in '--force' '-f' '-uf' '-fu' '--force-with-lease' \
+             '--force-with-lease=change/x:abc123' '--force-if-includes' \
+             '--force-with-lease --force-if-includes'; do
+  check 2 "$T/G2" "git push $force origin change/x"
+  check 2 "$T/U"  "git -C $T/G2 push $force origin change/x"
+  check 2 "$T/U"  "cd $T/G2 && git push $force"
+done
+check 2 "$T/G2" 'git push origin +change/x'
+check 2 "$T/G2" "git push origin '+change/x'"
+check 2 "$T/G2" 'git push origin +HEAD:refs/heads/change/x'
+check 2 "$T/G2" 'git add . && git commit -m x && git push -f'
+check 2 "$T/G2" 'git push --mirror origin'
+
+# Near misses that must pass: a plain push, an upstream, a delete, the
+# negated options, a force in a message, and a repository that does not
+# adopt PAP.
+check 0 "$T/G2" 'git push'
+check 0 "$T/G2" 'git push origin change/x'
+check 0 "$T/G2" 'git push -u origin change/x'
+check 0 "$T/G2" 'git push origin --delete change/old'
+check 0 "$T/G2" 'git push -d origin change/old'
+check 0 "$T/G2" 'git push --no-force-with-lease origin change/x'
+check 0 "$T/G2" 'git push --no-force-if-includes'
+check 0 "$T/G2" "git commit -m 'docs: never git push --force'"
+check 0 "$T/U"  'git push --force'
+
+# A repository whose guard predates push-args (exit 64) lets the push through.
+mkrepo "$T/O" && mkdir -p "$T/O/scripts" && git -C "$T/O" switch -q -c change/x
+sed 's/^  push-args)$/  push-args-not-here)/' "$guard" > "$T/O/scripts/guard-branch.sh"
+chmod +x "$T/O/scripts/guard-branch.sh"
+check 0 "$T/O" 'git push --force'
+
 # Without jq the router cannot parse; it complains only where the session's
 # own repository is guarded, and never blocks.
 mkdir -p "$T/bin"
