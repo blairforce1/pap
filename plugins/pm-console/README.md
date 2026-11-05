@@ -87,8 +87,8 @@ slowest first. Refreshed every 10 minutes and on `/pm`.
 
 ## Class band
 
-While the prompt box starts with `/intent `, `/change `, `/spec ` or
-`/pap:pm launch ` (or `/pap:intent `, `/pap:change `, `/pap:spec `), a band
+While the prompt box starts with `/intent `, `/change ` or
+`/pap:pm launch ` (or `/pap:intent `, `/pap:change `), a band
 above the prompt lists the seven classes, each with the ceremony it gets
 (process section 4; `chore` from decision 0017), the one typed in bold:
 
@@ -103,6 +103,10 @@ chore              upkeep; no scenarios
 docs               intent and human review only
 ```
 
+- `/spec <slug>` (and `/pap:spec`) takes no class: it reads it from the
+  accepted `changes/<slug>/intent.md`. The band shows only that, and only
+  the slug is checked; Enter toasts a warning when `change/<slug>` (local,
+  else `origin`) holds no `changes/<slug>/intent.md`.
 - The class is the second word after the command (after `launch` for
   `/pap:pm launch`). It is painted red once it can no longer become a class:
   `featur` is fine while typed, `featur ` is not.

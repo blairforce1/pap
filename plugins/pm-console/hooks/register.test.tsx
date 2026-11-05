@@ -52,6 +52,26 @@ test('a change command with a valid class goes through', async ($, on) => {
   expect(reached).toBe(true)
 })
 
+test('/spec takes a slug alone and is not refused', async ($, on) => {
+  let reached = false
+  on('prompt.submit', (_, e) => {
+    reached = true
+    return { text: e.text }
+  })
+  // The intent is on the branch: git answers yes.
+  on('session.cwd', () => ({ value: '/' }))
+  on('process.run', () => ({
+    value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
+
+  const good = await $.prompt.submit(submit('pap:spec', 'good-slug'))
+  expect(good.drop).toBeUndefined()
+  expect(reached).toBe(true)
+
+  const bad = await $.prompt.submit(submit('pap:spec', 'bad/slug'))
+  expect(bad.drop).toContain('a slug takes only')
+})
+
 test('the class band shows while /intent is typed, and not otherwise', async ($, on) => {
   on('prompt.edit', (_, e) => {
     const text = e.text.slice(0, e.start) + e.inputText + e.text.slice(e.end)

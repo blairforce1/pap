@@ -71,7 +71,9 @@ function parseChangeLine(text: string): ChangeLine | undefined {
     const end = m.index + m[0].length
     words.push({ word: m[0], start: m.index, end, isDone: end < text.length })
   }
-  return { command: head[1] ?? 'pm launch', slug: words[0], cls: words[1] }
+  const command = head[1] ?? 'pm launch'
+  // `/spec <slug>` takes no class: it reads it from the accepted changes/<slug>/intent.md.
+  return { command, slug: words[0], cls: command === 'spec' ? undefined : words[1] }
 }
 
 // Why a class token is wrong, or '' when it is fine (or may still become a class as it is typed).
@@ -94,6 +96,21 @@ async function checkBranch($: EngineInterface, slug: string, fresh = false) {
   const exists = await done
   await update($, branchHit, () => ({ slug, exists }))
   return exists
+}
+
+// For /spec: whether change/<slug> (local, else origin) holds changes/<slug>/intent.md; true when git cannot tell.
+async function hasIntent($: EngineInterface, slug: string) {
+  try {
+    const cwd = await $.session.cwd()
+    for (const ref of [`change/${slug}`, `origin/change/${slug}`]) {
+      const ran = await $.process.run(['git', 'cat-file', '-e', `${ref}:changes/${slug}/intent.md`], { cwd, timeoutMs: 10_000 })
+      if (ran.exitCode === 0) return true
+    }
+    const repo = await $.process.run(['git', 'rev-parse', '--git-dir'], { cwd, timeoutMs: 10_000 })
+    return repo.exitCode !== 0
+  } catch {
+    return true
+  }
 }
 
 async function gitHasChangeBranch($: EngineInterface, slug: string) {
@@ -563,6 +580,14 @@ export const register: Register = on => {
     if (!isChange && !isLaunch) return next(e)
     const line = parseChangeLine(`/${isLaunch ? 'pap:pm' : name} ${args.trimStart()}\n`)
     const slug = line?.slug
+    if (name === 'spec') {
+      if (!slug) return { drop: `/${e.command?.name} needs <slug>` }
+      if (slugProblem(slug)) return { drop: `"${slug.word}": ${slugProblem(slug)}` }
+      if (!(await hasIntent($, slug.word))) {
+        $.ui.toast(`No changes/${slug.word}/intent.md on change/${slug.word}: run /intent first`)
+      }
+      return next(e)
+    }
     const cls = line?.cls
     if (!slug || !cls) {
       return { drop: `/${e.command?.name} needs <slug> <class>; the classes are ${CLASS_NAMES.join(', ')}` }
@@ -581,6 +606,14 @@ export const register: Register = on => {
     const typed = line.cls?.word ?? ''
     const hit = await read($, branchHit)
     const problems = [line.slug && slugProblem(line.slug), line.cls && classProblem(line.cls)].filter(Boolean)
+    if (line.command === 'spec') {
+      return (
+        <Box flexDirection="column">
+          <Text dimColor>{cut('/spec <slug>: no class; it is read from changes/<slug>/intent.md', width)}</Text>
+          {problems.map((p, n) => <Text key={`problem-${n}`} color="error">{cut(String(p), width)}</Text>)}
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column">
         <Text dimColor>{`/${line.command} <slug> <class>: the class sets the ceremony`}</Text>

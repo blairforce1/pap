@@ -13,8 +13,10 @@ not carry.
 
 #### Added
 
-- A class band above the prompt while `/intent`, `/change`, `/spec` or
+- A class band above the prompt while `/intent`, `/change` or
   `/pap:pm launch` is typed: the seven classes with the ceremony each gets.
+  `/spec <slug>` takes no class: only its slug is checked, with a warning
+  when the branch holds no `changes/<slug>/intent.md`.
   A bad class or slug is painted red and refused at submit with the reason
   (`process`: not a class; process records use infra). An existing
   `change/<slug>` branch is warned about, not refused.
