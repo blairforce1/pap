@@ -1,6 +1,6 @@
 # 0018. A project-manager session launches cycles and keeps the tracker; it opens, approves and merges nothing
 
-- **Status:** proposed
+- **Status:** accepted (blairforce1, 2026-11-05)
 - **Date:** 2026-11-05
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none; extends [0002](0002-skills-stop-at-draft-pr.md) to the session that spawns the agents, and records what `CLAUDE.md` has said since #67 (one pull request per agent context)
