@@ -121,9 +121,17 @@ async function gitHasChangeBranch($: EngineInterface, slug: string) {
       timeoutMs: 10_000,
     })
     if (ran.exitCode === 0) {
-      const local = `refs/heads/change/${slug}`
-      const remote = new RegExp(`^refs/remotes/[^/]+/change/${slug.replace(/[.]/g, '\\.')}$`)
-      exists = ran.stdout.split('\n').some(b => b.trim() === local || remote.test(b.trim()))
+      // Compared as plain strings, no pattern built from the slug: refs/heads/change/<slug>
+      // or refs/remotes/<one remote>/change/<slug>.
+      const want = `change/${slug}`
+      exists = ran.stdout.split('\n').some(line => {
+        const ref = line.trim()
+        if (ref === `refs/heads/${want}`) return true
+        if (!ref.startsWith('refs/remotes/')) return false
+        const rest = ref.slice('refs/remotes/'.length)
+        const cut = rest.indexOf('/')
+        return cut > 0 && rest.slice(cut + 1) === want
+      })
     }
   } catch {
     // Not a git repository, or no git: say nothing.

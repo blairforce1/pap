@@ -52,6 +52,37 @@ test('a change command with a valid class goes through', async ($, on) => {
   expect(reached).toBe(true)
 })
 
+test('a slug is matched to branches literally, and a backslash in it is refused', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(String(e.text))
+    return { value: undefined }
+  })
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('session.cwd', () => ({ value: '/' }))
+  // `.` in a slug is a dot, not any character: a.b must not match aXb.
+  on('process.run', () => ({
+    value: {
+      exitCode: 0,
+      stdout: 'refs/heads/main\nrefs/remotes/origin/change/aXb\nrefs/heads/wip/change/a.b\n',
+      stderr: '',
+      isStdoutTruncated: false,
+      isStderrTruncated: false,
+    },
+  }))
+
+  const slash = await $.prompt.submit(submit('pap:change', 'a\\b feature tidy'))
+  expect(slash.drop).toContain('a slug takes only')
+
+  const dotted = await $.prompt.submit(submit('pap:change', 'a.b feature tidy'))
+  expect(dotted.drop).toBeUndefined()
+  expect(toasts.some(t => t.includes('already exists'))).toBe(false)
+
+  const real = await $.prompt.submit(submit('pap:change', 'aXb feature tidy'))
+  expect(real.drop).toBeUndefined()
+  expect(toasts.some(t => t.includes('change/aXb already exists'))).toBe(true)
+})
+
 test('/spec takes a slug alone and is not refused', async ($, on) => {
   let reached = false
   on('prompt.submit', (_, e) => {
