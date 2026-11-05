@@ -36,7 +36,7 @@ Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with sc
 
 **H-012** We believe a packaged project-manager role (a `/pap:pm` skill, a `pap:lane` agent, tracker and brief templates) will produce changes run through lanes with less rework and no work lost to a shutdown, measured by lanes that get a message after their first report (decision 0018).
 Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
-Built in slices: `/pap:pm` (`start`, `brief`, `event`, `pause`, `resume`, `audit`); the `pap:lane` agent definition; the tracker and brief templates; the PM console, designed separately. The first three ship in one release, the intervention's boundary.
+Built in slices: `/pap:pm` (`start`, `brief`, `event`, `pause`, `resume`, `audit`, the last classifying each rule as project or general); the `pap:lane` agent definition; the tracker and brief templates (the state file with its PAP candidates section); the PM console, designed separately. The first three ship in one release, the intervention's boundary.
 
 ## Unranked
 

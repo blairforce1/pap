@@ -121,9 +121,11 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
   `/change`, keeps a tracker (a state file and an event log) committed on
   every event, pauses and resumes lanes by save point, audits tokens and
   time every five merged change PRs, and opens, approves and merges
-  nothing. Rules 18.1 to 18.4, enforced by nothing yet. Backlog item
-  H-012 carries the `/pap:pm` skill, the `pap:lane` agent, the templates
-  and the console.
+  nothing. Each audit classifies its rules as project or general; the
+  general ones go back to PAP as an ordinary change, from a PAP
+  candidates list in the tracker. Rules 18.1 to 18.5, enforced by nothing
+  yet. Backlog item H-012 carries the `/pap:pm` skill, the `pap:lane`
+  agent, the templates and the console.
 
 ### [0.11.0] - 2026-11-02
 

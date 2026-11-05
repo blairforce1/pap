@@ -173,3 +173,10 @@ The event log carries an audit within five merged change PRs of the last one and
 
 - Decision: [0018](decisions/0018-a-project-manager-session-briefs-lanes-and-keeps-the-tracker.md)
 - Enforced by: Nothing yet. Planned: `/pap:pm` reports an overdue audit on every `event`, as `pap revisits` reports a due revisit (rule 10.1); it reports and never blocks.
+
+### 18.5 A general lesson reaches PAP only as a change
+
+Every rule an audit writes is classified as project or general. A general one goes on the tracker's PAP candidates list (the rule, the miss as numbers, the date), due at three candidates or when the oldest is 30 days old, and reaches PAP only through a lane's `/change` there after the human's yes, rewritten without its project. The project-manager session writes nothing in PAP.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-briefs-lanes-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm audit` records no finding whose rule is unclassified and files a general one on the list; `/pap:pm` reports a due list on every `event`, as rule 18.4's overdue audit, and never blocks. The upstream diff gets what every PAP pull request gets (gitleaks, pr-checks) and nothing more.
