@@ -26,7 +26,9 @@ for tool in git jq; do
   command -v "$tool" >/dev/null 2>&1 || { printf 'Bail out! %s not found\n' "$tool"; exit 1; }
 done
 
-T="$(mktemp -d)"
+# pwd -P: macOS's temporary directory is under a symlink (/var to
+# /private/var), and git and pwd report the resolved path.
+T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 
 mkrepo() {

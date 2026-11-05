@@ -21,7 +21,9 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 
 command -v git >/dev/null 2>&1 || { printf 'Bail out! git not found\n'; exit 1; }
 
-T="$(mktemp -d)"
+# pwd -P: macOS's temporary directory is under a symlink (/var to
+# /private/var), and git and pwd report the resolved path.
+T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 # git looks for no repository above $T.
 export GIT_CEILING_DIRECTORIES="$T"

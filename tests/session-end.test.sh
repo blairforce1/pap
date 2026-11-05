@@ -22,7 +22,9 @@ hook="$here/plugins/pap/hooks/session-end.sh"
 
 command -v jq >/dev/null 2>&1 || { printf 'Bail out! jq not found\n'; exit 1; }
 
-T="$(mktemp -d)"
+# pwd -P: macOS's temporary directory is under a symlink (/var to
+# /private/var), and git and pwd report the resolved path.
+T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 
 n=0
@@ -93,7 +95,7 @@ printf '%s\n' "4242 claude" > "$STUB_PS"
 : > "$T/repo/.session-end"
 
 # The hook returns before the cleanup is done, with nothing on stdout.
-STUB_SLEEP=3 run "$(session "$T/repo")"
+export STUB_SLEEP=3; run "$(session "$T/repo")"; unset STUB_SLEEP
 [ "$rc" = 0 ] && [ -z "$out" ] && [ "$ms" -lt 1000 ]
 result $? "exits 0 at once and prints nothing while the cleanup runs on" "exit $rc in $ms ms; out '$out'"
 settle 'mise run session-end'
