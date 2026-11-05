@@ -805,8 +805,8 @@ cmd_measure() {
         if (merged[i] > span_hi) span_hi = merged[i]
       }
       nb = last - lo + 1; na = hi - first + 1; if (na < 0) na = 0
-      printf "# before: %d of 10%s\n", nb, nb < 10 ? ", short" : ""
-      printf "# after: %d of 10%s\n", na, na < 10 ? ", short" : ""
+      printf "# before: %d of 10%s\n", nb, (nb < 10 ? ", short" : "")
+      printf "# after: %d of 10%s\n", na, (na < 10 ? ", short" : "")
       # A rejection (decision 0002): a change/ pull request closed unmerged,
       # not a scratch preview opened to be closed.
       r = ""
