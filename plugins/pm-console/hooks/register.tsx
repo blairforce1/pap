@@ -378,11 +378,13 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'mcp__pm-console__inbox_add' }, async ($, e) => {
     const input = e as unknown as { cycle?: string; lane?: string; ref?: string; items: string[]; detail?: string; url?: string }
+    const cycle = String(input.cycle ?? input.lane ?? '').trim()
+    if (!cycle) throw new Error('inbox_add needs `cycle` (or its alias `lane`): the cycle number or slug, e.g. "105"')
     const now = Date.now()
     const added: InboxItem[] = input.items.map((text, i) => ({
       id: `${now.toString(36)}${i}`,
       text,
-      lane: String(input.cycle ?? input.lane ?? ''), // stored field stays `lane` so saved inboxes load
+      lane: cycle, // stored field stays `lane` so saved inboxes load
       ref: input.ref ?? '',
       at: now,
       isDone: false,

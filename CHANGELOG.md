@@ -14,9 +14,9 @@ not carry.
 #### Added
 
 - First release: a pane beside the chat for the project-manager session of
-  decision 0018 (proposed). Tabs for the inbox (what each lane's report asks
+  decision 0018 (proposed). Tabs for the inbox (what each cycle's report asks
   of the Project Lead, grouped by pull request, with the report and a link
-  behind each group), the running lanes, each repository's PAP state and CI
+  behind each group), the running cycles, each repository's PAP state and CI
   timings, and a status line. Tools `inbox_add`, `inbox_note`, `inbox_done`,
   `inbox_list`, `ci_repos` and `pap_repos`. No repositories are set until
   the PM calls `ci_repos` and `pap_repos`.
