@@ -19,8 +19,15 @@ permissions:
 
 jobs:
   tests:
-    name: tests
-    runs-on: ubuntu-latest
+    # Linux keeps the bare name "tests", the check the ruleset requires;
+    # macOS reports as "tests (macos)". pap's own copy only: the template's
+    # test.yml stays Linux-only.
+    name: ${{ matrix.os == 'ubuntu-latest' && 'tests' || 'tests (macos)' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     env:
       CI: "true"
       MISE_YES: "1"
