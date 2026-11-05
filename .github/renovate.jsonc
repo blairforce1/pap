@@ -76,6 +76,18 @@
       "datasourceTemplate": "docker",
       "versioningTemplate": "semver"
     },
+    // base: the Node.js version the devcontainer's node feature installs,
+    // given as the feature's "version" option, which neither the
+    // devcontainer manager nor the feature manager above reads.
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
+      "matchStrings": [
+        "features/node@sha256:[a-f0-9]{64}\": \\{\\s*\"version\": \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version"
+    },
     // base: mise itself in the devcontainer's onCreateCommand, fetched by
     // its versioned install.sh and checked against that script's sha256.
     // The version is the release tag; the digest is the script's, which
