@@ -36,9 +36,9 @@ Squash-merged, linear history, review threads resolved, the `tests` check passin
 
 ### 2.2 Skills stop at a draft PR
 
-A skill that writes a phase artefact works on `change/<id>`, commits as it likes, opens a draft PR and stops. It never merges.
+A skill that writes a phase artefact works on `change/<id>`, commits as it likes and stops at or before the change's one draft PR, which `/change` opens (0020). It never merges.
 
-- Decision: [0002](decisions/0002-skills-stop-at-draft-pr.md)
+- Decision: [0002](decisions/0002-skills-stop-at-draft-pr.md); narrowed by [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md): the skills that write `intent.md` and `spec.md` commit and hand on, and `/change` opens the one draft PR
 - Enforced by: Reaching main without a PR is refused by the rule 2.1 layers. The stop itself is taught in skill text and not checked; nothing refuses `gh pr merge` from a skill.
 
 ### 3.1 Layers add, never replace
@@ -201,3 +201,10 @@ Before `/change` opens its draft pull request, a read-only subagent given only t
 
 - Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md)
 - Enforced by: Nothing yet. Taught by the `/change` skill ([`plugins/pap/skills/change/SKILL.md`](plugins/pap/skills/change/SKILL.md), step 5); nothing refuses a pull request whose Verification lacks the row.
+
+### 20.1 Intent is accepted by a recorded yes, before the spec and the code
+
+A change's `changes/<slug>/intent.md` records the human's yes to the intent restated in process 5.3's sections (`accepted-by:`, `accepted-on:`) and is committed on `change/<slug>` before `spec.md` and before any code; the one pull request carries them in that order, and an edit to `intent.md` after `spec.md` exists is intent churn, with its reason in the commit message.
+
+- Decision: [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)
+- Enforced by: Nothing yet. Taught by the `/intent` skill ([`plugins/pap/skills/intent/SKILL.md`](plugins/pap/skills/intent/SKILL.md)), which writes no file without the yes, and by the `/change` skill's step 2, which reads the file as the brief's intent. Planned: the reusable `pr-checks` workflow checks that a pull request with a `Change:` line carries `changes/<slug>/intent.md` with the acceptance lines and a hypothesis, and that its first commit precedes `spec.md`'s.
