@@ -38,6 +38,10 @@ Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with sc
 Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
 Built in slices: `/pap:pm` (`start`, `launch`, `event`, `pause`, `relaunch`, `audit`, the last classifying each rule as project or general); the `pap:member` agent definition; the tracker and brief templates (the state file with its PAP candidates section); the PM console, designed separately. The first three ship in one release, the intervention's boundary.
 
+**H-013** We believe a cycle with two members, a developer and a QA, will produce less rework than a one-member cycle, measured by messages to a cycle after its first report and by tokens on the cycles that got one, against the one-member median of 690k (decision 0018), over a handful of real changes.
+Related: decisions 0002, 0018; H-012. Class: feature
+Before the trial: decision 0002's stop, which `CLAUDE.md` states as one pull request per agent context, has to be restated as one pull request per cycle; that is a later decision, not part of 0018.
+
 ## Unranked
 
 **H-006** We believe joining Claude Code's telemetry to the change id will produce inner-loop measures per change, measured by the share of changes with token and rework-share data.
