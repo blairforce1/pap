@@ -145,10 +145,15 @@ not carry.
   audits tokens and time every five merged change PRs, and opens,
   approves and merges nothing. Each audit classifies its rules as project
   or general; the general ones go back to PAP as an ordinary change, from
-  a PAP candidates list in the tracker. Rules 18.1 to 18.5, enforced by
-  nothing yet. Backlog item H-012 carries the `/pap:pm` skill, the
-  `pap:member` agent, the templates and the console; H-013 proposes a
-  two-member cycle, developer and QA.
+  a PAP candidates list in the tracker. Three send-backs end a cycle
+  (`ASK:`), a fix round re-checks only the diff since the last report, and
+  every brief carries a token or wall-time budget the cycle pauses at
+  (`PAUSED:`), set from the audit's medians; the audit reports rounds to
+  pass per merged pull request. Rules 18.1 to 18.7, enforced by nothing
+  yet. Backlog item H-012 carries the `/pap:pm` skill, the `pap:member`
+  agent, the templates and the console; H-013 trials a two-member cycle,
+  developer and QA, against one member plus a fresh-context review
+  (decision 0019).
 
 ### [0.11.0] - 2026-11-02
 

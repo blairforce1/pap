@@ -180,3 +180,17 @@ Every rule an audit writes is classified as project or general. A general one go
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md)
 - Enforced by: Nothing yet. Planned: `/pap:pm audit` records no finding whose rule is unclassified and files a general one on the list; `/pap:pm` reports a due list on every `event`, as rule 18.4's overdue audit, and never blocks. The upstream diff gets what every PAP pull request gets (gitleaks, pr-checks) and nothing more.
+
+### 18.6 Three send-backs end a cycle
+
+After the third message asking for changes since its first report, a cycle stops and starts its reply with `ASK:`, and the event log carries the return to the human. A fix round re-checks the diff since the last report only and repeats no earlier finding.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm event` counts the messages to a cycle after its first report and refuses to log a fourth without a decision event beside it; the `pap:member` agent definition carries the `ASK:` line and the diff-since-last-report rule.
+
+### 18.7 Every brief carries a budget
+
+A cycle's brief names its budget in tokens or wall time, set from the last audit's medians; at the cap the cycle stops at its nearest safe point and ends with `PAUSED:` and what is left.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses a brief without a budget line; `/pap:pm audit` reports the medians the next budgets are set from; the `pap:member` agent definition carries the stop at the cap.

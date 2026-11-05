@@ -67,6 +67,25 @@ raised. The agreed first line for a question, `OWNER:`, appears in one
 notice of 108; cycles asked in the body of the change skill's report
 instead. That is the case for a fixed report line below.
 
+Three findings from Anthropic's posts of October 2026 on its own agents
+bear on the contract below. Its code reviewer stops after three rounds
+and asks the author to reconsider the approach, re-reviews only the diff
+since the last round and repeats no finding already posted; mean reviews
+to pass fell from 2.08 to 1.32, pull requests needing five or more rounds
+from 8.9% to 1.5%, and about 59% of what it flagged had been there since
+its first pass
+([code review](https://claude.dev/blog/solving-code-review-at-anthropic/)).
+Its automations give every run a budget, and a run that hits its cap
+pauses instead of failing; a cap set too low looks like a brief that went
+quiet
+([agent automations](https://claude.dev/blog/building-effective-agent-automations/)).
+Its guidance on roles is to add a subagent only when an eval run with and
+without it says the folded version scores worse
+([folding subagents](https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop)).
+Here one cycle took nine send-backs, the largest cycle took 739k tokens
+against a median of 157k, and about 325k went on the wrong thing with
+nothing to stop it before its report.
+
 The eleven misses and the rule each one produced, as the next brief
 carried it:
 
@@ -109,7 +128,15 @@ carried it:
    first line the PM routes on: `ASK:` when only the human can decide or
    act, `PAUSED:` after a pause. The report, with the tokens and wall
    time its completion notice carries logged beside it by the PM, is the
-   cycle's postmortem.
+   cycle's postmortem. Three send-backs end a cycle: after the third
+   message asking for changes since its first report, it stops and starts
+   its reply with `ASK:`, and the PM logs a return to the human, because
+   by then the approach is in question, not the diff. A fix round
+   re-checks the diff since the last report only and repeats no earlier
+   finding. Every brief carries a budget, in tokens or wall time, that
+   the PM sets from the audit's medians (point 7); at the cap the cycle
+   stops at its nearest safe point and ends with `PAUSED:` and what is
+   left, as on a pause (point 6).
 4. **Restate and yes before any brief; a question is answered, not
    built.** Before a cycle is launched, the PM restates the ask in one line
    and gets the human's yes, and logs both. Before the yes it checks the
@@ -141,7 +168,9 @@ carried it:
    relaunch.** It is the team postmortem across cycles. It measures CI
    time per workflow per pull request, tokens and wall time per cycle
    from the completion notices, messages per cycle after its first
-   report, and the project's metered costs. Each finding
+   report, rounds to pass per merged pull request, and the project's
+   metered costs. Its medians set the budget the next briefs carry
+   (point 3). Each finding
    ends in a fix written as a rule the next brief carries, and the audit
    goes in the tracker with the fix beside each number. A miss the human
    spots first is itself a finding. Each new rule is classified as
@@ -202,6 +231,16 @@ so everything that must survive is either in the brief or committed.
   the session that opens no pull request (point 2), with no change, no
   review and no public-safety check between a project's miss and a rule
   everyone adopts.
+- **Send-backs until it passes.** Lost: one cycle took nine, each a full
+  verification round, and the cycles that got any message cost a median
+  690k against 157k; the reviewer in the post above ran one pull request
+  through more than fifty rounds before a person stopped it.
+- **No budget; the completion notice is the cost.** Lost: the notice
+  arrives when the cycle ends. About 325k tokens went on the wrong thing
+  before anyone could see it, and the largest cycle took 739k against a
+  median of 157k. The post's rule of thumb, three to five times a normal
+  run and tightened as the numbers come in, needs the numbers; the audit
+  already has them.
 
 ## Consequences
 
@@ -232,6 +271,9 @@ so everything that must survive is either in the brief or committed.
 - Limit: `ASK:` and `PAUSED:` are text the PM matches. A cycle that
   forgets the line is a cycle the PM has to read; the `pap:member`
   definition is where the line is taught.
+- Limit: a budget set too low looks like a cycle that went quiet. The
+  `PAUSED:` line with what is left tells the two apart, and the audit's
+  medians keep the cap honest.
 - Measurement: the first effect is counted from the event log's
   message-to-cycle lines over the first 20 cycles; the second from each
   audit's findings, matched by hand against the table above.
@@ -241,7 +283,7 @@ so everything that must survive is either in the brief or committed.
   `/pap:pm` reports the list as due at three candidates or 30 days, as it
   reports an overdue audit. The upstream cycle is a plain `/change` in PAP
   and needs nothing new.
-- Follow-up: rules 18.1 to 18.5 are enforced by nothing until the skill
+- Follow-up: rules 18.1 to 18.7 are enforced by nothing until the skill
   ships; each names the check it plans.
 
 ## Where it is taught or enforced
@@ -249,8 +291,9 @@ so everything that must survive is either in the brief or committed.
 Backs [`rules.md`](../rules.md) 18.1 (the project-manager session opens,
 approves and merges nothing), 18.2 (a cycle is launched after a restated
 yes), 18.3 (the tracker is committed on every event), 18.4 (an audit
-every five merged change PRs and at every relaunch) and 18.5 (a general
-lesson reaches PAP only as a change). Taught in `CLAUDE.md`
+every five merged change PRs and at every relaunch), 18.5 (a general
+lesson reaches PAP only as a change), 18.6 (three send-backs end a cycle)
+and 18.7 (every brief carries a budget). Taught in `CLAUDE.md`
 (one pull request per agent context) and the `/change` skill's stop.
 Enforced by nothing yet beyond what rule 16.2's hook refuses any agent;
 backlog item H-012 builds the skill, the agent and the templates.
