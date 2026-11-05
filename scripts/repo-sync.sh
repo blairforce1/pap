@@ -6,9 +6,9 @@
 #
 # The repository defaults to the one gh resolves from the current directory.
 # The reference files come from the blairforce1/pap checkout this script lives
-# in, not from the target: .github/rulesets/main.json, .github/labels.yml, and
-# .github/labels/<layer>.yml for each layer the target's .config/pap.toml
-# names. Two files come from the target: .config/pap.toml, and
+# in, not from the target: .github/rulesets/main.json and all-branches.json,
+# .github/labels.yml, and .github/labels/<layer>.yml for each layer the
+# target's .config/pap.toml names. Two files come from the target: .config/pap.toml, and
 # .github/required-checks.yml, a YAML list of the names of the required status
 # checks (from GitHub Actions) the repository adds to the ruleset's. Each is
 # read from this checkout when the current directory is one of the target, so
@@ -21,8 +21,9 @@
 #
 # status  Read-only. Reports each item as ok, drift, missing or
 #         unavailable-on-plan, in five groups: repository settings, security,
-#         ruleset (with each required status check by name), enforcement
-#         layers (decision 0002, and whether GitHub accepts the owners in
+#         rulesets (main, with each required status check by name, and
+#         all-branches), enforcement layers (decision 0002, each ruleset
+#         active, and whether GitHub accepts the owners in
 #         .github/CODEOWNERS, decision 0014) and labels. Two more
 #         states cover what the four cannot: skipped (the check cannot run
 #         from here) and error (the API call itself failed). Exits 1 unless
@@ -30,13 +31,18 @@
 #
 # apply   Prints the intended changes, then makes them unless --dry-run is
 #         given. Applies settings, security, ruleset and labels; the
-#         enforcement group is report-only. The ruleset is created or updated
+#         enforcement group is report-only. Each ruleset is created or updated
 #         by name through the rulesets API, never legacy branch protection.
 #         Labels are created or have colour and description updated; labels
 #         not in the label files are reported and never deleted. Ends with a
 #         summary: newly applied, already correct, skipped, failed. Exits 1
 #         if anything failed. --remove-checks drops the live required checks
 #         that neither main.json nor .github/required-checks.yml names.
+#
+# The all-branches ruleset (decision 0022) blocks force pushes on every branch
+# but Renovate's and Dependabot's, with no bypass actors. The override is
+# deliberate: the human disables it in the repository's settings, pushes,
+# and runs apply, which restores it; status reports it as drift meanwhile.
 #
 # Push protection and CodeQL default setup need GitHub Advanced Security on
 # private repositories, which a Pro personal account does not have. They are
@@ -86,6 +92,7 @@ for tool in gh jq yq; do
 done
 case "$(yq --version 2>&1)" in *mikefarah*) ;; *) die "yq must be mikefarah/yq v4; run mise install" ;; esac
 [ -f "$ruleset_file" ] || die "missing $ruleset_file"
+[ -f "$root/.github/rulesets/all-branches.json" ] || die "missing $root/.github/rulesets/all-branches.json"
 [ -f "$labels_file" ] || die "missing $labels_file"
 
 local_repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)"
@@ -361,6 +368,46 @@ if [ -n "$ruleset_live" ]; then
   fi
 fi
 
+# The all-branches ruleset (decision 0022): no force push on any branch, no
+# bypass actors, no required checks. Created or updated whole by name, as
+# main is, so a ruleset the human disabled for a deliberate force push is
+# drift until apply restores it.
+branches_file="$root/.github/rulesets/all-branches.json"
+branches_name="$(jq -r .name "$branches_file")"
+branches_enforcement=""
+item="ruleset '$branches_name'"
+api_get "repos/$repo/rulesets?per_page=100"
+if [ "$code" != 200 ]; then
+  record ruleset error "$item" "HTTP $code"
+else
+  branches_id="$(jq -r --arg n "$branches_name" \
+    'map(select(.name == $n and .source_type == "Repository")) | first | .id // empty' <<<"$body")"
+  branches_want="$(jq -S --slurpfile t "$branches_file" "$normalise" "$branches_file")"
+  if [ -z "$branches_id" ]; then
+    record ruleset missing "$item"
+    plan "$item" "+ ruleset: create '$branches_name' from .github/rulesets/all-branches.json" \
+      gh api -X POST "repos/$repo/rulesets" --input "$branches_file"
+  else
+    api_get "repos/$repo/rulesets/$branches_id"
+    if [ "$code" != 200 ]; then
+      record ruleset error "$item" "HTTP $code"
+    else
+      branches_enforcement="$(jq -r .enforcement <<<"$body")"
+      have="$(jq -S --slurpfile t "$branches_file" "$normalise" <<<"$body")"
+      if [ "$have" = "$branches_want" ]; then
+        record ruleset ok "$item" "id $branches_id"
+      else
+        delta="$(diff -u --label "live ruleset $branches_id" --label "wanted ruleset" \
+          <(printf '%s\n' "$have") <(printf '%s\n' "$branches_want") | tail -n +3 || true)"
+        record ruleset drift "$item" "id $branches_id"
+        [ "$cmd" = status ] && note "$delta"
+        plan "$item" "~ ruleset: update '$branches_name' (id $branches_id)"$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')" \
+          gh api -X PUT "repos/$repo/rulesets/$branches_id" --input "$branches_file"
+      fi
+    fi
+  fi
+fi
+
 # --- 4. Enforcement layers (decision 0002), report-only ---------------------
 
 group "Enforcement layers (decision 0002)"
@@ -369,6 +416,13 @@ case "$ruleset_enforcement" in
   active) record enforcement ok "$item" ;;
   "") record enforcement missing "$item" ;;
   *) record enforcement drift "$item" "enforcement $ruleset_enforcement" ;;
+esac
+
+item="ruleset '$branches_name' active on GitHub"
+case "$branches_enforcement" in
+  active) record enforcement ok "$item" ;;
+  "") record enforcement missing "$item" ;;
+  *) record enforcement drift "$item" "enforcement $branches_enforcement; pap repo apply restores it" ;;
 esac
 
 for path in lefthook.yml scripts/guard-branch.sh; do
