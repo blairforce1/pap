@@ -201,13 +201,6 @@
     },
 
     // --- Node: package.json and package-lock.json -----------------------
-    // Node.js itself, wherever Renovate tracks it (a mise pin, a
-    // devcontainer option, an engines field): LTS majors only. Odd majors
-    // are never LTS.
-    {
-      "matchDepNames": ["node"],
-      "allowedVersions": "/^v?\\d*[02468]\\./"
-    },
     {
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],

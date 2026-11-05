@@ -31,12 +31,6 @@ yq = "4.53.6"
 # with the other mise pins.
 gh = "2.103.3"
 jq = "1.8.2"
-# Claude Code, the native binary from Anthropic's GitHub releases (aqua
-# anthropics/claude-code), so the devcontainer needs no Node.js and no
-# feature for it, and Renovate moves it like any other pin. On a machine
-# with Claude Code installed its own way, this repository's pin is the one
-# that runs here.
-claude = "2.1.318"
 
 [tasks.setup]
 description = "Install the git hooks and point git blame at the ignore list"

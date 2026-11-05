@@ -10,11 +10,11 @@ PAP runs on Linux and macOS; Windows through WSL2.
 
 - [git](https://git-scm.com/downloads).
 - [mise](https://mise.jdx.dev/getting-started.html), which installs every
-  pinned tool a repository names: `pap`, `gh`, `jq` and Claude Code
-  included. Install
+  pinned tool a repository names: `pap`, `gh` and `jq` included. Install
   it and activate it in your shell (`eval "$(mise activate <shell>)"` in
   your shell's rc file).
-- [Claude Code](https://code.claude.com/), where the skills run.
+- [Claude Code](https://code.claude.com/), where the skills run, from
+  Anthropic's installer. It updates itself, so no repository pins it.
 
 Then, once `mise install` has run in a repository, `gh auth login` with a
 GitHub account. `pap repo` needs `gh` signed in as someone who
