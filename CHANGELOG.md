@@ -9,6 +9,20 @@ not carry.
 
 ## pm-console
 
+### [0.2.0] - 2026-11-05
+
+#### Added
+
+- A class band above the prompt while `/intent`, `/change`, `/spec` or
+  `/pap:pm launch` is typed: the seven classes with the ceremony each gets.
+  A bad class or slug is painted red and refused at submit with the reason
+  (`process`: not a class; process records use infra). An existing
+  `change/<slug>` branch is warned about, not refused.
+- `/pm exit`: asks the PM to pause every cycle, push the tracker and save
+  its memory, then call the new `exit_ready` tool, which puts `/exit` in the
+  prompt box. An exit that skips it while cycles run leaves an inbox item
+  for the next session.
+
 ### [0.1.1] - 2026-11-05
 
 #### Added

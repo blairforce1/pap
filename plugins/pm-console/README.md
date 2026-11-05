@@ -85,6 +85,55 @@ The average and slowest successful run per workflow over the last 20 runs
 of each repository the PM named with `ci_repos`, from `gh run list`,
 slowest first. Refreshed every 10 minutes and on `/pm`.
 
+## Class band
+
+While the prompt box starts with `/intent `, `/change `, `/spec ` or
+`/pap:pm launch ` (or `/pap:intent `, `/pap:change `, `/pap:spec `), a band
+above the prompt lists the seven classes, each with the ceremony it gets
+(process section 4; `chore` from decision 0017), the one typed in bold:
+
+```
+/change <slug> <class>: the class sets the ceremony
+feature            full spec, review per touched invariant
+infra              reliability and ops review; protected paths
+security-sensitive full reviewer set, acceptance tests
+bugfix             light spec, cites the defect, adds an eval
+spike              intent and findings only; no spec, no deploy
+chore              upkeep; no scenarios
+docs               intent and human review only
+```
+
+- The class is the second word after the command (after `launch` for
+  `/pap:pm launch`). It is painted red once it can no longer become a class:
+  `featur` is fine while typed, `featur ` is not.
+- A slug outside `[A-Za-z0-9._-]` is painted red too.
+- On Enter, a line with a bad slug, a bad or missing class is refused before
+  the skill runs, with the reason; `process` says
+  `not a class; process records use infra`. The skill's own argument check
+  stays as the backstop (a hook that fails lets the prompt through).
+- If `change/<slug>` already exists as a local or remote branch
+  (`git branch -a` in the session's directory), the band warns and Enter
+  toasts that the skill will resume it; it does not refuse. Outside a git
+  repository it says nothing.
+
+The band takes no keys of its own and goes when the line stops being a
+change command. `ctrl+x` `ctrl+a` (or its `[-]`) collapses it, as any band
+above the prompt.
+
+## `/pm exit`
+
+Type `/pm exit` instead of `/exit` while cycles run. The console sends the
+PM a pause prompt: `PAUSE` every running cycle and wait for each `PAUSED:`,
+record the pauses in the tracker and push, update the PM's memory, then call
+`exit_ready`. If the prompt cannot be sent it is put in the prompt box
+instead, with a toast, for one Enter. When the PM calls `exit_ready` with
+`ok: true`, `/exit` appears in the prompt box: press Enter. With `ok: false`
+a toast says what is not done.
+
+An exit that skipped this while cycles were running is noted when the
+session ends, and the next session starts with an inbox item listing the
+cycles to relaunch from their save points.
+
 ## Status line
 
 One line, always visible: cycles running, items waiting on you, decisions
@@ -97,6 +146,7 @@ The PM session calls these; you can also ask it to.
 
 | Tool         | What it does                                                                                                                                                                                                                                                                                   |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exit_ready` | Ends a `/pm exit` pause: `ok` true once every cycle has paused and the tracker and memory are pushed, which puts `/exit` in the prompt box; `ok` false with a `note` toasts what is not done.                                                                                                  |
 | `inbox_add`  | Adds what a cycle's report asks of you: `cycle` (number or slug; `lane` still works as an alias), `items` (one short imperative line each), optional `ref` to group by (`widgets#41`), `detail` (the report, shown when you open the group) and `url` (what `c` copies). Returns the item ids. |
 | `inbox_note` | Sets or replaces `detail` and `url` on every item with a `ref`, to fill in or correct what the detail view shows.                                                                                                                                                                              |
 | `inbox_done` | Marks items done by id, for when you tell the PM you did them instead of ticking.                                                                                                                                                                                                              |
