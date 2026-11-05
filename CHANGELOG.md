@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.12.0] - 2026-11-05
+
 #### Added
 
 - `docs/`: user guides for adopting and using PAP without its author:
