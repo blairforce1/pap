@@ -12,7 +12,7 @@ This document describes what must happen. It does not prescribe tools.
 2. **Proportional ceremony.** The amount of specification, review, and testing is set by the class of change, not applied uniformly. A typo fix and a security-sensitive feature do not get the same treatment. <!-- id: P-ceremony -->
 3. **Small, shippable increments.** Every change must be independently deployable and have a success measure that can be observed after release. If a success measure cannot be written, the change is too large or too vague. <!-- id: P-increments -->
 4. **Direction is preserved by invariants, not by re-reading the vision.** Constraints that must not be violated are written down, kept short, and checked at review. <!-- id: P-invariants -->
-5. **Acceptance is a merge, and a merge is a trigger.** Each phase ends by committing an artefact. Accepting that artefact (merging it, or closing its review) is what starts the next phase. Nothing starts because someone remembered to start it. <!-- id: P-merge-trigger -->
+5. **Acceptance is recorded, and the record is a trigger.** Each phase ends by committing an artefact. Accepting that artefact is what starts the next phase: for intent and spec, the human's yes recorded in the file on the change branch; for the rest, the merge or the closed review. Nothing starts because someone remembered to start it. <!-- id: P-merge-trigger -->
 6. **Every generated artefact records what produced it.** Model, skill or policy versions, and the prompt or command that produced a spec, plan, or review are recorded with it. Without this, no change to the process can be attributed to an outcome. <!-- id: P-provenance -->
 7. **Going backwards is normal and is recorded.** When work returns to an earlier phase, the return and its reason are noted. Returns are the raw material for improvement. <!-- id: P-returns -->
 8. **Every escaped defect is attributed to a phase.** Not "we had a bug" but "the specification omitted a failure mode" or "the test plan did not cover this path". Attribution is what turns defects into process changes. <!-- id: P-attribution -->
@@ -102,7 +102,7 @@ Suggested starting set:
 | security-sensitive | Anything touching authn, authz, secrets, PII | Full reviewer set, acceptance tests mandatory |
 | bugfix | Correcting a defect | Light spec; must cite the escaped defect it closes; must add an eval |
 | spike | Time-boxed learning, throwaway | Intent and findings only; no spec, no deploy |
-| docs | Documentation only | Intent and human review only |
+| docs | Documentation only | Intent, a half-page spec and human review; no spec review board |
 
 A matrix should state, per class:
 
@@ -128,8 +128,8 @@ prompt:            # the prompt or command that produced it
 | # | Phase | Artefact | Accepted when (this is the trigger for the next phase) | Owner |
 |---|---|---|---|---|
 | 1 | Intent | `intent.md` | The human's yes to the intent, restated in 5.3's sections, recorded in the file (who, when): class declared, hypothesis linked, success measure written, invariants touched listed. Committed on the change branch before the spec; the change's one pull request carries intent, spec and code in that order | Human |
-| 2 | Specification | `spec.md` | Merged: covers the sections the class requires; every open question from intent is answered or explicitly carried forward | Agent drafts, human edits |
-| 3 | Spec review | `reviews/` | Every finding has a disposition (accepted, rejected, deferred) and the human approves | Reviewers + human |
+| 2 | Specification | `spec.md` | The human's yes after spec review, recorded in the file (who, when): covers the sections the class requires, with acceptance scenarios where the class asks for them (5.4); every open question from intent is answered or explicitly carried forward; a feature, infra or security-sensitive change says how it is monitored and undone (5.4, Operations). Committed on the change branch after the intent and before the code | Agent drafts, human edits |
+| 3 | Spec review | `reviews/` | Every finding has a disposition (accepted, rejected, deferred), recorded with the spec on the change branch; the human's approval is the spec's recorded yes (phase 2) | Reviewers + human |
 | 4 | Planning | `plan.md`, `test-plan.md` | Merged: increments and test tiers match the class matrix | Agent drafts, human approves |
 | 5 | Generation | Code, tests, design notes | All planned increments implemented with their tests | Agent |
 | 6 | Self-check | CI results, agent self-review | Build green, tests pass, agent has run the checks and shown the output, and reviewed its own diff against spec | Automated |
@@ -144,10 +144,10 @@ Each phase has one leading and one lagging measure, all derivable from version c
 
 | Phase | Leading | Lagging |
 |---|---|---|
-| Intent | Time from first idea to merged `intent.md` | Survival rate: share of intents accepted rather than closed; intent edits after `spec.md` exists (intent churn) |
-| Specification | Time from `intent.md` merge to `spec.md` merge | `spec.md` commits after `plan.md` exists (spec rework) |
+| Intent | Time from first idea to accepted `intent.md` | Survival rate: share of intents accepted rather than closed; intent edits after `spec.md` exists (intent churn) |
+| Specification | Time from `intent.md` acceptance to `spec.md` acceptance | `spec.md` commits after `plan.md` or code exists on the branch (spec rework) |
 | Spec review | Findings per review, by severity | Escapes later attributed to spec review miss |
-| Planning | Time from `spec.md` merge to `plan.md` merge | Increments that were split or merged after build started |
+| Planning | Time from `spec.md` acceptance to `plan.md` merge | Increments that were split or merged after build started |
 | Generation | Sessions per increment; rework share | Escapes attributed to generation |
 | Self-check | First-pass CI success rate for agent-written changes | Defects found in code review that self-check should have caught |
 | Code review | Time to first review; share of review comments resolved without a human touching the branch | Defects caught before merge vs escaped to production |
@@ -181,21 +181,21 @@ An intent is accepted when the human says yes to it restated in these sections, 
 
 Include only what the class requires. Candidate sections:
 
-- Functional behaviour
-- Non-functional: performance, reliability, availability, capacity
+- Functional behaviour: prose for the shape, then acceptance scenarios in Given/When/Then, written in the product's domain vocabulary (`product/domain.md`, which the spec extends in the same diff) and kept in `features/` at the repository root so they keep running after the change closes. Mandatory for feature, security-sensitive and bugfix (where one scenario fails before the fix); optional for infra; none for spike, docs and chore
+- Non-functional: performance, reliability, availability, capacity; each a row: what is measured, the threshold, the test tier
 - Security
 - Compliance
-- Operations: deployment, configuration, observability, rollback
+- Operations, mandatory for feature, infra and security-sensitive: deployment and configuration; **Signals**, what is measured for each success measure in the intent and for the health the change could move; **Good**, the control band, thresholds and the window they are judged over (5.9); **Wrong**, what a breach looks like, how fast it is noticed and the first checks; **Undo**, revert the merge, a feature flag off or a config rollback, with the steps for anything outside git, which the pull request repeats as its "How to revert"; and operational scenarios in Given/When/Then ("Given it is live, When <signal> breaches <band> over <window>, Then <undo> and the human is told")
 - Data: model changes, migration, retention
 - Interfaces and contracts
 - Areas of concern (flagged by the generating agent, especially where policies conflict)
 - Open questions (carried forward from intent, each marked answered or still open)
 
-Intent edits made after the spec exists are noted as **intent churn**: the spec surfaced something the intent missed.
+A spec is accepted when the human says yes to it after spec review (5.5) and the yes is recorded in the file (who, when). It is committed on the change branch after `intent.md` and before any code, and the change's pull request carries it to the merge. Intent edits made after the spec exists are noted as **intent churn**: the spec surfaced something the intent missed. Spec edits after code exists are **spec rework** (5.2).
 
 ### 5.5 Spec review <!-- id: S-spec-review -->
 
-Run the reviewer perspectives the class requires (the `spec-review` plugin in this marketplace provides them; `spec-review-full` runs the whole board). Each finding is recorded with reviewer, severity, and the human's disposition. Rejected findings need a one-line reason. Work through flagged areas of concern first. Review specifically against the invariants the intent declared it touches.
+Run the reviewer perspectives the class requires (the `spec-review` plugin in this marketplace provides them; `spec-review-full` runs the whole board). Each finding is recorded with reviewer, severity, and the human's disposition, in `reviews/` on the change branch before the spec's yes. Rejected findings need a one-line reason. Work through flagged areas of concern first. Review specifically against the invariants the intent declared it touches.
 
 ### 5.6 `plan.md` and `test-plan.md` <!-- id: S-plan -->
 

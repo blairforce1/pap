@@ -183,6 +183,28 @@ not carry.
   answered, and Verification carries the review's row. Rule 19.1, taught by
   the skill and enforced by nothing yet. The control arm for backlog H-013
   (decision 0018).
+- Decision 0021 (proposed): a spec is accepted by the human's yes after
+  spec review, recorded in `spec.md` (`accepted-by:`, `accepted-on:`) and
+  committed on the change branch after the intent and before the code, not
+  by a separate merge; a feature, infra or security-sensitive spec designs
+  its operation (Signals, Good, Wrong, Undo, and operational scenarios in
+  Given/When/Then), and the pull request's "How to revert" is its Undo.
+  Rules 21.1 and 21.2, taught by the skill and enforced by nothing yet.
+  Delivers the `/spec` slice of decision 0017, whose status is unchanged,
+  and closes the follow-up 0020 left: process principle 5, 5.1 rows 2 and
+  3, 5.2, 5.4 and 5.5 say acceptance where the branch records it, and what
+  a spec's Functional behaviour and Operations carry. Backlog H-015
+  proposes an operations member for phases 8 to 10.
+- `/spec <slug>`: reads the accepted `changes/<slug>/intent.md` and refuses
+  without one; drafts `spec.md` with the sections the class requires,
+  acceptance scenarios in `features/<slug>.feature` tagged `@id` and
+  `@pending` in the words of `product/domain.md`, which it extends; the
+  Operations section for feature, infra and security-sensitive; runs
+  `spec-review-full` by class, records each disposition in
+  `changes/<slug>/reviews/spec-review.md`, and on the yes commits
+  `spec(<slug>): ...` and hands on to `/change`. Half a page for docs and
+  chore, none for a spike. Main session only. The second slice of backlog
+  item H-011.
 - Decision 0020 (proposed): an intent is accepted by the human's yes to it
   restated in process 5.3's sections, recorded in `intent.md`
   (`accepted-by:`, `accepted-on:`), not by a separate merge; `intent.md`
@@ -220,6 +242,9 @@ not carry.
 
 - `/change` has a new step 5, "Review cold", between the local checks and
   opening the pull request; the later steps are renumbered 6 and 7.
+- `/change` builds to `changes/<slug>/spec.md` where the branch has one
+  (its scenarios are the acceptance criteria), and its pull request body
+  has a "How to revert" section, the spec's Undo where there is a spec.
 - `/change` reads `changes/<slug>/intent.md` where the branch has one, as
   the brief's intent: its class and hypothesis stand, and a differing
   `<class>` argument or brief is reported as a contradiction.

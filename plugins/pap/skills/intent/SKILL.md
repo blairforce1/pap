@@ -98,13 +98,13 @@ git commit -m "intent(<slug>): <desired outcome in a few words>"
 
 A review edit (step 1, `resumed`) commits as `intent(<slug>): <what changed>`, or `intent(<slug>): churn, <what the spec surfaced>` when `spec.md` exists.
 
-Then remove the worktree, keeping the branch and its commit: `git worktree remove <path>`. `/change` (and `/spec`, when it exists) makes its own worktree on the branch and prints `resumed`; a worktree left open makes it print `exists` and stop.
+Then remove the worktree, keeping the branch and its commit: `git worktree remove <path>`. `/spec` and `/change` each make their own worktree on the branch and print `resumed`; a worktree left open makes it print `exists` and stop.
 
 No push and no pull request: `/change` pushes the branch and opens the one draft pull request that carries intent, spec and code in order (decision 0020).
 
 ## 7. Hand on, then stop
 
-Say what is next and how: the spec. `/spec <slug>` when it exists (backlog H-011). Until then, either the brief carries what the spec would (the human runs `/change <slug> <class>` with the brief in a fresh context; `/change` reads the intent as the brief's intent and reports a class that differs from it), or the human writes `changes/<slug>/spec.md` by hand: `git worktree add <path> change/<slug>`, the sections the class requires (process 5.4), a commit as `spec(<slug>): <one line>`, and `git worktree remove <path>` before `/change`.
+Say what is next and how: the spec. `/spec <slug>` in a fresh context (decision 0021) reads this intent, drafts `changes/<slug>/spec.md` with the sections the class requires, runs the review board and records the human's yes on the branch; then `/change <slug> <class>` with a brief, which reads both. A spike has no spec: say `/change` is next.
 
 Stop. One intent per invocation; do not start the spec, the brief or the change.
 

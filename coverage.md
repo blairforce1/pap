@@ -12,7 +12,7 @@ One line per ID: `- <id>: <target>, <target>`, where a target is
 the rest of the line. An ID with no line is uncovered.
 
 - P-intent: rule 11.2, H-005
-- P-merge-trigger: rule 2.1, rule 2.2
+- P-merge-trigger: rule 2.1, rule 2.2, rule 21.1
 - P-provenance: rule 4.2
 - P-returns: H-004
 - P-attribution: H-005
@@ -22,9 +22,12 @@ the rest of the line. An ID with no line is uncovered.
 - S-invariants: rule 4.1
 - S-backlog: rule 11.1
 - S-change: rule 11.2
-- S-phases: rule 2.1, rule 2.2, rule 20.1
+- S-phases: rule 2.1, rule 2.2, rule 20.1, rule 21.1
 - S-phase-measures: H-004
 - S-intent: rule 11.2, rule 20.1
+- S-spec: rule 17.4, rule 21.1, rule 21.2
+- S-spec-review: rule 21.1
+- S-verification-operation: rule 21.2, H-015
 - S-code-review: H-007
 - S-returns: H-004
 - S-findings: H-005
