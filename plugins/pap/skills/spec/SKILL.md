@@ -32,7 +32,7 @@ The same worktree as `/intent` and `/change`:
 sh "${CLAUDE_PLUGIN_ROOT}/skills/change/worktree.sh" <slug>
 ```
 
-- `resumed <path>`: the expected case; the intent is on the branch. Refuse to go on unless `changes/<slug>/intent.md` is there with `accepted-by:` and `accepted-on:` filled: say `/intent <slug> <class>` comes first. If `spec.md` is there with acceptance lines, run as a review: show it, ask what changed, go to step 7 with the edits; a commit after code exists on the branch is spec rework (process 5.2). A `spec.md` without acceptance lines is a paused draft: resume from it.
+- `resumed <path>`: the expected case; the intent is on the branch. Refuse to go on unless `changes/<slug>/intent.md` is there with `accepted-by:` and `accepted-on:` filled: remove the worktree (`git worktree remove <path>`) and say `/intent <slug> <class>` comes first. If `spec.md` is there with acceptance lines, run as a review: show it, ask what changed, re-run the perspective the edit bears on (none for wording), and go to step 7 with the edits; a commit after code exists on the branch is spec rework (process 5.2). A `spec.md` without acceptance lines is a paused draft: resume from it.
 - `created <path>`: no branch, so no intent. Remove the worktree (`git worktree remove <path>`, `git branch -D change/<slug>`) and say `/intent` comes first.
 - `exists <path>` (exit 3) or exit 1: stop and print the message.
 
@@ -52,8 +52,8 @@ Use `references/template.md`. Write only the sections the class requires; "none"
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | feature            | Functional behaviour with scenarios; Non-functional rows; Data, Interfaces and Security where touched; Operations; Areas of concern; Open questions |
 | infra              | Functional behaviour (scenarios optional, rule 17.4); Non-functional rows; Operations; Areas of concern; Open questions                             |
-| security-sensitive | Everything feature has, plus Security and Compliance; Operations                                                                                    |
-| bugfix             | Functional behaviour: the escaped defect it cites and one scenario that fails before the fix (rule 17.4); Undo; Open questions                      |
+| security-sensitive | Everything feature has, plus Security and Compliance                                                                                                |
+| bugfix             | Functional behaviour: the escaped defect it cites and one scenario that fails before the fix (rule 17.4); Operations with Undo only; Open questions |
 | docs, chore        | Half a page: what changes and where, how a reader checks it afterwards, Open questions. No Operations, no board: the human's read is the review     |
 
 **Functional behaviour.** Prose for the shape, then the scenarios. The intent's desired outcome and non-goals set the boundary; every scenario sits inside it.
@@ -84,7 +84,7 @@ A bugfix writes Undo only. Docs and chore write none.
 
 ## 6. Review
 
-Run the board the class requires (process 5.5): invoke `spec-review-full` with the spec's path. It reads the intent, selects the perspectives by class (every one for security-sensitive; at least reliability and operations for infra; the default set for feature, plus ux, gdpr and ai-act where its content rules say), reviews against the invariants the intent touches, and returns a consolidated register with the Disposition column empty. Docs and chore run no board; a bugfix runs qa only unless the intent touches an invariant.
+Run the board the class requires (process 5.5): invoke `spec-review-full` with the spec's path. It reads the intent, selects the perspectives by class (every one for security-sensitive; at least reliability and operations for infra; the default set for feature, plus ux, gdpr and ai-act where its content rules say), reviews against the invariants the intent touches, and returns a consolidated register with the Disposition column empty. Docs and chore run no board. A bugfix invokes `spec-review-qa` directly, or the board when its intent touches an invariant.
 
 Write the register as it came back to `changes/<slug>/reviews/spec-review.md` (process 5.1, phase 3). Then take the human through the findings, Blockers and Majors first and the Areas of concern before the rest, a few at a turn: each gets `accepted` (and the spec changes before the yes), `rejected: <one-line reason>` or `deferred: <phase>`. Record each disposition in the register. Where the spec changed, say which section.
 
@@ -92,14 +92,14 @@ Write the register as it came back to `changes/<slug>/reviews/spec-review.md` (p
 
 Show the human what they are accepting: the section list, the scenarios (ids and titles), the terms added to `domain.md`, the Operations section in full, the review's verdict and the dispositions by count. Ask for a yes.
 
-A yes goes to step 8. An edit is made, the changed part shown, and the question asked again. A "later" commits the draft as `spec(<slug>): draft, <state>` with no acceptance lines and removes the worktree; the next `/spec <slug>` resumes it. A no ends here with nothing committed; say so and remove the worktree.
+A yes goes to step 8. An edit is made, the changed part shown, and the question asked again. A "later" commits the draft as `spec(<slug>): draft, <state>` with no acceptance lines and removes the worktree; the next `/spec <slug>` resumes it. A no ends here with nothing committed: say so and discard the draft with the worktree (`git worktree remove --force <path>`), keeping the branch and its intent.
 
 ## 8. Write and commit
 
 Fill the acceptance lines (`accepted-by: @<login>` from `gh api user -q .login` or the name the human gives, `accepted-on:` today) and the provenance (`generated-by:`, `skills:` with this plugin's version, `prompt:` as the `/spec` line typed). One commit, never bypassing a hook (rule 5.1):
 
 ```sh
-git add changes/<slug>/spec.md changes/<slug>/reviews/spec-review.md features/<slug>.feature product/domain.md
+git add changes/<slug>   # and features/<slug>.feature, product/domain.md: only the files this run wrote
 git commit -m "spec(<slug>): <what the change does, in a few words>"
 ```
 

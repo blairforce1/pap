@@ -9,7 +9,7 @@
 
 **Why it works.** Because it measures itself and keeps what the numbers support. In its first sixteen days run as a project-manager session, PAP ran 111 agent cycles and merged 107 change pull requests across three repositories. A cycle briefed right first time cost a median 157k tokens; one that needed a message after its first report cost a median 690k, about four and a half times as much, and 19 of 108 cycles needed one. Three audits turned those misses into eleven briefing rules, now written into the process as decision 0018 (proposed), with the target that under 10% of the next twenty cycles need a second message. Each record is checked the same way, and the ones that fail are withdrawn.
 
-**How to start.** In Claude Code, `/plugin install pap --marketplace blairforce1/pap`, then `/envision` in your repository and `/change <slug> <class>` with a brief for each change. The [quick start](#quick-start) below has the five steps.
+**How to start.** In Claude Code, `/plugin install pap --marketplace blairforce1/pap`, then `/envision` in your repository, and for each change `/spec <slug>` once its intent is accepted, then `/change <slug> <class>` with a brief. The [quick start](#quick-start) below has the five steps.
 
 ## Where it comes from
 

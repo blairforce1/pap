@@ -3,8 +3,8 @@
 - **Status:** proposed
 - **Date:** 2026-11-05
 - **Deciders:** blairforce1, with Claude
-- **Supersedes:** none; amends process principle 5, 5.1 (phases 2 and 3), 5.2 (the intent, specification and planning rows), 5.4 and 5.5; delivers the `/spec` slice of [0017](0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md), whose status does not change; closes the follow-up [0020](0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md) left on 5.2's intent row, 5.1 row 2 and principle 5
-- **PIP:** the owner's call of 2026-11-05: once `/intent` has accepted the intent, the change is specified in full, with acceptance scenarios in Given/When/Then, and its operation, how the intent is monitored, traced and undone, is designed at spec time. Of pap's 78 merged change pull requests none carries a `spec.md`; the one accepted intent (process-coverage) went straight to code. The pull request template's "How to revert" is answered last, by the context that wrote the code, and process 5.9's control bands exist in the process document and in no change
+- **Supersedes:** none; amends process principle 5, section 4 (the docs row), 5.1 (phases 2 and 3), 5.2 (the intent, specification and planning rows), 5.4 and 5.5; delivers the `/spec` slice of [0017](0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md), whose status does not change; closes the follow-up [0020](0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md) left on 5.2's intent row, 5.1 row 2 and principle 5
+- **PIP:** the owner's call of 2026-11-05: once `/intent` has accepted the intent, the change is specified in full, with acceptance scenarios in Given/When/Then, and its operation, how the intent is monitored, traced and undone, is designed at spec time. Of pap's 78 merged change pull requests none carries a `spec.md`; the one `intent.md` (process-coverage, written from the brief and never accepted) went straight to code. The pull request template's "How to revert" is answered last, by the context that wrote the code, and process 5.9's control bands exist in the process document and in no change
 - **Expected effect:** share of merged feature, infra and security-sensitive change pull requests whose `changes/<slug>/spec.md` carries Signals, Good, Wrong and Undo ↑ from 0 of 78 to every change started with `/spec`, read from `changes/*/spec.md` on main against merged `change/` pull requests, in pap and in each adopting repository separately; escapes attributed to a specification gap (5.11) at a median of 0 per closed change once `findings.md` exists, and until then 0017's proxy, `fix:` or `revert:` pull requests merged within 14 days that touch a file the change changed, ↓; the pull request's "How to revert" equal to the spec's Undo in every such change
 - **Introduced in:** not yet released; the release that ships `/spec`
 - **Revisit:** after 20 change PRs from #88: the share and the proxy over those 20, how many specs were returned to (5.10) from code review or verification, how many operational scenarios were exercised, by hand or by H-015's watcher, and whether docs and chore specs earned their half page
@@ -91,8 +91,10 @@ no spec to read, it has never been run on a pap change.
    rows count to acceptance, and spec rework is a `spec.md` commit after
    `plan.md` or code exists. 5.4 says what Functional behaviour and
    Operations carry and when a spec is accepted; 5.5 says where the
-   dispositions go. 0017's amendments to sections 3, 4, 5.6 and 5.10 wait
-   for the slices that give them something to enforce.
+   dispositions go; section 4's docs row says a half-page spec and no
+   board. 0017's amendments to sections 3, 4 (the scenario columns of the
+   class matrix), 5.6 and 5.10 wait for the slices that give them
+   something to enforce.
 6. **`/change` reads the spec.** Where the branch has `spec.md`, its
    scenarios are the acceptance criteria, its rows the thresholds and its
    Undo the pull request's "How to revert", which `/change`'s body template
@@ -134,11 +136,10 @@ the code exists to argue with.
 - **The review as its own accepted artefact, with its own yes.** Lost:
   5.1's phase 3 ends with the human's approval, which is the yes the spec
   needs; two yeses for one reading is ceremony.
-- **No spec for docs and chore, as section 4's docs row reads.** Lost, for
+- **No spec for docs and chore, as section 4's docs row read.** Lost, for
   now: half a page that says what changes and how a reader checks it is
   the acceptance criterion `/change` would otherwise take from the brief.
-  The revisit asks whether it earned the half page; section 4's row is
-  unchanged until it answers.
+  The row now says half a page; the revisit asks whether it earned it.
 
 ## Consequences
 

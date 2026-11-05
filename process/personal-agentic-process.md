@@ -102,7 +102,7 @@ Suggested starting set:
 | security-sensitive | Anything touching authn, authz, secrets, PII | Full reviewer set, acceptance tests mandatory |
 | bugfix | Correcting a defect | Light spec; must cite the escaped defect it closes; must add an eval |
 | spike | Time-boxed learning, throwaway | Intent and findings only; no spec, no deploy |
-| docs | Documentation only | Intent and human review only |
+| docs | Documentation only | Intent, a half-page spec and human review; no spec review board |
 
 A matrix should state, per class:
 

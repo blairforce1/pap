@@ -128,6 +128,11 @@ and attribution, can be measured against.
 - Follow-up: process sections 3, 4, 5.4, 5.6 and 5.10 are amended in the
   pull request that ships `/spec`; `coverage.md` then maps S-spec and
   S-plan to these rules.
+  Note (2026-11-05): decision
+  [0021](0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md)
+  shipped the `/spec` slice with 5.4 amended and S-spec mapped; sections
+  3, 4 (the scenario columns), 5.6 and 5.10 wait for the slices that give
+  them something to enforce. This record's status is unchanged.
 
 ## Where it is taught or enforced
 
