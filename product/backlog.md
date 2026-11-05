@@ -38,8 +38,9 @@ Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with sc
 Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
 Built in slices: `/pap:pm` (`start`, `launch`, `event`, `pause`, `relaunch`, `audit`, the last classifying each rule as project or general); the `pap:member` agent definition; the tracker and brief templates (the state file with its PAP candidates section); the PM console, designed separately. The first three ship in one release, the intervention's boundary.
 
-**H-013** We believe a cycle with two members, a developer and a QA, will produce less rework than a one-member cycle, measured by messages to a cycle after its first report and by tokens on the cycles that got one, against the one-member median of 690k (decision 0018), over a handful of real changes.
-Related: decisions 0002, 0018; H-012. Class: feature
+**H-013** We believe a cycle with two members, a developer and a QA, will produce less rework than a one-member cycle with a fresh-context review before its pull request (decision 0019, proposed in a parallel pull request), measured by messages to a cycle after its first report and by tokens on the cycles that got one (the one-member median today is 690k, decision 0018), over a handful of real changes on each arm; the second member stays only if it beats the review arm on both.
+Related: decisions 0002, 0018, 0019; H-012. Class: feature
+Method: a role is added only when its measurement wins; the arm without it is the control, as Anthropic's guidance on folding subagents into the main loop has it (decision 0018, evidence).
 Before the trial: decision 0002's stop, which `CLAUDE.md` states as one pull request per agent context, has to be restated as one pull request per cycle; that is a later decision, not part of 0018.
 
 ## Unranked
