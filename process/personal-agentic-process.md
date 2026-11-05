@@ -127,7 +127,7 @@ prompt:            # the prompt or command that produced it
 
 | # | Phase | Artefact | Accepted when (this is the trigger for the next phase) | Owner |
 |---|---|---|---|---|
-| 1 | Intent | `intent.md` | Merged: class declared, hypothesis linked, success measure written, invariants touched listed | Human |
+| 1 | Intent | `intent.md` | The human's yes to the intent, restated in 5.3's sections, recorded in the file (who, when): class declared, hypothesis linked, success measure written, invariants touched listed. Committed on the change branch before the spec; the change's one pull request carries intent, spec and code in that order | Human |
 | 2 | Specification | `spec.md` | Merged: covers the sections the class requires; every open question from intent is answered or explicitly carried forward | Agent drafts, human edits |
 | 3 | Spec review | `reviews/` | Every finding has a disposition (accepted, rejected, deferred) and the human approves | Reviewers + human |
 | 4 | Planning | `plan.md`, `test-plan.md` | Merged: increments and test tiers match the class matrix | Agent drafts, human approves |
@@ -161,8 +161,11 @@ Each phase has one leading and one lagging measure, all derivable from version c
 id:
 class:
 product:
+source:            # the issue or request it absorbed, or "none"
 hypothesis:        # reference into backlog, or "reactive: <reason>"
 invariants-touched:
+accepted-by:       # who said yes to the intent as restated
+accepted-on:       # when
 
 ## Problem
 ## Desired outcome
@@ -171,6 +174,8 @@ invariants-touched:
 ## Success measure   # observable after release, within the operation window
 ## Open questions
 ```
+
+An intent is accepted when the human says yes to it restated in these sections, and the yes is recorded in the two acceptance lines; the file is then committed on the change branch, before the spec and the code, and the change's pull request carries it to the merge. An edit after the yes keeps the acceptance lines and notes the edit; a change of class or hypothesis is a new yes. Once a spec exists, an edit is intent churn (5.4).
 
 ### 5.4 `spec.md` sections <!-- id: S-spec -->
 
