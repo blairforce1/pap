@@ -8,7 +8,7 @@ and rules 18.1 to 18.7 in [`rules.md`](../rules.md). The console is the
 
 **What is a command today and what is not.** The PM way of working is
 written down and the console exists. The `/pap:pm` skill (`start`,
-`launch`, `event`, `pause`, `relaunch`, `audit`), the `pap:member` agent
+`launch`, `event`, `relaunch`, `audit`), the `pap:member` agent
 definition and the tracker and brief templates are planned, backlog item
 H-012. Until they ship you run the role by hand, from the rules below, in
 a Claude Code session you brief as the PM; `/change` itself is a command.

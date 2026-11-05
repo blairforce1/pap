@@ -82,8 +82,9 @@ and worktree once its upstream is gone.
 **The guard hook refuses `git push --force` (or `-f`,
 `--force-with-lease`, `+<refspec>`).** No branch takes a force push
 (decision 0022, proposed): the hook refuses an agent's, and the
-`all-branches` ruleset `pap repo apply` creates refuses everyone's, with
-no bypass actors, because agents push with your credentials. A branch
+`all-branches` ruleset `pap repo apply` creates refuses everyone's on
+every branch but Renovate's and Dependabot's, with no bypass actors,
+because agents push with your credentials. A branch
 behind main merges main; it is never rebased. To force-push on purpose,
 disable the `all-branches` ruleset (repository settings, Rules, Rulesets),
 push from your own terminal, then run `pap repo apply`, which restores it;
@@ -122,6 +123,13 @@ CodeQL default setup need GitHub Advanced Security on a private
 repository, which a Pro personal account does not have. They are applied
 only on public repositories; the line is informational.
 
-**`pap codeowners` refuses the owner.** An organisation's own name is not a
-valid code owner. Put a user (`@login`) or team (`@org/team`) on the
-`Owner:` line of the protected paths section in `product/invariants.md`.
+**`pap codeowners` exits 1.** It found no "Protected paths" section or no
+backticked path in `product/invariants.md`, no owner at all, two `Owner:`
+lines, an `Owner:` line it cannot read (every name starts with `@`), or a
+`--owner` that disagrees with the line. Fix the section and run it again.
+
+**`pap repo status` reports an owner GitHub does not accept.** An
+organisation's own name is not a valid code owner, and `pap codeowners`
+falls back to the origin remote's owner when the section has no `Owner:`
+line. Put a user (`@login`) or team (`@org/team`) on the `Owner:` line and
+regenerate.

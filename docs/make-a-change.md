@@ -131,7 +131,9 @@ Summary with the deviations to review, a Verification table (every check
 run, and the cold review's row), "How to revert" copied from the spec's
 Undo, and the Checks section with every box answered. It reads the
 `risk:*` label `pr-checks` set and answers the protected-path box from it.
-Its report ends with the revisits `pap revisits` says are due.
+Its report names the revisits `pap revisits` says are due, the
+`mise run tidy` to run once the pull request has merged, and the risk
+level.
 
 It stops there. It never marks the pull request ready, never merges.
 

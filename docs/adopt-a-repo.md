@@ -21,12 +21,12 @@ pap init base [dotnet] [go] [risk] [--version <v>]
 Layers add files and never replace one another's. Every repository takes
 `base` first.
 
-| Layer    | What it adds                                                                                                                                                                                                                                                                                                  |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `base`   | The git hooks (lefthook) and their checks, dprint and editorconfig, gitleaks, the devcontainer, Renovate config, the `pr-checks`, `tests` and `security` workflow callers, `mise run check`, `test`, `fmt`, `setup` and `tidy`, and `scripts/guard-branch.sh`, which the hooks and the Claude Code hook call. |
-| `dotnet` | .NET pins and analyzers: `global.json`, `Directory.Build.props`, `Directory.Packages.props`, `.globalconfig`, `nuget.config`, the .NET hook checks and `scripts/heavy-build.sh`. See [its README](../templates/dotnet/README.md).                                                                             |
-| `go`     | Go pins, `.golangci.yml` and the Go hook checks. See [its README](../templates/go/README.md).                                                                                                                                                                                                                 |
-| `risk`   | `.github/risk.yml`, the opt-in to risk mode: a `risk:*` label and a review-focus comment on every pull request, and the `owner-reviewed` gate on `risk:high` only, in place of the `Approved-by:` line. See [its README](../templates/risk/README.md) and [Make a change](make-a-change.md).                  |
+| Layer    | What it adds                                                                                                                                                                                                                                                                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `base`   | The git hooks (lefthook) and their checks, dprint and editorconfig, gitleaks, the devcontainer, Renovate config, the `pr-checks` and `security` workflow callers and the `test` workflow (the `tests` check), `mise run check`, `test`, `fmt`, `setup` and `tidy`, and `scripts/guard-branch.sh`, which the hooks and the Claude Code hook call. |
+| `dotnet` | .NET pins and analyzers: `global.json`, `Directory.Build.props`, `Directory.Packages.props`, `.globalconfig`, `nuget.config`, the .NET hook checks and `scripts/heavy-build.sh`. See [its README](../templates/dotnet/README.md).                                                                                                                |
+| `go`     | Go pins, `.golangci.yml` and the Go hook checks. See [its README](../templates/go/README.md).                                                                                                                                                                                                                                                    |
+| `risk`   | `.github/risk.yml`, the opt-in to risk mode: a `risk:*` label and a review-focus comment on every pull request, and the `owner-reviewed` gate on `risk:high` only, in place of the `Approved-by:` line. See [its README](../templates/risk/README.md) and [Make a change](make-a-change.md).                                                     |
 
 What `init` does, in order: writes the layers (a file that differs from
 the template in an existing repository gets conflict markers to resolve);
@@ -73,15 +73,17 @@ pap repo apply  [--repo owner/name] [--dry-run] [--remove-checks]
 The GitHub side, from the repository `gh` resolves in the current
 directory unless `--repo` says otherwise. `status` is read-only and
 reports each item as ok, drift, missing or unavailable on your plan, in
-five groups: repository settings, security, the `main` ruleset (with each
-required status check by name), the enforcement layers of decision 0002,
-and labels. It exits 1 unless everything is ok, unavailable or skipped.
+five groups: repository settings, security, the rulesets (`main`, with
+each required status check by name, and `all-branches`), the enforcement
+layers (decision 0002's, both rulesets' enforcement, and whether GitHub
+accepts the owners in `.github/CODEOWNERS`), and labels. It exits 1 unless
+everything is ok, unavailable or skipped.
 
 `apply` prints the intended changes, then makes them unless `--dry-run`.
 It creates or updates two rulesets by name: `main` (squash merge only,
 linear history, no deletion, no force push, review threads resolved, the
-required checks) and `all-branches` (no force push on any branch, no
-bypass actors; decision 0022, proposed). It applies the settings and
+required checks) and `all-branches` (no force push on any branch but
+Renovate's and Dependabot's, no bypass actors; decision 0022, proposed). It applies the settings and
 security options, and creates or updates the labels from pap's
 `.github/labels.yml` and, for each layer `.config/pap.toml` names,
 `.github/labels/<layer>.yml`. It never deletes a
@@ -104,8 +106,8 @@ Writes `.github/CODEOWNERS` from the "Protected paths" section of
 `product/invariants.md`: every backticked path on a bullet line becomes a
 line owned by the section's `Owner:` line (a GitHub user or team, never an
 organisation's name). `--owner` stands in when the section has no `Owner:`
-line; `--check` writes nothing and exits 1 if the committed file differs
-from what would be generated (the pre-commit hook and
+line; `--check` writes nothing and exits 1 if the file in the index, what
+the next commit carries, differs from what would be generated (the pre-commit hook and
 `mise run check:codeowners` run it); `-` writes to stdout. The protected
 paths are what the `pr-checks` workflow and, in risk mode, the risk level
 read, so regenerate after every edit to the section.
@@ -118,9 +120,10 @@ pap doctor
 
 The machine side: mise on `PATH` and activated, this configuration
 trusted, the git hooks installed, `blame.ignoreRevsFile` set, every pinned
-tool installed at its pin, and how many local branches have a gone
-upstream (`mise run tidy` removes them with their worktrees). Exits 1 if
-anything needs attention.
+tool installed at its pin. Exits 1 if anything needs attention. It also
+counts local branches with a gone upstream and suggests `mise run tidy`,
+which removes them with their worktrees; a stale branch is housekeeping
+and never fails doctor.
 
 ## Renovate
 
