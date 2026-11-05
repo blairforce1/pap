@@ -274,8 +274,8 @@ not carry.
 - The base devcontainer has everything: `gh` and `jq` from mise, Node.js and
   Anthropic's Claude Code feature (the GitHub CLI feature is gone), the
   `pap` and `spec-review` plugins installed after create, and `pap doctor`
-  run at the end of it. Renovate reads features from any ghcr.io
-  namespace and the node feature's version option.
+  run at the end of it. Renovate reads features from both ghcr.io
+  namespaces in use and the node feature's version option.
 - `mise run test` in pap runs every suite and names each that failed,
   rather than stopping at the first.
 - `/change` has a new step 5, "Review cold", between the local checks and

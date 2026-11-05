@@ -60,8 +60,8 @@
   },
 
   "customManagers": [
-    // base: devcontainer features, from any ghcr.io namespace
-    // (devcontainers/features, anthropics/devcontainer-features). The
+    // base: devcontainer features, from devcontainers/features and
+    // anthropics/devcontainer-features on ghcr.io. The
     // devcontainer CLI refuses a feature reference with both a tag and a
     // digest (CLI 0.89.0), so features are pinned by digest alone and the
     // devcontainer manager finds no version to update. This reads the
@@ -71,7 +71,7 @@
       "customType": "regex",
       "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
       "matchStrings": [
-        "//\\s*[a-z-]+ (?<currentValue>\\d+\\.\\d+\\.\\d+)\\.[^\\n]*\\n\\s*\"(?<depName>ghcr\\.io/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+        "//\\s*[a-z-]+ (?<currentValue>\\d+\\.\\d+\\.\\d+)\\.[^\\n]*\\n\\s*\"(?<depName>ghcr\\.io/(?:devcontainers/features|anthropics/devcontainer-features)/[a-z0-9-]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "semver"

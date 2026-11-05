@@ -54,11 +54,12 @@
   // A no-op under Docker. Then mise 2026.5.12: no official mise feature
   // exists, and the community one fetches unpinned helpers at build time.
   "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh",
-  // The clone setup, then the pap and spec-review plugins, then pap doctor
-  // to show what is left (gh auth login, and claude's own sign-in, are
-  // yours). doctor's result never fails the create. bin/pap is pap's own
-  // checkout, which pins no pap of its own.
-  "postCreateCommand": "mise trust && mise install && mise run setup && claude plugin install pap --marketplace blairforce1/pap && claude plugin install spec-review --marketplace blairforce1/pap; if command -v pap >/dev/null 2>&1; then pap doctor; else sh bin/pap doctor; fi || true",
+  // The clone setup, which fails the create if it fails; then the pap and
+  // spec-review plugins, each saying so if it cannot install (offline, say);
+  // then pap doctor to show what is left (gh auth login, and claude's own
+  // sign-in, are yours), whose result never fails the create. bin/pap is
+  // pap's own checkout, which pins no pap of its own.
+  "postCreateCommand": "mise trust && mise install && mise run setup && { for p in pap spec-review; do claude plugin install \"$p\" --marketplace blairforce1/pap || echo \"postCreate: could not install the $p plugin; pap doctor says how\"; done; if command -v pap >/dev/null 2>&1; then pap doctor; else sh bin/pap doctor; fi || true; }",
   "customizations": {
     "vscode": {
       // The same list as .vscode/extensions.json; see the base README.
