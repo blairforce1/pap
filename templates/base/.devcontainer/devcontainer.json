@@ -18,10 +18,14 @@
     "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2": {
       "version": "os-provided"
     },
-    // github-cli 1.1.2.
-    "ghcr.io/devcontainers/features/github-cli@sha256:7c409bf6316ffd85f04fd92fba85a744282639e603417dd4796409866bdb6805": {
-      "version": "2.101.0"
-    }
+    // Anthropic's feature: it installs Node.js from the distribution or
+    // NodeSource when the image has none, then the latest Claude Code from
+    // npm, which updates itself from there. The feature's script is pinned;
+    // the Claude Code release is not, by Anthropic's design. gh and jq come
+    // from mise (.config/mise/conf.d/base.toml). The version comment stays
+    // on the line above the reference, where Renovate reads it.
+    // claude-code 1.0.5.
+    "ghcr.io/anthropics/devcontainer-features/claude-code@sha256:cfc2e7d3e9fd3b9b01f8d5cb158508a884c8c0ede2e23ed10f32dea5d4ffe69a": {}
   },
   "containerUser": "vscode",
   "remoteUser": "vscode",
@@ -39,7 +43,11 @@
   // A no-op under Docker. Then mise 2026.5.12: no official mise feature
   // exists, and the community one fetches unpinned helpers at build time.
   "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh",
-  "postCreateCommand": "mise trust && mise install && mise run setup",
+  // The clone setup, then the pap and spec-review plugins, then pap doctor
+  // to show what is left (gh auth login, and claude's own sign-in, are
+  // yours). doctor's result never fails the create. bin/pap is pap's own
+  // checkout, which pins no pap of its own.
+  "postCreateCommand": "mise trust && mise install && mise run setup && claude plugin install pap --marketplace blairforce1/pap && claude plugin install spec-review --marketplace blairforce1/pap; if command -v pap >/dev/null 2>&1; then pap doctor; else sh bin/pap doctor; fi || true",
   "customizations": {
     "vscode": {
       // The same list as .vscode/extensions.json; see the base README.
