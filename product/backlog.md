@@ -4,7 +4,7 @@ Hypotheses, not features. Ordered by value and risk. Rewritten when findings com
 
 This file is the backlog (decision 0011). An issue may propose an item; the item exists once it is merged here. Every change names one of these in its `intent.md`, or says it is reactive and why.
 
-Last reviewed: 2026-10-30
+Last reviewed: 2026-11-05
 
 ## Recommended first slice
 
@@ -33,6 +33,15 @@ Related: vision §How we will know; process 5.11. Class: feature
 **H-011** We believe a spec whose acceptance scenarios are written in a shared domain vocabulary and bound to tests will produce conformance to the spec that is checked rather than judged, measured by `fix:` or `revert:` pull requests merged within 14 days that touch a file a scenario-carrying change changed (decision 0017).
 Related: process 5.4, 5.6, 5.8; decision 0017. Class: feature
 Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with scenarios and the process amendments; the binding check (rule 17.1); `pr-checks` for rules 17.3 and 17.4; a vocabulary pass in `spec-review-qa`; executed runners in the dotnet and go layers. The first three ship in one release, the intervention's boundary. `/spec` reads `intent.md`, so H-005's `/intent` comes first; rule 17.2 needs its `/findings`.
+
+**H-012** We believe a packaged project-manager role (a `/pap:pm` skill, a `pap:member` agent, tracker and brief templates) will produce changes run through cycles with less rework and no work lost to a shutdown, measured by cycles that get a message after their first report (decision 0018).
+Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
+Built in slices: `/pap:pm` (`start`, `launch`, `event`, `pause`, `relaunch`, `audit`, the last classifying each rule as project or general); the `pap:member` agent definition; the tracker and brief templates (the state file with its PAP candidates section); the PM console, designed separately. The first three ship in one release, the intervention's boundary.
+
+**H-013** We believe a cycle with two members, a developer and a QA, will produce less rework than a one-member cycle with a fresh-context review before its pull request (decision 0019, proposed in a parallel pull request), measured by messages to a cycle after its first report and by tokens on the cycles that got one (the one-member median today is 690k, decision 0018), over a handful of real changes on each arm; the second member stays only if it beats the review arm on both.
+Related: decisions 0002, 0018, 0019; H-012. Class: feature
+Method: a role is added only when its measurement wins; the arm without it is the control, as Anthropic's guidance on folding subagents into the main loop has it (decision 0018, evidence).
+Before the trial: decision 0002's stop, which `CLAUDE.md` states as one pull request per agent context, has to be restated as one pull request per cycle; that is a later decision, not part of 0018.
 
 ## Unranked
 

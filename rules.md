@@ -145,3 +145,52 @@ The spec of a feature, security-sensitive or bugfix change adds or changes at le
 
 - Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
 - Enforced by: Nothing yet. Planned: `/spec` writes them, and `pr-checks` refuses a spec pull request of those classes that touches no scenario.
+
+### 18.1 The project-manager session opens, approves and merges nothing
+
+A session that launches cycles opens no change pull request (process housekeeping the human asks for excepted), adds no `owner-reviewed`, writes no `Approved-by:`, merges nothing, writes no GitHub or repository settings, and does no act a hook refused a cycle.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md) and [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
+- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:member` agent is the only route to `/change` under it.
+
+### 18.2 A cycle is launched after a restated yes
+
+Before a cycle is launched, the event log carries the ask restated in one line and the human's yes to it.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses to launch a cycle whose slug has no restate event in the log.
+
+### 18.3 The tracker is committed on every event
+
+The state file and the event log are committed on every launch, postmortem, message to a cycle, pause, relaunch, merge, decision and audit, and only the project-manager session writes them.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm event` writes and commits in one step; `/pap:pm start` and `relaunch` refuse a tracker with uncommitted changes.
+
+### 18.4 An audit every five merged change PRs and at every relaunch
+
+The event log carries an audit within five merged change PRs of the last one and one at every relaunch, and every finding names a fix.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm` reports an overdue audit on every `event`, as `pap revisits` reports a due revisit (rule 10.1); it reports and never blocks.
+
+### 18.5 A general lesson reaches PAP only as a change
+
+Every rule an audit writes is classified as project or general. A general one goes on the tracker's PAP candidates list (the rule, the miss as numbers, the date), due at three candidates or when the oldest is 30 days old, and reaches PAP only through a cycle's `/change` there after the human's yes, rewritten without its project. The project-manager session writes nothing in PAP.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm audit` records no finding whose rule is unclassified and files a general one on the list; `/pap:pm` reports a due list on every `event`, as rule 18.4's overdue audit, and never blocks. The upstream diff gets what every PAP pull request gets (gitleaks, pr-checks) and nothing more.
+
+### 18.6 Three send-backs end a cycle
+
+After the third message asking for changes since its first report, a cycle stops and starts its reply with `ASK:`, and the event log carries the return to the human. A fix round re-checks the diff since the last report only and repeats no earlier finding.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm event` counts the messages to a cycle after its first report and refuses to log a fourth without a decision event beside it; the `pap:member` agent definition carries the `ASK:` line and the diff-since-last-report rule.
+
+### 18.7 Every brief carries a budget
+
+A cycle's brief names its budget in tokens or wall time, set from the last audit's medians; at the cap the cycle stops at its nearest safe point and ends with `PAUSED:` and what is left.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses a brief without a budget line; `/pap:pm audit` reports the medians the next budgets are set from; the `pap:member` agent definition carries the stop at the cap.
