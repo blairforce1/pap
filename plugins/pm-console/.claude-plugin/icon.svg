@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bezel" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#14294a"/>
+      <stop offset="1" stop-color="#01060f"/>
+    </radialGradient>
+    <radialGradient id="lens" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff6c2"/>
+      <stop offset="0.06" stop-color="#ffd35a"/>
+      <stop offset="0.16" stop-color="#ff7a1a"/>
+      <stop offset="0.38" stop-color="#ff1d2e"/>
+      <stop offset="0.70" stop-color="#9a0716"/>
+      <stop offset="1" stop-color="#1c0306"/>
+    </radialGradient>
+    <linearGradient id="glare" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="246" fill="#06172c"/>
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#d9dde2" stroke-width="12"/>
+  <path d="M42 256 A214 214 0 0 1 470 256" fill="none" stroke="#ff1d2e" stroke-width="12"/>
+  <circle cx="256" cy="256" r="190" fill="url(#bezel)"/>
+  <circle cx="256" cy="256" r="150" fill="url(#lens)"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#000000" stroke-opacity="0.6" stroke-width="6"/>
+  <path d="M146 196 A124 124 0 0 1 366 196 A140 110 0 0 0 146 196 Z" fill="url(#glare)"/>
+  <path d="M206 236 A60 60 0 0 1 306 236" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="4" stroke-linecap="round"/>
+  <path d="M222 246 A40 40 0 0 1 290 246" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="300" cy="214" r="9" fill="#ffffff"/>
+</svg>
