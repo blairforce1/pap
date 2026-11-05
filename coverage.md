@@ -18,7 +18,7 @@ the rest of the line. An ID with no line is uncovered.
 - P-attribution: H-005
 - P-verification: rule 4.1
 - P-experiments: rule 1.1, rule 1.2, rule 10.1, H-010
-- P-gates: rule 4.1, rule 5.1
+- P-gates: rule 4.1, rule 5.1, rule 22.1
 - S-invariants: rule 4.1
 - S-backlog: rule 11.1
 - S-change: rule 11.2

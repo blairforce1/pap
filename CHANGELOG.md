@@ -167,6 +167,17 @@ not carry.
   answered, and Verification carries the review's row. Rule 19.1, taught by
   the skill and enforced by nothing yet. The control arm for backlog H-013
   (decision 0018).
+- Decision 0022 (proposed): no branch takes a force push. Rule 22.1, with
+  two enforcers, because agents push with the human's own credentials. A
+  second ruleset, `.github/rulesets/all-branches.json`: `non_fast_forward`
+  on every branch, no bypass actors, Renovate's and Dependabot's branches
+  excluded, creating and deleting branches still allowed. `pap repo apply`
+  creates or restores it; `pap repo status` reports it, and a disabled one
+  as drift, which is how the deliberate override shows. And
+  `scripts/guard-branch.sh push-args`, which the `PreToolUse` hook runs on
+  an agent's `git push`, refuses `--force`, `-f`, `--force-with-lease`,
+  `--force-if-includes` and `+<refspec>` on any branch; a person at a
+  terminal is unaffected.
 
 #### Changed
 

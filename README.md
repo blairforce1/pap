@@ -54,7 +54,7 @@ Decision 0018 (proposed in [#81](https://github.com/blairforce1/pap/pull/81)) re
 | `plugins/pm-console/`                 | A Claude Code plugin for the project-manager session: a pane with the cycle inbox (what each cycle asks of you, grouped by pull request), the running cycles, each repository's PAP state and CI timings, and a status line.              |
 | `bin/pap`                             | The `pap` CLI: `init` and `sync` apply the template layers, `repo` and `codeowners` configure GitHub, `doctor` checks the local machine.                                                                                                  |
 | `scripts/`                            | Guards shared by the git hooks and the Claude Code hooks, the template assembler and the release script.                                                                                                                                  |
-| `.github/rulesets/`                   | The branch ruleset applied to every repo that adopts the process.                                                                                                                                                                         |
+| `.github/rulesets/`                   | The branch rulesets applied to every repo that adopts the process: `main` (pull requests only) and `all-branches` (no force push, decision 0022).                                                                                         |
 | `lefthook.yml`, `mise.toml`           | Pinned local tooling. `mise install && lefthook install` is the whole setup.                                                                                                                                                              |
 
 ## Status
