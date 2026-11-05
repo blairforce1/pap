@@ -144,7 +144,7 @@ A pull request that edits `features/` changes a `changes/<slug>/spec.md` in the 
 The spec of a feature, security-sensitive or bugfix change adds or changes at least one scenario; a bugfix's scenario fails before the fix.
 
 - Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
-- Enforced by: Nothing yet. Planned: `/spec` writes them, and `pr-checks` refuses a spec pull request of those classes that touches no scenario.
+- Enforced by: Nothing yet. Taught by the `/spec` skill ([`plugins/pap/skills/spec/SKILL.md`](plugins/pap/skills/spec/SKILL.md)), which writes them (0021). Planned: `pr-checks` refuses a spec pull request of those classes that touches no scenario.
 
 ### 18.1 The project-manager session opens, approves and merges nothing
 
@@ -201,3 +201,17 @@ Before `/change` opens its draft pull request, a read-only subagent given only t
 
 - Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md)
 - Enforced by: Nothing yet. Taught by the `/change` skill ([`plugins/pap/skills/change/SKILL.md`](plugins/pap/skills/change/SKILL.md), step 5); nothing refuses a pull request whose Verification lacks the row.
+
+### 21.1 A spec is accepted by a recorded yes after review, before the code
+
+A change's `changes/<slug>/spec.md` records the human's yes (`accepted-by:`, `accepted-on:`), given after every spec review finding has a disposition recorded in `changes/<slug>/reviews/`, and is committed on `change/<slug>` after `intent.md` and before any code; the one pull request carries them in that order, and a commit to `spec.md` after code exists is spec rework, with its reason in the commit message.
+
+- Decision: [0021](decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md), with [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)
+- Enforced by: Nothing yet. Taught by the `/spec` skill ([`plugins/pap/skills/spec/SKILL.md`](plugins/pap/skills/spec/SKILL.md)), which writes no acceptance line without the yes, and by the `/change` skill's step 3, which builds to the spec. Planned: the reusable `pr-checks` workflow checks that a pull request with a `Change:` line of class feature, infra, security-sensitive or bugfix carries `spec.md` with the acceptance lines and a `reviews/` file, and that `spec.md`'s first commit follows `intent.md`'s and precedes the first commit outside `changes/`, `features/` and `product/`.
+
+### 21.2 A feature, infra or security-sensitive spec designs its operation
+
+The `spec.md` of a feature, infra or security-sensitive change has an Operations section with Signals (one per success measure in the intent), Good (the control band and its window), Wrong (what a breach looks like, how fast it is noticed, the first checks), Undo (revert the merge, a flag off or a config rollback, with the steps for anything outside git) and at least one operational scenario in Given/When/Then; the pull request's "How to revert" is the Undo.
+
+- Decision: [0021](decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md)
+- Enforced by: Nothing yet. Taught by the `/spec` skill ([`plugins/pap/skills/spec/SKILL.md`](plugins/pap/skills/spec/SKILL.md), step 5) and the `/change` skill's step 6, whose body template carries "How to revert". Planned: the reusable `pr-checks` workflow refuses a pull request of those classes whose `spec.md` lacks the four headings.
