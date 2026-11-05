@@ -184,5 +184,78 @@ run 0001
   ! grep -q '^Head to approve' "$FAKE_BODY"
 result $? "risk mode: box unticked with Risk: high" "exit $rc; $out; $(cat "$FAKE_BODY")"
 
+# The Repository line, and --repo. A second fixture repository with its own
+# 0001 and 0002; the cwd stays the first one.
+git init -q --bare -b main "$T/other-origin.git"
+git clone -q "$T/other-origin.git" "$T/other" 2> /dev/null
+(
+  cd "$T/other" || exit 1
+  git config user.name test
+  git config user.email test@example.invalid
+  git config commit.gpgsign false
+  mkdir decisions
+  record 0001 proposed
+  record 0002 proposed
+  record 0003 proposed
+  sed -i '1s/.*/# 0001. The other repository record/' decisions/0001-example-0001.md
+  git add decisions
+  git commit -q -m records
+  git push -q origin main
+)
+cd "$T/repo" || exit 1
+tb="$(basename "$T")"
+accept_refs() { git -C "$1" for-each-ref --format='%(refname:short)' 'refs/heads/change/accept-*' | tr '\n' ' '; }
+
+run 0099
+[ "$(printf '%s\n' "$out" | sed -n 1p)" = "Repository: $tb/origin ($T/repo)" ] &&
+  printf '%s\n' "$out" | sed -n 2p | grep -q '^refused: no decision record 0099'
+result $? "the Repository line is the first line, owner/name and path, even on a refusal" "$out"
+
+run --repo "$T/other" 0099
+[ "$rc" = 0 ] && [ "$(printf '%s\n' "$out" | sed -n 1p)" = "Repository: $tb/other-origin ($T/other)" ]
+result $? "--repo names the given checkout on the first line" "exit $rc; $out"
+
+before="$(accept_refs "$T/repo")"
+run --repo "$T/other" 0001
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '0001\. The other repository record' &&
+  [ "$(accept_refs "$T/other")" = "change/accept-0001 " ] && [ "$(accept_refs "$T/repo")" = "$before" ] &&
+  [ "$(git -C "$T/other-accept-0001" branch --show-current)" = change/accept-0001 ]
+result $? "--repo acts on the given repository (worktree, branch, PR), not the cwd one" "exit $rc; $out"
+
+# owner/name from the usual origin URL forms.
+for u in git@github.com:example/repo.git https://github.com/example/repo https://github.com/example/repo.git/; do
+  git -C "$T/other" remote set-url origin "$u"
+  run --repo "$T/other"
+  [ "$(printf '%s\n' "$out" | sed -n 1p)" = "Repository: example/repo ($T/other)" ]
+  result $? "owner/name from origin $u" "$out"
+done
+git -C "$T/other" remote set-url origin "$T/other-origin.git"
+
+run --repo "$T/nowhere" 0002
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q "^refused: --repo '$T/nowhere' is not a directory" && [ ! -s "$FAKE_LOG" ]
+result $? "a --repo that is not a directory is refused" "exit $rc; $out"
+mkdir "$T/plain"
+run --repo "$T/plain" 0002
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: not inside a git repository' && [ ! -s "$FAKE_LOG" ]
+result $? "a --repo that is not a git checkout is refused" "exit $rc; $out"
+git init -q "$T/noorigin"
+run --repo "$T/noorigin" 0002
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: .* has no origin remote' && [ ! -s "$FAKE_LOG" ]
+result $? "a --repo checkout with no origin is refused" "exit $rc; $out"
+run --repo
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: --repo needs a path'
+result $? "--repo without a path is refused" "exit $rc; $out"
+
+run 0002 --repo "$T/other"
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^Opened .* from change/accept-0002' && [ -d "$T/other-accept-0002" ]
+result $? "ids before --repo work" "exit $rc; $out"
+git -C "$T/other" checkout -q main
+run --repo "$T/other" 0003
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^Opened .* from change/accept-0003' && [ -d "$T/other-accept-0003" ]
+result $? "ids after --repo work" "exit $rc; $out"
+one="$(sh "$script" "--repo $T/other 0001" 2>&1 | sed -n 1p)"
+printf '%s' "$one" | grep -q "^Repository: .* ($T/other)\$"
+result $? "--repo inside the single word the skill passes" "$one"
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

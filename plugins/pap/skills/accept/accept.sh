@@ -5,10 +5,18 @@
 # The /pap:accept skill runs it when a person invokes the skill; the model
 # never decides to accept a record, and an agent never runs this script.
 #
-# Usage: accept.sh <NNNN> [NNNN ...]
-#        accept.sh "<NNNN> [NNNN ...]"    one word, as a skill may pass it
+# Usage: accept.sh [--repo <path>] <NNNN> [NNNN ...]
+#        accept.sh "[--repo <path>] <NNNN> [NNNN ...]"    one word, as a skill may pass it
 #
-# In the current repository: fetches origin and finds each record as
+# The first line printed names the repository acted on, `Repository:
+# owner/name (path)`, so a wrong one is seen at once. That is the current
+# repository, or the checkout given with --repo (before or after the ids),
+# which is refused unless it is a git checkout with an origin. The script
+# enters it in its own process; the caller's directory is untouched. The skill
+# passes its arguments as one word that is split on spaces, so a --repo path
+# with a space needs the script run directly.
+#
+# In that repository: fetches origin and finds each record as
 # decisions/<NNNN>-*.md on origin/main. Refuses, saying why and changing
 # nothing, when an id is not four digits, when no record has it, when the
 # record is not on origin/main yet, when its Status is not `proposed`, or
@@ -23,14 +31,43 @@
 # a git or gh failure exits 1. Ids are checked before any use.
 set -u
 
-usage='usage: /pap:accept <NNNN> [NNNN ...]'
+usage='usage: /pap:accept [--repo <path>] <NNNN> [NNNN ...]'
 refuse() { printf 'refused: %s\n' "$1"; exit 0; }
 fail() { printf '%s\n' "$1" >&2; exit 1; }
 here="$(cd "$(dirname "$0")" && pwd)"
 
-# One word holding every id is split here, on purpose.
+# One word holding every argument is split here, on purpose.
 # shellcheck disable=SC2086
 if [ "$#" -eq 1 ]; then set -- $1; fi
+# --repo <path> may come before or after the ids; the rest are ids.
+repo=""
+ids=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --repo)
+      [ "$#" -ge 2 ] || refuse "--repo needs a path. $usage"
+      repo="$2"
+      shift 2 ;;
+    *) ids="$ids $1"; shift ;;
+  esac
+done
+# shellcheck disable=SC2086
+set -- $ids
+case "$repo" in "~"/*) repo="$HOME/${repo#"~"/}" ;; esac
+
+if [ -n "$repo" ]; then
+  [ -d "$repo" ] || refuse "--repo '$repo' is not a directory."
+  cd "$repo" || refuse "cannot enter --repo '$repo'."
+fi
+git rev-parse --git-dir > /dev/null 2>&1 || refuse "not inside a git repository."
+top="$(git rev-parse --show-toplevel)"
+cd "$top" || fail "cannot enter $top."
+origin="$(git remote get-url origin 2> /dev/null)" || refuse "$top has no origin remote."
+name="$(printf '%s\n' "$origin" | sed 's#/*$##; s#\.git$##; s#.*[:/]\([^/:]*/[^/]*\)$#\1#')"
+shown="$top"
+case "$top" in "$HOME"/*) shown="~${top#"$HOME"}" ;; esac
+printf 'Repository: %s (%s)\n' "$name" "$shown"
+
 [ "$#" -ge 1 ] || refuse "$usage"
 for id in "$@"; do
   case "$id" in [0-9][0-9][0-9][0-9]) ;; *) refuse "'$id' is not a four-digit record number. $usage" ;; esac
@@ -38,9 +75,6 @@ done
 # shellcheck disable=SC2046
 set -- $(printf '%s\n' "$@" | sort -u)
 
-git rev-parse --git-dir > /dev/null 2>&1 || refuse "not inside a git repository."
-top="$(git rev-parse --show-toplevel)"
-cd "$top" || fail "cannot enter $top."
 # The default branch is main, as the /change worktree script assumes.
 git fetch -q origin || fail "git could not fetch origin."
 git rev-parse -q --verify refs/remotes/origin/main > /dev/null || fail "no origin/main."
