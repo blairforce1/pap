@@ -110,7 +110,8 @@ docs               intent and human review only
 - On Enter, a line with a bad slug, a bad or missing class is refused before
   the skill runs, with the reason; `process` says
   `not a class; process records use infra`. The skill's own argument check
-  stays as the backstop (a hook that fails lets the prompt through).
+  stays as the backstop: a hook that fails lets the prompt through, and a
+  command run as a fork raises no `prompt.submit`, so it is not checked.
 - If `change/<slug>` already exists as a local or remote branch
   (`git branch -a` in the session's directory), the band warns and Enter
   toasts that the skill will resume it; it does not refuse. Outside a git

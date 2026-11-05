@@ -83,22 +83,34 @@ function classProblem(t: Token): string {
 const slugProblem = (t: Token) => (SLUG_OK.test(t.word) ? '' : 'a slug takes only letters, digits, ".", "_" and "-"')
 
 // Warn, never refuse, when change/<slug> is already a branch here or on a remote.
-async function checkBranch($: EngineInterface, slug: string) {
+// One run per slug while typing; `fresh` (at submit) asks git again.
+let branchRun: { slug: string; done: Promise<boolean> } | undefined
+async function checkBranch($: EngineInterface, slug: string, fresh = false) {
   const known = await read($, branchHit)
-  if (known?.slug === slug) return known.exists
+  if (!fresh && known?.slug === slug) return known.exists
+  if (!fresh && branchRun?.slug === slug) return branchRun.done
+  const done = gitHasChangeBranch($, slug)
+  branchRun = { slug, done }
+  const exists = await done
+  await update($, branchHit, () => ({ slug, exists }))
+  return exists
+}
+
+async function gitHasChangeBranch($: EngineInterface, slug: string) {
   let exists = false
   try {
-    const ran = await $.process.run(['git', 'branch', '-a', '--format=%(refname:short)'], {
+    const ran = await $.process.run(['git', 'branch', '-a', '--format=%(refname)'], {
       cwd: await $.session.cwd(),
       timeoutMs: 10_000,
     })
     if (ran.exitCode === 0) {
-      exists = ran.stdout.split('\n').some(b => b.trim() === `change/${slug}` || b.trim().endsWith(`/change/${slug}`))
+      const local = `refs/heads/change/${slug}`
+      const remote = new RegExp(`^refs/remotes/[^/]+/change/${slug.replace(/[.]/g, '\\.')}$`)
+      exists = ran.stdout.split('\n').some(b => b.trim() === local || remote.test(b.trim()))
     }
   } catch {
     // Not a git repository, or no git: say nothing.
   }
-  await update($, branchHit, () => ({ slug, exists }))
   return exists
 }
 
@@ -321,13 +333,13 @@ const toolText = (text: string) => ({ result: text })
 
 // `/pm exit`: the PM pauses everything, then the console puts /exit in the prompt box.
 const STORE_UNSAFE_EXIT = 'unsafe-exit'
+const STORE_EXIT_READY = 'exit-ready'
 const EXIT_PROMPT = [
-  'The Project Lead typed `/pm exit`: they want to stop. Run the pause protocol now, then hand back.',
+  'The Project Lead typed `/pm exit`: they want to stop. Run the pause protocol now, then hand back. Ask nothing else first; keep the final message short.',
   '1. Send `PAUSE` to every running cycle (background agent) and wait for each `PAUSED:` reply with its save point.',
   '2. Record every pause and what is next in the tracker; commit and push it. A failed push is not safe: say so.',
   "3. Update the save point in the PM's memory: what is running, the open pull requests, the resume order.",
   '4. Last, and never skipped: call the pm-console tool `exit_ready`, `ok: true` when all of it is done and pushed, else `ok: false` with what is not. Without that call the Project Lead is never told it is safe to exit.',
-  'Ask nothing else first. Keep the final message short.',
 ].join('\n')
 const isRunning = (status: string) => ['running', 'pending', 'waiting'].includes(status)
 
@@ -354,6 +366,7 @@ export const register: Register = on => {
       ])
       await $.store.delete(STORE_UNSAFE_EXIT)
     }
+    await $.store.delete(STORE_EXIT_READY)
 
     await $.command.register({
       name: 'pm',
@@ -501,6 +514,8 @@ export const register: Register = on => {
       void refreshStatus($)
       return toolText('Told the Project Lead it is not safe yet; /exit not offered.') as never
     }
+    // The pause ran: paused cycles may still list as waiting, so the safety net stands down.
+    await $.store.set(STORE_EXIT_READY, Date.now())
     await $.prompt.fill({ text: '/exit' })
     $.ui.toast('Safe to exit: press Enter')
     $.ui.status('PM ▸ paused and saved · press Enter to exit')
@@ -510,7 +525,7 @@ export const register: Register = on => {
   // Safety net: an exit without `/pm exit` while cycles run is noted for the next session.
   on('session.end', async ($, e, next) => {
     try {
-      if (e.reason !== 'clear') {
+      if (e.reason !== 'clear' && !(await $.store.get(STORE_EXIT_READY))) {
         const running = (await $.agent.list()).filter(a => !a.parentId && isRunning(a.status)).map(a => a.description)
         if (running.length) await $.store.set(STORE_UNSAFE_EXIT, { at: Date.now(), running })
       }
@@ -554,7 +569,7 @@ export const register: Register = on => {
     }
     if (slugProblem(slug)) return { drop: `"${slug.word}": ${slugProblem(slug)}` }
     if (classProblem(cls)) return { drop: `"${cls.word}": ${classProblem(cls)}` }
-    if (await checkBranch($, slug.word)) $.ui.toast(`change/${slug.word} already exists; the skill will resume it`)
+    if (await checkBranch($, slug.word, true)) $.ui.toast(`change/${slug.word} already exists; the skill will resume it`)
     return next(e)
   })
 
@@ -570,12 +585,12 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Text dimColor>{`/${line.command} <slug> <class>: the class sets the ceremony`}</Text>
         {CLASSES.map(([c, note]) => (
-          <Text>
+          <Text key={`class-${c}`}>
             <Text bold={c === typed} color={c === typed ? 'success' : undefined}>{`${c.padEnd(19)}`}</Text>
             <Text dimColor>{cut(note, Math.max(10, width - 20))}</Text>
           </Text>
         ))}
-        {problems.map(p => <Text color="error">{cut(String(p), width)}</Text>)}
+        {problems.map((p, n) => <Text key={`problem-${n}`} color="error">{cut(String(p), width)}</Text>)}
         {hit && hit.exists && hit.slug === line.slug?.word && (
           <Text color="warning">{cut(`change/${hit.slug} already exists: the skill resumes it`, width)}</Text>
         )}

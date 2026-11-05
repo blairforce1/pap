@@ -1,4 +1,5 @@
-import { expect, test } from 'claude-code/testing'
+import type { PromptEditInput, PromptEditResult } from 'claude-code'
+import { expect, mock, test } from 'claude-code/testing'
 
 const BAND = {
   plugin: 'pm-console',
@@ -41,7 +42,9 @@ test('a change command with a valid class goes through', async ($, on) => {
   })
   // Not a git repository: the branch check says nothing.
   on('session.cwd', () => ({ value: '/' }))
-  on('process.run', () => ({ value: { exitCode: 128, stdout: '', stderr: 'not a git repository' } }))
+  on('process.run', () => ({
+    value: { exitCode: 128, stdout: '', stderr: 'not a git repository', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
 
   const sent = await $.prompt.submit(submit('pap:change', 'acme-widgets feature add the widget list'))
 
@@ -59,8 +62,10 @@ test('the class band shows while /intent is typed, and not otherwise', async ($,
     return <Text>engine</Text>
   })
 
+  // The kit raises prompt.edit, but its typings list no call for it.
+  const raise = ($.prompt as unknown as { edit: (e: PromptEditInput) => Promise<PromptEditResult> }).edit
   const edit = (text: string, inputText: string) =>
-    $.prompt.edit({ origin: { kind: 'composer' }, text, cursor: text.length, start: text.length, end: text.length, inputText })
+    raise({ origin: { kind: 'composer' }, text, cursor: text.length, start: text.length, end: text.length, inputText })
 
   for (const surface of ['terminal', 'desktop'] as const) {
     await edit('', 'hello')
@@ -78,6 +83,7 @@ test('the class band shows while /intent is typed, and not otherwise', async ($,
 
 test('exit_ready true puts /exit in the prompt box', async ($, on) => {
   let filled = ''
+  mock.store(on)
   on('prompt.fill', (_, e) => {
     filled = e.text
     return { isFilled: true }
