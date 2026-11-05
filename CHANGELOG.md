@@ -2,9 +2,30 @@
 
 All notable changes to the plugins in this marketplace are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-spec-review is versioned on its own. From 0.5.0 the pap plugin shares the
-repository's one tag series, `v<x.y.z>`, with the CLI and templates;
-`mise run release` refuses a version the two plugin manifests do not carry.
+spec-review and pm-console are versioned on their own. From 0.5.0 the pap
+plugin shares the repository's one tag series, `v<x.y.z>`, with the CLI and
+templates; `mise run release` refuses a version the two plugin manifests do
+not carry.
+
+## pm-console
+
+### [0.1.0] - 2026-11-05
+
+#### Added
+
+- First release: a pane beside the chat for the project-manager session of
+  decision 0018 (proposed). Tabs for the inbox (what each cycle's report asks
+  of the Project Lead, grouped by pull request, with the report and a link
+  behind each group), the running cycles, each repository's PAP state and CI
+  timings, and a status line. Tools `inbox_add`, `inbox_note`, `inbox_done`,
+  `inbox_list`, `ci_repos` and `pap_repos`. No repositories are set until
+  the PM calls `ci_repos` and `pap_repos`.
+
+#### Changed
+
+- The pane says cycles, not lanes: the tab, the rows and the README. `inbox_add`
+  takes `cycle` and still accepts `lane` as an alias; stored items keep their
+  `lane` field, so saved inboxes load.
 
 ## spec-review
 
