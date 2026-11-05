@@ -1,7 +1,7 @@
 ---
 name: change
 description: "Run one change end to end under decision 0002: a worktree on change/<slug> from a fresh main, commits as you go, local checks, a cold review, and a draft pull request with every Checks box answered, then stop. Use when the human invokes /change <slug> <class> [Record: NNNN] followed by a brief, or asks to make a change, open a PR for a task, or work on a change branch in a repository that adopts PAP. It replaces the re-typed per-change preamble; the brief says only what to build."
-argument-hint: "<slug> <class> [Record: NNNN] then the brief"
+argument-hint: "<slug> <feature|infra|security-sensitive|bugfix|spike|chore|docs> [Record: NNNN] <brief>"
 ---
 
 # Change

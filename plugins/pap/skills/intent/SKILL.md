@@ -1,7 +1,7 @@
 ---
 name: intent
 description: "Interview the human to write the accepted intent for one change (decision 0020): read the product layer, ask in small batches, challenge the hypothesis, the success measure, the non-goals, the invariants and the class, restate the intent in process 5.3's sections, and on the human's yes write and commit changes/<slug>/intent.md on change/<slug>, then hand on to the spec. Use when the human invokes /intent <slug> <class> followed by what they want, or asks to write, draft, sharpen or review an intent for a change in a repository that adopts PAP. Runs in the main session only; a background agent cannot interview."
-argument-hint: "<slug> <class> then what you want, in your own words"
+argument-hint: "<slug> <feature|infra|security-sensitive|bugfix|spike|chore|docs> <ask>"
 ---
 
 # Intent
