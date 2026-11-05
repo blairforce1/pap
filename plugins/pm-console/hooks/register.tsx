@@ -6,10 +6,14 @@
 // - Cycles: this session's background agents, live from $.agent.list().
 // - CI: average and slowest run time per workflow, from `gh run list`.
 // - Status line: one summary of all three.
+// - Class band: while a change command (/intent, /change, /spec, /pap:pm launch)
+//   is typed, a band above the prompt lists the classes; a bad class or slug
+//   is painted red and refused at submit.
+// - /pm exit: the PM pauses every cycle and saves, then /exit is put in the box.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { CiRow, CiStats, InboxItem, LaneRow, PapRow, PapStats } from '../types'
+import type { BranchHit, CiRow, CiStats, InboxItem, LaneRow, PapRow, PapStats } from '../types'
 
 const PANE = 'pm-console'
 const PLUGIN = 'pm-console'
@@ -33,6 +37,70 @@ const TABS = [
   ['ci', 'CI', '4'],
 ] as const
 const groupOf = (i: InboxItem) => i.ref || `cycle ${i.lane}`
+
+// The change classes, each with the ceremony it gets (process section 4; chore from decision 0017).
+const CLASSES = [
+  ['feature', 'full spec, review per touched invariant'],
+  ['infra', 'reliability and ops review; protected paths'],
+  ['security-sensitive', 'full reviewer set, acceptance tests'],
+  ['bugfix', 'light spec, cites the defect, adds an eval'],
+  ['spike', 'intent and findings only; no spec, no deploy'],
+  ['chore', 'upkeep; no scenarios'],
+  ['docs', 'intent and human review only'],
+] as const
+const CLASS_NAMES: readonly string[] = CLASSES.map(c => c[0])
+// Words people reach for that are not classes, with what to use instead.
+const NOT_A_CLASS: Record<string, string> = { process: 'not a class; process records use infra' }
+const SLUG_OK = /^[A-Za-z0-9._-]+$/
+const draftRef = { plugin: 'pm-console', key: 'draft' } as const
+const draft = atom(draftRef, '')
+const branchRef = { plugin: 'pm-console', key: 'branch' } as const
+const branchHit = atom(branchRef, { slug: '', exists: false } as BranchHit)
+
+type Token = { word: string; start: number; end: number; isDone: boolean }
+type ChangeLine = { command: string; slug?: Token; cls?: Token }
+
+// `/change <slug> <class> ...` and its kin; undefined for any other draft.
+function parseChangeLine(text: string): ChangeLine | undefined {
+  const head = /^\/(?:pap:)?(intent|change|spec) |^\/pap:pm launch /.exec(text)
+  if (!head) return undefined
+  const words: Token[] = []
+  const re = /\S+/g
+  re.lastIndex = head[0].length
+  for (let m = re.exec(text); m && words.length < 2; m = re.exec(text)) {
+    const end = m.index + m[0].length
+    words.push({ word: m[0], start: m.index, end, isDone: end < text.length })
+  }
+  return { command: head[1] ?? 'pm launch', slug: words[0], cls: words[1] }
+}
+
+// Why a class token is wrong, or '' when it is fine (or may still become a class as it is typed).
+function classProblem(t: Token): string {
+  if (CLASS_NAMES.includes(t.word)) return ''
+  if (!t.isDone && CLASS_NAMES.some(c => c.startsWith(t.word))) return ''
+  return NOT_A_CLASS[t.word] ?? `not a class; the classes are ${CLASS_NAMES.join(', ')}`
+}
+const slugProblem = (t: Token) => (SLUG_OK.test(t.word) ? '' : 'a slug takes only letters, digits, ".", "_" and "-"')
+
+// Warn, never refuse, when change/<slug> is already a branch here or on a remote.
+async function checkBranch($: EngineInterface, slug: string) {
+  const known = await read($, branchHit)
+  if (known?.slug === slug) return known.exists
+  let exists = false
+  try {
+    const ran = await $.process.run(['git', 'branch', '-a', '--format=%(refname:short)'], {
+      cwd: await $.session.cwd(),
+      timeoutMs: 10_000,
+    })
+    if (ran.exitCode === 0) {
+      exists = ran.stdout.split('\n').some(b => b.trim() === `change/${slug}` || b.trim().endsWith(`/change/${slug}`))
+    }
+  } catch {
+    // Not a git repository, or no git: say nothing.
+  }
+  await update($, branchHit, () => ({ slug, exists }))
+  return exists
+}
 
 const STORE_INBOX = 'inbox-1'
 const STORE_REPOS = 'ci-repos'
@@ -251,14 +319,59 @@ async function refreshCi($: EngineInterface) {
 
 const toolText = (text: string) => ({ result: text })
 
+// `/pm exit`: the PM pauses everything, then the console puts /exit in the prompt box.
+const STORE_UNSAFE_EXIT = 'unsafe-exit'
+const EXIT_PROMPT = [
+  'The Project Lead typed `/pm exit`: they want to stop. Run the pause protocol now, then hand back.',
+  '1. Send `PAUSE` to every running cycle (background agent) and wait for each `PAUSED:` reply with its save point.',
+  '2. Record every pause and what is next in the tracker; commit and push it. A failed push is not safe: say so.',
+  "3. Update the save point in the PM's memory: what is running, the open pull requests, the resume order.",
+  '4. Last, and never skipped: call the pm-console tool `exit_ready`, `ok: true` when all of it is done and pushed, else `ok: false` with what is not. Without that call the Project Lead is never told it is safe to exit.',
+  'Ask nothing else first. Keep the final message short.',
+].join('\n')
+const isRunning = (status: string) => ['running', 'pending', 'waiting'].includes(status)
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const stored = (await $.store.get(STORE_INBOX)) as InboxItem[] | undefined
     if (stored && (await getInbox($)).length === 0) await update($, inbox, () => (Array.isArray(stored) ? stored : []))
 
+    // An exit that skipped the pause left cycles mid-step: put it in front of the PM and the Project Lead.
+    const unsafe = (await $.store.get(STORE_UNSAFE_EXIT)) as { at: number; running: string[] } | undefined
+    if (unsafe && unsafe.running?.length) {
+      const now = Date.now()
+      await changeInbox($, list => [
+        ...list,
+        {
+          id: `${now.toString(36)}x`,
+          text: `Last exit skipped the pause: relaunch ${unsafe.running.length} cycle(s) from their save points`,
+          lane: 'pm',
+          ref: 'exit',
+          at: now,
+          isDone: false,
+          detail: `The session ended at ${new Date(unsafe.at).toISOString()} with these cycles still running:\n${unsafe.running.map(r => `- ${r}`).join('\n')}\n\nThe PM checks each branch and save point, then relaunches. Next time use /pm exit.`,
+        },
+      ])
+      await $.store.delete(STORE_UNSAFE_EXIT)
+    }
+
     await $.command.register({
       name: 'pm',
-      description: 'Open the PM console (what cycles ask of you, cycles, CI)',
+      description: 'Open the PM console; `/pm exit` pauses every cycle and saves before you quit',
+    })
+    await $.tool.register({
+      name: 'exit_ready',
+      description:
+        'Call at the end of a `/pm exit` pause: ok true once every cycle has PAUSED and the tracker and memory are committed and pushed; ok false with what is not done. The console then puts /exit in the prompt box for the Project Lead.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ok: { type: 'boolean' },
+          note: { type: 'string', description: 'What is not done, when ok is false; a one-line summary otherwise' },
+        },
+        required: ['ok'],
+      },
+      isDeferred: false,
     })
     await $.tool.register({
       name: 'inbox_add',
@@ -354,11 +467,120 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'pm' }, async $ => {
+  on('command.run', { command: 'pm' }, async ($, e) => {
+    if (e.args.trim().toLowerCase() === 'exit') {
+      $.ui.status('PM ▸ pausing everything before exit…')
+      // Submit once the command has finished, and never silently: a dropped prompt
+      // is logged and put in the prompt box, so one Enter sends it.
+      $.clock.after(300, async () => {
+        let reason = ''
+        try {
+          const sent = await $.prompt.submit({ text: EXIT_PROMPT })
+          if ('drop' in sent && sent.drop) reason = sent.drop
+        } catch (err) {
+          reason = err instanceof Error ? err.message : String(err)
+        }
+        if (reason) {
+          $.ui.log(`pm-console: /pm exit prompt not sent: ${reason}`)
+          await $.prompt.fill({ text: EXIT_PROMPT })
+          $.ui.toast('Pause instructions are in the prompt box: press Enter')
+        }
+      })
+      return { text: 'Pausing every cycle and saving. /exit will appear in the prompt box when it is safe.' }
+    }
     await $.ui.open({ id: PANE, title: 'PM console' })
     void refreshCi($)
     void refreshPap($)
     return { text: 'PM console opened; CI and PAP figures refreshing.' }
+  })
+
+  on('tool.call', { tool: 'mcp__pm-console__exit_ready' }, async ($, e) => {
+    const input = e as unknown as { ok: boolean; note?: string }
+    if (!input.ok) {
+      $.ui.toast(`Not safe to exit yet: ${input.note ?? 'see the PM'}`)
+      void refreshStatus($)
+      return toolText('Told the Project Lead it is not safe yet; /exit not offered.') as never
+    }
+    await $.prompt.fill({ text: '/exit' })
+    $.ui.toast('Safe to exit: press Enter')
+    $.ui.status('PM ▸ paused and saved · press Enter to exit')
+    return toolText('/exit is in the prompt box; the Project Lead presses Enter.') as never
+  })
+
+  // Safety net: an exit without `/pm exit` while cycles run is noted for the next session.
+  on('session.end', async ($, e, next) => {
+    try {
+      if (e.reason !== 'clear') {
+        const running = (await $.agent.list()).filter(a => !a.parentId && isRunning(a.status)).map(a => a.description)
+        if (running.length) await $.store.set(STORE_UNSAFE_EXIT, { at: Date.now(), running })
+      }
+    } catch {
+      // Never hold up an exit.
+    }
+    return next(e)
+  })
+
+  // Class band: paint a bad slug or class red as it is typed, and keep the draft for the band.
+  on('prompt.edit', async ($, e, next) => {
+    const r = await next(e)
+    await update($, draft, () => r.text)
+    const line = parseChangeLine(r.text)
+    if (!line) return r
+    const bad = [line.slug && slugProblem(line.slug) ? line.slug : undefined, line.cls && classProblem(line.cls) ? line.cls : undefined]
+      .filter((t): t is Token => !!t)
+      .map(t => ({ start: t.start, end: t.end, color: 'error' as const }))
+    if (line.slug?.isDone && !slugProblem(line.slug)) void checkBranch($, line.slug.word)
+    return bad.length ? { ...r, decorations: [...(r.decorations ?? []), ...bad] } : r
+  })
+
+  on('prompt.change', async ($, e, next) => {
+    await update($, draft, () => e.text)
+    return next(e)
+  })
+
+  // A skill's slash command reaches prompt.submit with `command` set, before the skill
+  // is rendered, so a drop here stops it. The skill's own argument check stays the backstop.
+  on('prompt.submit', async ($, e, next) => {
+    const name = e.command?.name.replace(/^pap:/, '')
+    const args = e.command?.args ?? ''
+    const isChange = name === 'intent' || name === 'change' || name === 'spec'
+    const isLaunch = e.command?.name === 'pap:pm' && /^launch\s/.test(args)
+    if (!isChange && !isLaunch) return next(e)
+    const line = parseChangeLine(`/${isLaunch ? 'pap:pm' : name} ${args.trimStart()}\n`)
+    const slug = line?.slug
+    const cls = line?.cls
+    if (!slug || !cls) {
+      return { drop: `/${e.command?.name} needs <slug> <class>; the classes are ${CLASS_NAMES.join(', ')}` }
+    }
+    if (slugProblem(slug)) return { drop: `"${slug.word}": ${slugProblem(slug)}` }
+    if (classProblem(cls)) return { drop: `"${cls.word}": ${classProblem(cls)}` }
+    if (await checkBranch($, slug.word)) $.ui.toast(`change/${slug.word} already exists; the skill will resume it`)
+    return next(e)
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const line = parseChangeLine((await read($, draft)) ?? '')
+    if (!line || e.props.hasSurvey) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    const width = Math.max(30, (e.props as { bodyColumns?: number }).bodyColumns ?? 80)
+    const typed = line.cls?.word ?? ''
+    const hit = await read($, branchHit)
+    const problems = [line.slug && slugProblem(line.slug), line.cls && classProblem(line.cls)].filter(Boolean)
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>{`/${line.command} <slug> <class>: the class sets the ceremony`}</Text>
+        {CLASSES.map(([c, note]) => (
+          <Text>
+            <Text bold={c === typed} color={c === typed ? 'success' : undefined}>{`${c.padEnd(19)}`}</Text>
+            <Text dimColor>{cut(note, Math.max(10, width - 20))}</Text>
+          </Text>
+        ))}
+        {problems.map(p => <Text color="error">{cut(String(p), width)}</Text>)}
+        {hit && hit.exists && hit.slug === line.slug?.word && (
+          <Text color="warning">{cut(`change/${hit.slug} already exists: the skill resumes it`, width)}</Text>
+        )}
+      </Box>
+    )
   })
 
   on('agent.spawn', async ($, e, next) => {
