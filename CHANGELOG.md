@@ -142,7 +142,8 @@ not carry.
   a read-only subagent given only the brief and the branch diff reviews it,
   with `/code-review low` where that skill exists; findings are fixed or
   answered, and Verification carries the review's row. Rule 19.1, taught by
-  the skill and enforced by nothing yet. The control arm for backlog H-013.
+  the skill and enforced by nothing yet. The control arm for backlog H-013
+  (decision 0018, proposed in #81).
 
 #### Changed
 

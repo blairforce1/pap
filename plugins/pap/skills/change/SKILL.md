@@ -52,7 +52,7 @@ Run `mise run check` and `mise run test` in the worktree before opening the pull
 
 ## 5. Review cold
 
-Before opening the pull request, have the branch reviewed by a context that did not write it (decision 0019). Spawn one read-only subagent and give it only the brief and `git diff origin/main...HEAD`, not your reasoning. It runs `/code-review low` on the branch where that skill exists, reads the diff against the brief either way, edits nothing, and returns its findings. Fix each finding and commit, rerunning step 4 if the fix touched what it checks, or answer it with a reason. Verification gets one row: the review ran, its level (or that `/code-review` was not there), the findings, which were fixed, and any left with the reason.
+Before opening the pull request, have the branch reviewed by a context that did not write it (decision 0019). Spawn one read-only subagent and give it only the brief, the worktree's absolute path and the command `git -C <worktree> diff origin/main...HEAD`, not your reasoning. It runs `/code-review low` against that worktree where the skill exists, reads the diff against the brief either way, edits nothing, and returns its findings; a `/code-review` that could not see the diff counts as not available. Fix each finding and commit, rerunning step 4 if the fix touched what it checks, or answer it with a reason. Verification gets one row: the review ran, its level (or that `/code-review` was not available), the findings, which were fixed, any left with the reason, and the reviewer's tokens.
 
 ## 6. Open the draft pull request
 
