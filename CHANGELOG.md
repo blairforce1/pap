@@ -161,6 +161,13 @@ not carry.
 
 #### Added
 
+- `pap doctor` checks git, `gh` and its sign-in, `jq`, the `claude` CLI,
+  the `pap` and `spec-review` plugins and `flock` (a warning only), and
+  names the install command for each missing one on this platform: apt or
+  dnf on Linux, Homebrew on macOS, a link otherwise; WSL counts as Linux.
+  `pap doctor --fix` runs `mise trust` and `mise install` and nothing else.
+- pap's own test suite runs on macOS as well as Linux (`tests (macos)`);
+  Windows is supported through WSL2 only.
 - `docs/`: user guides for adopting and using PAP without its author:
   getting started, adopt a repository, set up the account (the `.github`
   repository, labels, Renovate), start a project, make a change, run a
@@ -249,6 +256,8 @@ not carry.
 
 #### Fixed
 
+- `scripts/gen-codeowners.sh` failed under macOS's `/bin/sh` (bash 3.2),
+  which ends a `$(...)` at a `case` pattern's parenthesis.
 - `/pap:accept` printed nothing about the repository it acted on, so a run
   from a session in another adopting repository accepted that repository's
   records of the same numbers unnoticed. Its first line is now
@@ -259,6 +268,16 @@ not carry.
 
 #### Changed
 
+- The base layer pins `gh` and `jq` through mise, so `mise install`
+  provides them. The prerequisites are now git, mise and Claude Code, then
+  `gh auth login`.
+- The base devcontainer has everything: `gh` and `jq` from mise, Node.js and
+  Anthropic's Claude Code feature (the GitHub CLI feature is gone), the
+  `pap` and `spec-review` plugins installed after create, and `pap doctor`
+  run at the end of it. Renovate reads features from any ghcr.io
+  namespace and the node feature's version option.
+- `mise run test` in pap runs every suite and names each that failed,
+  rather than stopping at the first.
 - `/change` has a new step 5, "Review cold", between the local checks and
   opening the pull request; the later steps are renumbered 6 and 7.
 - `/change` builds to `changes/<slug>/spec.md` where the branch has one
