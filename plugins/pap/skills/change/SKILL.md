@@ -1,7 +1,7 @@
 ---
 name: change
 description: "Run one change end to end under decision 0002: a worktree on change/<slug> from a fresh main, commits as you go, local checks, a cold review, and a draft pull request with every Checks box answered, then stop. Use when the human invokes /change <slug> <class> [Record: NNNN] followed by a brief, or asks to make a change, open a PR for a task, or work on a change branch in a repository that adopts PAP. It replaces the re-typed per-change preamble; the brief says only what to build."
-argument-hint: "<slug> <class> [Record: NNNN] then the brief"
+argument-hint: "<slug> <feature|infra|security-sensitive|bugfix|spike|chore|docs> [Record: NNNN] <brief>"
 ---
 
 # Change
@@ -38,10 +38,13 @@ Every later command runs in the printed path (`cd` into it, or `git -C`).
 
 Read what the brief names, plus `rules.md` and the decision records it cites for the files you will touch. Do not summarise what you read. Report only what contradicts the brief: a file or task that does not exist, a rule the brief would break, an instruction that conflicts with another. One line each, with the resolution you are taking. None found: say "No contradictions" and proceed.
 
+If `changes/<slug>/intent.md` exists on the branch (written by `/intent`, decision 0020), read it first: it is the brief's intent, and its `class` and `hypothesis` stand. A `<class>` argument or a brief that differs from it is a contradiction to report.
+
 ## 3. Build
 
 - Commit each logical step as it lands, conventional commit subject, with the co-author trailer for generated content. Never bypass a hook (rule 5.1); a failing hook is fixed or handed to the human.
 - Stay in scope. Protected paths the brief names are not touched; `tests/` may gain tests unless the brief says otherwise.
+- Where the branch has `changes/<slug>/spec.md` with its acceptance lines filled (written by `/spec`, decision 0021), build to it: its scenarios are the acceptance criteria, its Non-functional rows the thresholds, and its Undo the pull request's "How to revert". A `spec.md` without acceptance lines is a draft the human has not accepted: a contradiction to report. A test made to pass by rewriting a scenario is a return to spec (rule 17.3), not a fix.
 - Build Debug unless the change concerns Release behaviour. A Release, AOT, Android, iOS or Mac Catalyst build is a heavy build (rule 15.1): run it through the repository's `scripts/heavy-build.sh`, which takes the machine's one heavy-build lock and caps MSBuild on battery, because parallel sessions share one machine's cores and power. A repository without the script (it has not taken the .NET layer) runs `flock -o "${XDG_RUNTIME_DIR:-/tmp}/pap-heavy-build.lock" dotnet <verb> <arguments>`, adding `-m:2` on battery; `-o` keeps the lock from the build servers that outlive the build.
 - Slow waits go in the background: CI (`gh pr checks --watch` with `run_in_background`, or `Monitor`), and any batch of `claude -p` eval runs, which run in parallel (`xargs -P`, or background jobs), never one after another.
 - A judgement call beyond the brief (design, taste, a tradeoff with no clear answer) goes to a Fable subagent with the context it needs; the main session keeps executing.
@@ -72,6 +75,9 @@ Decisions and tradeoffs to review:
 
 ## Verification
 The verification table: what was run, what it showed. Every check the brief asked for, including the ones not run and why, and the cold review's row (step 5).
+
+## How to revert
+The spec's Undo where the branch has changes/<slug>/spec.md; otherwise "Revert the merge", with the steps in order for anything the change reaches outside git.
 
 ## Checks
 Tick a box only if it is true. An unticked box needs a one-line reason below it, otherwise the PR is not ready.

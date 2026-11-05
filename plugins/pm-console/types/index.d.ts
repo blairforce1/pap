@@ -40,6 +40,8 @@ export type PapRow = {
   error: string
 }
 export type PapStats = { at: number; latest: string; rows: PapRow[]; repos: number }
+// Whether change/<slug> was found as a local or remote branch, for the class band.
+export type BranchHit = { slug: string; exists: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -50,6 +52,8 @@ declare module 'claude-code' {
       pap: PapStats
       tab: string
       openGroup: string
+      draft: string
+      branch: BranchHit
     }
   }
 }

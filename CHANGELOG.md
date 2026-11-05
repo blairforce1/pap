@@ -9,6 +9,22 @@ not carry.
 
 ## pm-console
 
+### [0.2.0] - 2026-11-05
+
+#### Added
+
+- A class band above the prompt while `/intent`, `/change` or
+  `/pap:pm launch` is typed: the seven classes with the ceremony each gets.
+  `/spec <slug>` takes no class: only its slug is checked, with a warning
+  when the branch holds no `changes/<slug>/intent.md`.
+  A bad class or slug is painted red and refused at submit with the reason
+  (`process`: not a class; process records use infra). An existing
+  `change/<slug>` branch is warned about, not refused.
+- `/pm exit`: asks the PM to pause every cycle, push the tracker and save
+  its memory, then call the new `exit_ready` tool, which puts `/exit` in the
+  prompt box. An exit that skips it while cycles run leaves an inbox item
+  for the next session.
+
 ### [0.1.1] - 2026-11-05
 
 #### Added
@@ -167,6 +183,50 @@ not carry.
   answered, and Verification carries the review's row. Rule 19.1, taught by
   the skill and enforced by nothing yet. The control arm for backlog H-013
   (decision 0018).
+- Decision 0021 (proposed): a spec is accepted by the human's yes after
+  spec review, recorded in `spec.md` (`accepted-by:`, `accepted-on:`) and
+  committed on the change branch after the intent and before the code, not
+  by a separate merge; a feature, infra or security-sensitive spec designs
+  its operation (Signals, Good, Wrong, Undo, and operational scenarios in
+  Given/When/Then), and the pull request's "How to revert" is its Undo.
+  Rules 21.1 and 21.2, taught by the skill and enforced by nothing yet.
+  Delivers the `/spec` slice of decision 0017, whose status is unchanged,
+  and closes the follow-up 0020 left: process principle 5, 5.1 rows 2 and
+  3, 5.2, 5.4 and 5.5 say acceptance where the branch records it, and what
+  a spec's Functional behaviour and Operations carry. Backlog H-015
+  proposes an operations member for phases 8 to 10.
+- `/spec <slug>`: reads the accepted `changes/<slug>/intent.md` and refuses
+  without one; drafts `spec.md` with the sections the class requires,
+  acceptance scenarios in `features/<slug>.feature` tagged `@id` and
+  `@pending` in the words of `product/domain.md`, which it extends; the
+  Operations section for feature, infra and security-sensitive; runs
+  `spec-review-full` by class, records each disposition in
+  `changes/<slug>/reviews/spec-review.md`, and on the yes commits
+  `spec(<slug>): ...` and hands on to `/change`. Half a page for docs and
+  chore, none for a spike. Main session only. The second slice of backlog
+  item H-011.
+- Decision 0020 (proposed): an intent is accepted by the human's yes to it
+  restated in process 5.3's sections, recorded in `intent.md`
+  (`accepted-by:`, `accepted-on:`), not by a separate merge; `intent.md`
+  and `spec.md` are committed on the change branch before the code and the
+  one pull request carries them in order; intent churn is still recorded.
+  Rule 20.1, taught by the skill and enforced by nothing yet; rule 2.2
+  narrowed for the intent and spec skills. Process 5.1 phase 1 and 5.3 amended to match;
+  5.3's frontmatter gains `source:` (rule 11.2) and the two acceptance
+  lines.
+- `/intent <slug> <class>`, followed by the ask in the human's words: reads
+  the product layer, interviews in small batches (one for `docs`, `chore`
+  and `spike`), challenges the hypothesis or reactive reason, the measure,
+  the non-goals, the invariants and protected paths, the class and the
+  open questions, restates the intent for a yes, then writes and commits
+  `changes/<slug>/intent.md` on `change/<slug>` and hands on to the spec.
+  Main session only. The first slice of backlog item H-005.
+
+- `/pap:accept <NNNN> [NNNN ...]`: a skill only a person can invoke that
+  checks each decision record is on main and `proposed`, shows its title
+  and Decision items, sets only its Status line to
+  `accepted (<login>, YYYY-MM-DD)` on a new `change/accept-<ids>` branch,
+  and opens a draft `class:docs` pull request; the model cannot invoke it.
 - Decision 0022 (proposed): no branch takes a force push. Rule 22.1, with
   two enforcers, because agents push with the human's own credentials. A
   second ruleset, `.github/rulesets/all-branches.json`: `non_fast_forward`
@@ -179,10 +239,26 @@ not carry.
   `--force-if-includes`, `--mirror` and `+<refspec>` on any branch; a person at a
   terminal is unaffected.
 
+#### Fixed
+
+- `/pap:accept` printed nothing about the repository it acted on, so a run
+  from a session in another adopting repository accepted that repository's
+  records of the same numbers unnoticed. Its first line is now
+  `Repository: owner/name (path)`, and `--repo <path>` (before or after the
+  ids) runs it against another checkout, refusing a path that is not a git
+  checkout with an origin. The skill tells the model to relay that line
+  first and to flag a repository the ids do not seem to fit.
+
 #### Changed
 
 - `/change` has a new step 5, "Review cold", between the local checks and
   opening the pull request; the later steps are renumbered 6 and 7.
+- `/change` builds to `changes/<slug>/spec.md` where the branch has one
+  (its scenarios are the acceptance criteria), and its pull request body
+  has a "How to revert" section, the spec's Undo where there is a spec.
+- `/change` reads `changes/<slug>/intent.md` where the branch has one, as
+  the brief's intent: its class and hypothesis stand, and a differing
+  `<class>` argument or brief is reported as a contradiction.
 
 ### [0.11.0] - 2026-11-02
 

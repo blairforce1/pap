@@ -23,6 +23,7 @@ run = [
   "sh tests/heavy-build.test.sh",
   "sh tests/session-end.test.sh",
   "sh tests/reviewed.test.sh",
+  "sh tests/accept.test.sh",
 ]
 
 [tasks.release]

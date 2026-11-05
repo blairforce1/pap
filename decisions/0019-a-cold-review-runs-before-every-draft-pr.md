@@ -1,6 +1,6 @@
 # 0019. A cold review runs before every draft pull request
 
-- **Status:** proposed
+- **Status:** accepted (blairforce1, 2026-11-05)
 - **Date:** 2026-11-05
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none; amends the `/change` skill of [0006](0006-changes-are-carried-by-a-skill.md)
