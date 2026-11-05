@@ -60,33 +60,19 @@
   },
 
   "customManagers": [
-    // base: devcontainer features, from devcontainers/features and
-    // anthropics/devcontainer-features on ghcr.io. The
-    // devcontainer CLI refuses a feature reference with both a tag and a
-    // digest (CLI 0.89.0), so features are pinned by digest alone and the
-    // devcontainer manager finds no version to update. This reads the
-    // version from the comment on the line above each feature ("// git
-    // 1.3.8.") and moves the comment and the digest together.
+    // base: devcontainer features. The devcontainer CLI refuses a feature
+    // reference with both a tag and a digest (CLI 0.89.0), so features are
+    // pinned by digest alone and the devcontainer manager finds no version
+    // to update. This reads the version from the comment above each feature
+    // ("// git 1.3.8.") and moves the comment and the digest together.
     {
       "customType": "regex",
       "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
       "matchStrings": [
-        "//\\s*[a-z-]+ (?<currentValue>\\d+\\.\\d+\\.\\d+)\\.[^\\n]*\\n\\s*\"(?<depName>ghcr\\.io/(?:devcontainers/features|anthropics/devcontainer-features)/[a-z0-9-]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+        "//\\s*[a-z-]+ (?<currentValue>\\d+\\.\\d+\\.\\d+)\\.[^\\n]*\\n\\s*\"(?<depName>ghcr\\.io/devcontainers/features/[a-z0-9-]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "semver"
-    },
-    // base: the Node.js version the devcontainer's node feature installs,
-    // given as the feature's "version" option, which neither the
-    // devcontainer manager nor the feature manager above reads.
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
-      "matchStrings": [
-        "features/node@sha256:[a-f0-9]{64}\": \\{\\s*\"version\": \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "depNameTemplate": "node",
-      "datasourceTemplate": "node-version"
     },
     // base: mise itself in the devcontainer's onCreateCommand, fetched by
     // its versioned install.sh and checked against that script's sha256.
@@ -138,10 +124,7 @@
     // copy has no version and would propose a bare digest for the same line.
     {
       "matchManagers": ["devcontainer"],
-      "matchDepNames": [
-        "ghcr.io/devcontainers/features/**",
-        "ghcr.io/anthropics/devcontainer-features/**"
-      ],
+      "matchDepNames": ["ghcr.io/devcontainers/features/**"],
       "enabled": false
     },
     // ghcr.io publishes no release date for a feature, and the default
@@ -218,6 +201,13 @@
     },
 
     // --- Node: package.json and package-lock.json -----------------------
+    // Node.js itself, wherever Renovate tracks it (a mise pin, a
+    // devcontainer option, an engines field): LTS majors only. Odd majors
+    // are never LTS.
+    {
+      "matchDepNames": ["node"],
+      "allowedVersions": "/^v?\\d*[02468]\\./"
+    },
     {
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],

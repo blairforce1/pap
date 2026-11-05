@@ -181,11 +181,15 @@ not carry.
 - The base layer pins `gh` and `jq` through mise, so `mise install`
   provides them. The prerequisites are now git, mise and Claude Code, then
   `gh auth login`.
-- The base devcontainer has everything: `gh` and `jq` from mise, Node.js and
-  Anthropic's Claude Code feature (the GitHub CLI feature is gone), the
+- The base layer also pins Claude Code (`claude`, Anthropic's native
+  binary through mise's aqua backend), which Renovate moves with the other
+  mise pins.
+- The base devcontainer has everything: `gh`, `jq` and Claude Code from
+  mise (the GitHub CLI feature is gone, and no Node.js is needed), the
   `pap` and `spec-review` plugins installed after create, and `pap doctor`
-  run at the end of it. Renovate reads features from both ghcr.io
-  namespaces in use and the node feature's version option.
+  run at the end of it.
+- Renovate proposes Node.js only on even, LTS majors, wherever it tracks
+  `node`.
 - `mise run test` in pap runs every suite and names each that failed,
   rather than stopping at the first.
 

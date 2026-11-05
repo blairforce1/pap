@@ -405,11 +405,11 @@ missing "doctor: jq missing on macOS, with the brew command" \
 missing "doctor: jq missing on a Linux with neither apt nor dnf, with a link" \
   'missing  jq on PATH  (run mise install, or https://jqlang.org/download/)' PATH="$T/stub:$T/nojq:$T/linux:$T/sys"
 missing "doctor: claude missing, with the native installer" \
-  'missing  claude on PATH  (curl -fsSL https://claude.ai/install.sh | bash)' PATH="$T/stub:$T/noclaude:$T/linux:$T/sys"
+  'missing  claude on PATH  (run mise install, or curl -fsSL https://claude.ai/install.sh | bash)' PATH="$T/stub:$T/noclaude:$T/linux:$T/sys"
 printf '%s\n' "$out" | grep -qF 'skipped  pap plugins installed  (no claude)'
 result $? "doctor: claude missing skips the plugin check" "$out"
 missing "doctor: claude missing on macOS, with the brew cask" \
-  'missing  claude on PATH  (brew install --cask claude-code)' PATH="$T/stub:$T/noclaude:$T/mac:$T/sys"
+  'missing  claude on PATH  (run mise install, or brew install --cask claude-code)' PATH="$T/stub:$T/noclaude:$T/mac:$T/sys"
 missing "doctor: spec-review plugin missing, with the install command" \
   'missing  spec-review plugin installed  (claude plugin install spec-review --marketplace blairforce1/pap)' \
   STUB_PLUGINS='  > pap@blairforce1-pap'
