@@ -7,24 +7,18 @@ yq = "4.53.6"
 
 [tasks."test:pap"]
 description = "Run the repository test suites"
-run = [
-  "sh tests/guard-route.test.sh",
-  "sh tests/gen-codeowners.test.sh",
-  "sh tests/assemble.test.sh",
-  "sh tests/change-worktree.test.sh",
-  "sh tests/renovate-copy.test.sh",
-  "sh tests/pap.test.sh",
-  "sh tests/repo-sync.test.sh",
-  "sh tests/tidy.test.sh",
-  "sh tests/revisits.test.sh",
-  "sh tests/coverage.test.sh",
-  "sh tests/measure.test.sh",
-  "sh tests/release.test.sh",
-  "sh tests/heavy-build.test.sh",
-  "sh tests/session-end.test.sh",
-  "sh tests/reviewed.test.sh",
-  "sh tests/accept.test.sh",
-]
+# Every suite runs, and the task fails at the end naming the ones that
+# failed: a run list would stop at the first, and one run should report
+# every failure.
+run = '''
+failed=""
+for t in guard-route gen-codeowners assemble change-worktree renovate-copy pap \
+  repo-sync tidy revisits coverage measure release heavy-build session-end \
+  reviewed accept; do
+  sh "tests/$t.test.sh" || failed="$failed $t"
+done
+[ -z "$failed" ] || { echo "test:pap: failed:$failed"; exit 1; }
+'''
 
 [tasks.release]
 description = "Cut a pap release: mise run release <version> [--dry-run]"
