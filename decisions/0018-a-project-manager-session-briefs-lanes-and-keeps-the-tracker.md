@@ -128,13 +128,30 @@ carried it:
    after its first report, and the project's metered costs. Each finding
    ends in a fix written as a rule the next brief carries, and the audit
    goes in the tracker with the fix beside each number. A miss the human
-   spots first is itself a finding.
-8. **Project rules live with the project.** PAP carries the role: this
-   record, then the skill, the agent definition and the templates. What a
-   project learns about itself (what the human is called, which API needs
-   a lock, which checks a code brief must run, what a lane may write)
-   lives in that project's `CLAUDE.md` and the PM's memory, and the brief
-   skeleton has a slot for it. PAP never carries a project's specifics.
+   spots first is itself a finding. Each new rule is classified as
+   project or general under point 9.
+8. **Project rules live with the project; PAP carries only the general.**
+   PAP carries the role: this record, then the skill, the agent
+   definition and the templates, and takes a project's general lessons
+   back under point 9. What a project learns about itself (what the human
+   is called, which API needs a lock, which checks a code brief must run,
+   what a lane may write) lives in that project's `CLAUDE.md` and the
+   PM's memory, and the brief skeleton has a slot for it. PAP never
+   carries a project's specifics: that is the guard on the return leg of
+   the loop, and point 9 passes through it.
+9. **General lessons go back to PAP, as a change.** Each audit classifies
+   every new rule as _project_ or _general_; the test is that the rule
+   still makes sense in a repository that has never heard of this
+   project's integrations or business. A general rule goes on a PAP
+   candidates list in the tracker's state file: the rule, the miss behind
+   it as numbers only, the date. The list shows as due at three
+   candidates or when the oldest is 30 days old. Upstream is an ordinary
+   change: with the human's yes, a lane carries the candidates to PAP
+   through `/change` there, rewritten generically, with a public-safety
+   check of the diff (no project names, people, addresses or data), and
+   the human reviews and decides as for any change. The PM never writes
+   to PAP itself. A rule that cannot be stated without its project stays
+   in the project.
 
 The reason that carried it: a lane starts blank and the PM's context ends,
 so everything that must survive is either in the brief or committed.
@@ -162,6 +179,13 @@ so everything that must survive is either in the brief or committed.
   should have had first.
 - **Carry a project's rules in PAP's skill text.** Lost: PAP is public and
   generic, and the rules that bit were the project's own.
+- **Lessons stay per project.** What points 7 and 8 alone would do. Lost:
+  a general rule learned in one project is relearned in the next, and the
+  loop that produced this record runs once, by hand.
+- **The PM edits PAP directly.** Lost: a write to a public repository by
+  the session that opens no pull request (point 2), with no change, no
+  review and no public-safety check between a project's miss and a rule
+  everyone adopts.
 
 ## Consequences
 
@@ -194,15 +218,22 @@ so everything that must survive is either in the brief or committed.
 - Measurement: the first effect is counted from the event log's
   message-to-lane lines over the first 20 lanes; the second from each
   audit's findings, matched by hand against the table above.
-- Follow-up: rules 18.1 to 18.4 are enforced by nothing until the skill
+- Point 9 in the packaging: the state-file template has a PAP candidates
+  section (rule, miss as numbers, date); `/pap:pm audit` classifies each
+  new rule as project or general and files the general ones there; and
+  `/pap:pm` reports the list as due at three candidates or 30 days, as it
+  reports an overdue audit. The upstream lane is a plain `/change` in PAP
+  and needs nothing new.
+- Follow-up: rules 18.1 to 18.5 are enforced by nothing until the skill
   ships; each names the check it plans.
 
 ## Where it is taught or enforced
 
 Backs [`rules.md`](../rules.md) 18.1 (the project-manager session opens,
 approves and merges nothing), 18.2 (a lane is briefed after a restated
-yes), 18.3 (the tracker is committed on every event) and 18.4 (an audit
-every five merged change PRs and at every resume). Taught in `CLAUDE.md`
+yes), 18.3 (the tracker is committed on every event), 18.4 (an audit
+every five merged change PRs and at every resume) and 18.5 (a general
+lesson reaches PAP only as a change). Taught in `CLAUDE.md`
 (one pull request per agent context) and the `/change` skill's stop.
 Enforced by nothing yet beyond what rule 16.2's hook refuses any agent;
 backlog item H-012 builds the skill, the agent and the templates.
