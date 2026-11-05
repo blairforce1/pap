@@ -1,0 +1,9 @@
+{
+  "name": "pm-console",
+  "version": "0.1.0",
+  "description": "PM console: what the lanes ask of the Project Lead, running lanes, PAP state, CI timings and a status line",
+  "author": {
+    "name": "blairforce1"
+  },
+  "types": "./types/index.d.ts"
+}
