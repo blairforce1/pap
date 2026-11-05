@@ -145,3 +145,10 @@ The spec of a feature, security-sensitive or bugfix change adds or changes at le
 
 - Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
 - Enforced by: Nothing yet. Planned: `/spec` writes them, and `pr-checks` refuses a spec pull request of those classes that touches no scenario.
+
+### 19.1 A cold review runs before a draft pull request
+
+Before `/change` opens its draft pull request, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
+
+- Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md)
+- Enforced by: Nothing yet. Taught by the `/change` skill ([`plugins/pap/skills/change/SKILL.md`](plugins/pap/skills/change/SKILL.md), step 5); nothing refuses a pull request whose Verification lacks the row.
