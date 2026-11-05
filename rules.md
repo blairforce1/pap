@@ -145,3 +145,31 @@ The spec of a feature, security-sensitive or bugfix change adds or changes at le
 
 - Decision: [0017](decisions/0017-specs-carry-executable-scenarios-in-a-domain-vocabulary.md)
 - Enforced by: Nothing yet. Planned: `/spec` writes them, and `pr-checks` refuses a spec pull request of those classes that touches no scenario.
+
+### 18.1 The project-manager session opens, approves and merges nothing
+
+A session that spawns lanes opens no change pull request (process housekeeping the human asks for excepted), adds no `owner-reviewed`, writes no `Approved-by:`, merges nothing, writes no GitHub or repository settings, and does no act a hook refused a lane.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-briefs-lanes-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md) and [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
+- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:lane` agent is the only route to `/change` under it.
+
+### 18.2 A lane is briefed after a restated yes
+
+Before a lane is spawned, the event log carries the ask restated in one line and the human's yes to it.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-briefs-lanes-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm brief` refuses to spawn a lane whose slug has no restate event in the log.
+
+### 18.3 The tracker is committed on every event
+
+The state file and the event log are committed on every launch, report, message to a lane, pause, resume, merge, decision and audit, and only the project-manager session writes them.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-briefs-lanes-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm event` writes and commits in one step; `/pap:pm start` and `resume` refuse a tracker with uncommitted changes.
+
+### 18.4 An audit every five merged change PRs and at every resume
+
+The event log carries an audit within five merged change PRs of the last one and one at every resume, and every finding names a fix.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-briefs-lanes-and-keeps-the-tracker.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm` reports an overdue audit on every `event`, as `pap revisits` reports a due revisit (rule 10.1); it reports and never blocks.

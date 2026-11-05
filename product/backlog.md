@@ -4,7 +4,7 @@ Hypotheses, not features. Ordered by value and risk. Rewritten when findings com
 
 This file is the backlog (decision 0011). An issue may propose an item; the item exists once it is merged here. Every change names one of these in its `intent.md`, or says it is reactive and why.
 
-Last reviewed: 2026-10-30
+Last reviewed: 2026-11-05
 
 ## Recommended first slice
 
@@ -33,6 +33,10 @@ Related: vision §How we will know; process 5.11. Class: feature
 **H-011** We believe a spec whose acceptance scenarios are written in a shared domain vocabulary and bound to tests will produce conformance to the spec that is checked rather than judged, measured by `fix:` or `revert:` pull requests merged within 14 days that touch a file a scenario-carrying change changed (decision 0017).
 Related: process 5.4, 5.6, 5.8; decision 0017. Class: feature
 Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with scenarios and the process amendments; the binding check (rule 17.1); `pr-checks` for rules 17.3 and 17.4; a vocabulary pass in `spec-review-qa`; executed runners in the dotnet and go layers. The first three ship in one release, the intervention's boundary. `/spec` reads `intent.md`, so H-005's `/intent` comes first; rule 17.2 needs its `/findings`.
+
+**H-012** We believe a packaged project-manager role (a `/pap:pm` skill, a `pap:lane` agent, tracker and brief templates) will produce changes run through lanes with less rework and no work lost to a shutdown, measured by lanes that get a message after their first report (decision 0018).
+Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
+Built in slices: `/pap:pm` (`start`, `brief`, `event`, `pause`, `resume`, `audit`); the `pap:lane` agent definition; the tracker and brief templates; the PM console, designed separately. The first three ship in one release, the intervention's boundary.
 
 ## Unranked
 
