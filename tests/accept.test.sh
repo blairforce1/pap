@@ -199,7 +199,9 @@ git clone -q "$T/other-origin.git" "$T/other" 2> /dev/null
   record 0001 proposed
   record 0002 proposed
   record 0003 proposed
-  sed -i '1s/.*/# 0001. The other repository record/' decisions/0001-example-0001.md
+  # Not sed -i, which differs between GNU and BSD.
+  sed '1s/.*/# 0001. The other repository record/' decisions/0001-example-0001.md > r.tmp &&
+    mv r.tmp decisions/0001-example-0001.md
   git add decisions
   git commit -q -m records
   git push -q origin main
