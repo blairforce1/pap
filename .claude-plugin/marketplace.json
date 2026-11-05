@@ -20,7 +20,7 @@
     {
       "name": "pm-console",
       "source": "./plugins/pm-console",
-      "description": "PM console: a pane for the project-manager session, with the lane inbox, lanes, PAP state and CI timings",
+      "description": "PM console: a pane for the project-manager session, with the cycle inbox, cycles, PAP state and CI timings",
       "version": "0.1.0"
     }
   ]
