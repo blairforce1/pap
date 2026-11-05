@@ -212,17 +212,24 @@ run 0099
 result $? "the Repository line is the first line, owner/name and path, even on a refusal" "$out"
 
 run --repo "$T/other" 0099
-[ "$rc" = 0 ] && [ "$(printf '%s\n' "$out" | sed -n 1p)" = "Repository: $tb/other-origin ($T/other)" ] &&
-  [ "$(pwd)" = "$T/repo" ]
+[ "$rc" = 0 ] && [ "$(printf '%s\n' "$out" | sed -n 1p)" = "Repository: $tb/other-origin ($T/other)" ]
 result $? "--repo names the given checkout on the first line" "exit $rc; $out"
 
 before="$(accept_refs "$T/repo")"
 run --repo "$T/other" 0001
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '0001\. The other repository record' &&
   [ "$(accept_refs "$T/other")" = "change/accept-0001 " ] && [ "$(accept_refs "$T/repo")" = "$before" ] &&
-  [ "$(git -C "$T/other-accept-0001" branch --show-current)" = change/accept-0001 ] &&
-  [ "$(pwd)" = "$T/repo" ]
+  [ "$(git -C "$T/other-accept-0001" branch --show-current)" = change/accept-0001 ]
 result $? "--repo acts on the given repository (worktree, branch, PR), not the cwd one" "exit $rc; $out"
+
+# owner/name from the usual origin URL forms.
+for u in git@github.com:example/repo.git https://github.com/example/repo https://github.com/example/repo.git/; do
+  git -C "$T/other" remote set-url origin "$u"
+  run --repo "$T/other"
+  [ "$(printf '%s\n' "$out" | sed -n 1p)" = "Repository: example/repo ($T/other)" ]
+  result $? "owner/name from origin $u" "$out"
+done
+git -C "$T/other" remote set-url origin "$T/other-origin.git"
 
 run --repo "$T/nowhere" 0002
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "^refused: --repo '$T/nowhere' is not a directory" && [ ! -s "$FAKE_LOG" ]

@@ -12,7 +12,9 @@
 # owner/name (path)`, so a wrong one is seen at once. That is the current
 # repository, or the checkout given with --repo (before or after the ids),
 # which is refused unless it is a git checkout with an origin. The script
-# enters it in its own process; the caller's directory is untouched.
+# enters it in its own process; the caller's directory is untouched. The skill
+# passes its arguments as one word that is split on spaces, so a --repo path
+# with a space needs the script run directly.
 #
 # In that repository: fetches origin and finds each record as
 # decisions/<NNNN>-*.md on origin/main. Refuses, saying why and changing
