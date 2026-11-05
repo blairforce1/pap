@@ -41,6 +41,7 @@ set -- $(printf '%s\n' "$@" | sort -u)
 git rev-parse --git-dir > /dev/null 2>&1 || refuse "not inside a git repository."
 top="$(git rev-parse --show-toplevel)"
 cd "$top" || fail "cannot enter $top."
+# The default branch is main, as the /change worktree script assumes.
 git fetch -q origin || fail "git could not fetch origin."
 git rev-parse -q --verify refs/remotes/origin/main > /dev/null || fail "no origin/main."
 
@@ -55,7 +56,7 @@ for id in "$@"; do
     # shellcheck disable=SC2010
     if ls decisions 2> /dev/null | grep -q "^$id-.*\.md$" ||
       git log --all --format= --name-only -- 'decisions/*.md' | grep -q "^decisions/$id-"; then
-      refuse "decision $id is not on main yet; merge its pull request first."
+      refuse "decision $id is not on main (found on another branch); merge its pull request first."
     fi
     refuse "no decision record $id under decisions/."
   fi

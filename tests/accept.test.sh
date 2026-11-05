@@ -131,7 +131,7 @@ run 0004
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "decision 0004 is 'measured:confirmed (2026-02-01)', not proposed" && clean
 result $? "a measured record is refused" "exit $rc; $out"
 run 0005
-[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: decision 0005 is not on main yet' && clean
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: decision 0005 is not on main (found on another branch)' && clean
 result $? "a record not on the default branch is refused" "exit $rc; $out"
 run 0001 0003
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q 'decision 0003' && clean
