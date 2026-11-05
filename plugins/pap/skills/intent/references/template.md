@@ -2,7 +2,7 @@
 
 Use it exactly, in this order; write "none" rather than removing a line or a heading. Half a page: a section is one to three sentences or a short list.
 
-The same text, without the acceptance lines and the provenance, is the restatement the human says yes to.
+The same text, without the provenance, is the restatement the human says yes to; the acceptance lines are shown as what the yes will record.
 
 ````markdown
 # Intent: <slug>

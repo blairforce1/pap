@@ -35,7 +35,7 @@ sh "${CLAUDE_PLUGIN_ROOT}/skills/change/worktree.sh" <slug>
 ```
 
 - `created <path>`: a new branch from a fresh `origin/main`.
-- `resumed <path>`: the branch existed. If `changes/<slug>/intent.md` is on it with acceptance lines, run the interview as a review: show the file, ask what has changed, and go to step 5 with the edits. If `spec.md` is also there, the edit is intent churn (process 5.4): the commit message says what the spec surfaced.
+- `resumed <path>`: the branch existed. If `changes/<slug>/intent.md` is on it with acceptance lines, run the interview as a review: show the file, ask what has changed, and go to step 5 with the edits. If `spec.md` is also there, the edit is intent churn (process 5.4): the commit message says what the spec surfaced. An `intent.md` without acceptance lines (written by hand, or before decision 0020) is a draft of the ask: show it, interview from it, and overwrite it on the yes.
 - `exists <path>` (exit 3) or exit 1: stop and print the message; do not work in another session's worktree.
 
 Every later command runs in the printed path.
@@ -68,7 +68,7 @@ Each batch is one turn. Skip a question the ask already answers.
 - Constraints: what is fixed before the spec starts (stack, budget, deadline, compatibility, what it must not break).
 - Open questions: each answered now, or carried forward with who answers it and in which phase.
 
-**Lighter interview.** For `docs` and `chore`: batch one, with the measure (what a reader can check afterwards) and the files touched folded in. If a touched file is a protected path or a hook, say so: the class is not `docs` or `chore`, and the interview is the full one. For `spike`: one batch: the question it answers, the time box, and that only `findings.md` is kept; a spike has no spec and no deploy.
+**Lighter interview.** For `docs` and `chore`: batch one, with the measure (what a reader can check afterwards) and the files touched folded in. If a touched file is a protected path or a hook, say so and run the full interview; critique 5 then asks whether `docs` or `chore` still fits. For `spike`: one batch: the question it answers, the time box, and that only `findings.md` is kept; a spike has no spec and no deploy.
 
 ## 4. Critique
 
@@ -77,7 +77,7 @@ The list. Raise each where it applies, once, concretely, with what you would wri
 1. **Hypothesis or reactive.** An intent names an `H-NNN` or `reactive: <what it reacts to>`. A backlog item stretched to fit is named as a stretch; a fitting item the human did not name is offered.
 2. **Measure observable after release.** "Tests pass", "it works" and "it is merged" are build checks, not measures. If no measure can be written, the change is too large or too vague (principle 3): propose the split.
 3. **At least one non-goal.** The nearest thing this will be mistaken for.
-4. **Invariants and protected paths declared, not discovered.** A protected path makes the risk high whatever the class says (decision 0016); the intent says so before the label does.
+4. **Invariants and protected paths declared, not discovered.** A protected path usually makes the risk high (decision 0016): name the level `.github/risk.yml` gives the touched files (step 2), so the intent says it before the label does.
 5. **Class fits the ceremony.** A `docs` that edits a hook is not docs; a `feature` with no user-visible behaviour may be `infra`; a `bugfix` cites the escaped defect it closes; a `spike` has no spec. Say what the class costs and ask whether that is the cost wanted.
 6. **Every open question has an owner.** Answered now, or carried forward to a named phase, usually the spec.
 
@@ -85,7 +85,7 @@ The list. Raise each where it applies, once, concretely, with what you would wri
 
 Restate the intent as half a page in process 5.3's sections, in the human's words where they gave them, using `references/template.md`. End with the acceptance line you will record: `accepted-by: @<login>` (from `gh api user -q .login`, or the name the human gives) and today's date. Ask for a yes.
 
-A yes goes to step 6. An adjustment is made and the changed section restated, then asked again. A no, or no answer, ends here: nothing is written, and you say the worktree holds no commit and how to remove it (`git worktree remove <path>`, `git branch -D change/<slug>`).
+A yes goes to step 6. An adjustment is made and the changed section restated, then asked again. A no, or no answer, ends here: nothing is written. After `created`, say the branch holds no commit and how to remove it (`git worktree remove <path>`, then `git branch -D change/<slug>`); after `resumed`, say the file is unchanged, run `git worktree remove <path>` and stop.
 
 ## 6. Write and commit
 
@@ -98,11 +98,13 @@ git commit -m "intent(<slug>): <desired outcome in a few words>"
 
 A review edit (step 1, `resumed`) commits as `intent(<slug>): <what changed>`, or `intent(<slug>): churn, <what the spec surfaced>` when `spec.md` exists.
 
+Then remove the worktree, keeping the branch and its commit: `git worktree remove <path>`. `/change` (and `/spec`, when it exists) makes its own worktree on the branch and prints `resumed`; a worktree left open makes it print `exists` and stop.
+
 No push and no pull request: `/change` pushes the branch and opens the one draft pull request that carries intent, spec and code in order (decision 0020).
 
 ## 7. Hand on, then stop
 
-Say what is next and how: the spec. `/spec <slug>` when it exists (backlog H-011); until then, the human writes `changes/<slug>/spec.md` in the worktree with the sections the class requires (process 5.4), or, for a change whose spec folds into the brief, runs `/change <slug> <class>` with the brief in a fresh context; `/change` reads the intent as the brief's intent and reports a class that differs from it.
+Say what is next and how: the spec. `/spec <slug>` when it exists (backlog H-011). Until then, either the brief carries what the spec would (the human runs `/change <slug> <class>` with the brief in a fresh context; `/change` reads the intent as the brief's intent and reports a class that differs from it), or the human writes `changes/<slug>/spec.md` by hand: `git worktree add <path> change/<slug>`, the sections the class requires (process 5.4), a commit as `spec(<slug>): <one line>`, and `git worktree remove <path>` before `/change`.
 
 Stop. One intent per invocation; do not start the spec, the brief or the change.
 

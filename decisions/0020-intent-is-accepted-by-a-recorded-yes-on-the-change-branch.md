@@ -115,9 +115,10 @@ the link to a hypothesis that every measure in 5.2 and 6.3 needs.
   with a `Change:` line carries `changes/<slug>/intent.md` with
   `accepted-by:` and a hypothesis, the check 0011 listed as a follow-up,
   and that its first commit precedes `spec.md`'s.
-- Follow-up: 5.2's intent row and principle 5 keep their wording. A later
-  record changes them if the revisit finds the yes and the merge
-  disagreeing about what was accepted.
+- Follow-up: 5.2's intent row, 5.1 row 2's "Merged" trigger for the spec
+  (on one branch with the code, it fires only at the end) and principle 5
+  keep their wording. A later record changes them if the revisit finds the
+  yes and the merge disagreeing about what was accepted.
 - Follow-up: `/spec` (H-011) reads the accepted intent; `/pap:pm launch`
   (H-012) calls `/intent` before it writes a brief.
 - Measurement: from `changes/*/intent.md` on main and the merged branches'

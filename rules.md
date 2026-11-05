@@ -36,7 +36,7 @@ Squash-merged, linear history, review threads resolved, the `tests` check passin
 
 ### 2.2 Skills stop at a draft PR
 
-A skill that writes a phase artefact works on `change/<id>`, commits as it likes, opens a draft PR and stops. It never merges.
+A skill that writes a phase artefact works on `change/<id>`, commits as it likes and stops at or before the change's one draft PR, which `/change` opens (0020). It never merges.
 
 - Decision: [0002](decisions/0002-skills-stop-at-draft-pr.md); narrowed by [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md): the skills that write `intent.md` and `spec.md` commit and hand on, and `/change` opens the one draft PR
 - Enforced by: Reaching main without a PR is refused by the rule 2.1 layers. The stop itself is taught in skill text and not checked; nothing refuses `gh pr merge` from a skill.

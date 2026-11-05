@@ -172,8 +172,8 @@ not carry.
   (`accepted-by:`, `accepted-on:`), not by a separate merge; `intent.md`
   and `spec.md` are committed on the change branch before the code and the
   one pull request carries them in order; intent churn is still recorded.
-  Rule 20.1, taught and enforced by nothing yet; rule 2.2 narrowed for the
-  intent and spec skills. Process 5.1 phase 1 and 5.3 amended to match;
+  Rule 20.1, taught by the skill and enforced by nothing yet; rule 2.2
+  narrowed for the intent and spec skills. Process 5.1 phase 1 and 5.3 amended to match;
   5.3's frontmatter gains `source:` (rule 11.2) and the two acceptance
   lines.
 - `/intent <slug> <class>`, followed by the ask in the human's words: reads
