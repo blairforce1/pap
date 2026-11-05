@@ -6,16 +6,35 @@ interview.
 
 ## What you need
 
-- A GitHub account, and [`gh`](https://cli.github.com/) signed in to it
-  (`gh auth status`). `pap repo` needs `gh` signed in as someone who
-  administers the repository.
-- [Claude Code](https://code.claude.com/), where the skills run.
+PAP runs on Linux and macOS; Windows through WSL2.
+
+- [git](https://git-scm.com/downloads).
 - [mise](https://mise.jdx.dev/getting-started.html), which installs every
-  pinned tool a repository names, `pap` included. Install it and activate
-  it in your shell (`eval "$(mise activate <shell>)"` in your shell's rc
-  file).
-- `jq`, which the Claude Code hook uses to read tool calls. Without it the
-  hook cannot parse a command and says so.
+  pinned tool a repository names: `pap`, `gh` and `jq` included. Install
+  it and activate it in your shell (`eval "$(mise activate <shell>)"` in
+  your shell's rc file).
+- [Claude Code](https://code.claude.com/), where the skills run, from
+  Anthropic's installer. It updates itself, so no repository pins it.
+
+Then, once `mise install` has run in a repository, `gh auth login` with a
+GitHub account. `pap repo` needs `gh` signed in as someone who
+administers the repository. `flock` is optional: the .NET layer's heavy
+builds take a machine-wide lock with it, and run without the lock where it
+is missing (macOS ships none; `brew install flock`).
+
+`pap doctor` checks all of this, and prints the install command for each
+thing it finds missing; `pap doctor --fix` runs `mise trust` and `mise
+install` for you and prints the rest.
+
+### Or the dev container, with nothing installed
+
+Every repository built from the template carries
+`.devcontainer/devcontainer.json`. Open it in an editor that supports dev
+containers (VS Code, a JetBrains IDE, Codespaces), on any OS, Windows
+included, and the container has git, mise, every pinned tool, Claude Code
+and the `pap` and `spec-review` plugins, and runs `pap doctor` at the end
+of its setup. What it cannot do for you: `gh auth login`, and signing in
+to Claude Code the first time you run `claude`.
 
 ## Install the plugins
 

@@ -159,6 +159,36 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `pap doctor` checks git, `gh` and its sign-in, `jq`, the `claude` CLI,
+  the `pap` and `spec-review` plugins and `flock` (a warning only), and
+  names the install command for each missing one on this platform: apt or
+  dnf on Linux, Homebrew on macOS, a link otherwise; WSL counts as Linux.
+  `pap doctor --fix` runs `mise trust` and `mise install` and nothing else.
+- pap's own test suite runs on macOS as well as Linux (`tests (macos)`);
+  Windows is supported through WSL2 only.
+
+#### Fixed
+
+- `scripts/gen-codeowners.sh` failed under macOS's `/bin/sh` (bash 3.2),
+  which ends a `$(...)` at a `case` pattern's parenthesis.
+- `pap measure` failed under macOS's awk, which cannot parse an unbracketed
+  conditional in a `printf` argument list.
+
+#### Changed
+
+- The base layer pins `gh` and `jq` through mise, so `mise install`
+  provides them. The prerequisites are now git, mise and Claude Code, then
+  `gh auth login`.
+- The base devcontainer has everything: `gh` and `jq` from mise (the GitHub
+  CLI feature is gone), Claude Code from Anthropic's native installer,
+  unpinned on purpose because it updates itself, the `pap` and
+  `spec-review` plugins installed after create, and `pap doctor` run at the
+  end of it.
+- `mise run test` in pap runs every suite and names each that failed,
+  rather than stopping at the first.
+
 ### [0.12.0] - 2026-11-05
 
 #### Added

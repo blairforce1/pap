@@ -20,7 +20,9 @@ hb="$here/templates/dotnet/scripts/heavy-build.sh"
 
 command -v flock >/dev/null 2>&1 || { printf 'Bail out! flock not found\n'; exit 1; }
 
-T="$(mktemp -d)"
+# pwd -P: macOS's temporary directory is under a symlink (/var to
+# /private/var), and git and pwd report the resolved path.
+T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 
 n=0
@@ -104,7 +106,7 @@ result $? "an explicit verb is passed through" "log '$logged'"
 run App/App.csproj -c Release
 [ "$logged" = "build App/App.csproj -c Release" ]
 result $? "a first argument that is not a verb belongs to a build" "log '$logged'"
-STUB_EXIT=3 run -c Release
+export STUB_EXIT=3; run -c Release; unset STUB_EXIT
 [ "$rc" = 3 ]
 result $? "dotnet's exit status is the script's" "exit $rc"
 
@@ -127,7 +129,7 @@ result $? "a second build waits for the first and says so" "exit $rc; waited ${w
 
 # A process the build leaves behind (an MSBuild worker node, VBCSCompiler)
 # must not keep the lock: the next build would wait on a finished one.
-STUB_LINGER=3 run -c Release
+export STUB_LINGER=3; run -c Release; unset STUB_LINGER
 flock -n "$T/lock" true
 result $? "the lock is free after the build although a child of dotnet lingers" "exit $rc"
 

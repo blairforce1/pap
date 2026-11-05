@@ -4,6 +4,15 @@ What refuses, why, and what to do. Each entry is a symptom you see, the
 rule or mechanism behind it, and the fix. The hooks and checks are doing
 their job when they refuse; the fix is rarely to get round them.
 
+## First, run `pap doctor`
+
+From the repository, `pap doctor` checks this machine: git, mise and its
+activation, `gh` and its sign-in, `jq`, the `claude` CLI and the PAP
+plugins, `flock`, the git hooks and every pinned tool. Each failing item
+names the command that fixes it on your platform. `pap doctor --fix` runs
+the fixes mise can make (`mise trust`, `mise install`) and prints the
+rest, which need you: a package manager, `sudo` or `gh auth login`.
+
 ## Pull requests and checks
 
 **"Merging was blocked due to rule violation errors", with every check

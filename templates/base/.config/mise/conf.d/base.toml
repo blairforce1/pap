@@ -25,6 +25,12 @@ shellcheck = "0.11.0"
 # every repository that adopts this layer, and the yq a distribution
 # packages is often the Python one, which pap refuses.
 yq = "4.53.6"
+# gh and jq, which `pap repo` drives the GitHub API with and the Claude
+# Code hooks parse tool calls with. Pinned here so `mise install` provides
+# them on every machine and in the devcontainer, and Renovate moves them
+# with the other mise pins.
+gh = "2.103.3"
+jq = "1.8.2"
 
 [tasks.setup]
 description = "Install the git hooks and point git blame at the ignore list"

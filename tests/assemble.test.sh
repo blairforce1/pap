@@ -19,7 +19,11 @@ set -u
 here="$(cd "$(dirname "$0")/.." && pwd)"
 asm="$here/scripts/assemble.sh"
 
-T="$(mktemp -d)"
+# pwd -P: macOS's temporary directory is under a symlink (/var to
+# /private/var), and git and pwd report the resolved path.
+T="$(cd "$(mktemp -d)" && pwd -P)"
+# A VAR=value prefix on a function call is not used below: macOS's /bin/sh
+# (bash 3.2) keeps the assignment after the call. export and unset instead.
 trap 'rm -rf "$T"' EXIT INT TERM
 
 n=0
@@ -152,7 +156,7 @@ printf '[{"name":"test"},{"name":"test:dotnet"}]\n' > "$REQ_TASKS"
 run_in_app "$base_toml" test
 [ "$rc" = 0 ] && [ "$(cat "$REQ_LOG")" = 'mise run --continue-on-error test:*' ]
 result $? "test, a test:* task: runs every one, going on after a failure" "exit $rc; $out; $(cat "$REQ_LOG")"
-REQ_EXIT=3 run_in_app "$base_toml" test
+export REQ_EXIT=3; run_in_app "$base_toml" test; unset REQ_EXIT
 [ "$rc" = 3 ]
 result $? "test: a failing test:* task fails it" "exit $rc; $out"
 
@@ -163,7 +167,7 @@ printf '<Solution>\n</Solution>\n' > "$T/req-app/App.slnx"
 run_in_app "$dotnet_toml" '"test:dotnet"'
 [ "$rc" = 0 ] && [ "$(cat "$REQ_LOG")" = 'dotnet test' ]
 result $? "test:dotnet, a solution: runs dotnet test" "exit $rc; $out; $(cat "$REQ_LOG")"
-REQ_EXIT=1 run_in_app "$dotnet_toml" '"test:dotnet"'
+export REQ_EXIT=1; run_in_app "$dotnet_toml" '"test:dotnet"'; unset REQ_EXIT
 [ "$rc" = 1 ]
 result $? "test:dotnet: dotnet test's exit status is the task's" "exit $rc; $out"
 rm "$T/req-app/App.slnx"
@@ -172,7 +176,7 @@ run_in_app "$go_toml" '"test:go"'
 [ "$rc" = 0 ] && [ ! -s "$REQ_LOG" ] && printf '%s\n' "$out" | grep -q '^test:go: no go.mod in the repository'
 result $? "test:go, no go.mod: passes, says so, go not run" "exit $rc; $out; $(cat "$REQ_LOG")"
 mkdir -p "$T/req-app/svc" && printf 'module example.invalid/svc\n' > "$T/req-app/svc/go.mod"
-REQ_EXIT=1 run_in_app "$go_toml" '"test:go"'
+export REQ_EXIT=1; run_in_app "$go_toml" '"test:go"'; unset REQ_EXIT
 [ "$rc" = 1 ] && [ "$(cat "$REQ_LOG")" = 'go test ./...' ]
 result $? "test:go, a go.mod at any depth: runs go test ./... and its failure stands" "exit $rc; $out; $(cat "$REQ_LOG")"
 
@@ -247,7 +251,7 @@ printf '<Solution>\n</Solution>\n' > "$T/app/App.slnx"
 run_task check:dotnet
 [ "$rc" = 0 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
 result $? "check:dotnet, a solution: runs dotnet format --verify-no-changes" "exit $rc; $out; $(cat "$STUB_LOG")"
-STUB_EXIT=2 run_task check:dotnet
+export STUB_EXIT=2; run_task check:dotnet; unset STUB_EXIT
 [ "$rc" = 2 ]
 result $? "check:dotnet: dotnet format's exit status is the task's" "exit $rc; $out"
 run_task fmt:dotnet
@@ -262,7 +266,7 @@ result $? "check:dotnet, a project and no solution: runs dotnet format" "exit $r
 # A solution below the root is code that would go unchecked if the task
 # skipped. dotnet format finds nothing at the root and fails, as before.
 rm "$T/app/App.csproj" && mkdir -p "$T/app/src" && printf '<Solution>\n</Solution>\n' > "$T/app/src/App.slnx"
-STUB_EXIT=1 run_task check:dotnet
+export STUB_EXIT=1; run_task check:dotnet; unset STUB_EXIT
 [ "$rc" = 1 ] && [ "$(cat "$STUB_LOG")" = 'format --verify-no-changes' ]
 result $? "check:dotnet, a solution below the root only: not skipped, dotnet format runs and its failure stands" "exit $rc; $out; $(cat "$STUB_LOG")"
 

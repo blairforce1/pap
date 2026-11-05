@@ -13,14 +13,13 @@
   // mcr.microsoft.com/devcontainers/base:2.2.1-trixie: plain Debian 13 with
   // a non-root vscode user, no language toolchain.
   "image": "mcr.microsoft.com/devcontainers/base:2.2.1-trixie@sha256:1f851004adcd3dff3776b4a1da86727cf52280b0fdc9d5b0568c9c7d74274286",
+  // gh and jq are mise pins (.config/mise/conf.d/base.toml), installed by
+  // postCreateCommand, so they need no feature. Claude Code is installed by
+  // onCreateCommand, below.
   "features": {
     // git 1.3.8. os-provided keeps the git the pinned image ships.
     "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2": {
       "version": "os-provided"
-    },
-    // github-cli 1.1.2.
-    "ghcr.io/devcontainers/features/github-cli@sha256:7c409bf6316ffd85f04fd92fba85a744282639e603417dd4796409866bdb6805": {
-      "version": "2.101.0"
     }
   },
   "containerUser": "vscode",
@@ -38,8 +37,18 @@
   // podman leaves it root 0755, and mise, dotnet and go all write there.
   // A no-op under Docker. Then mise 2026.5.12: no official mise feature
   // exists, and the community one fetches unpinned helpers at build time.
-  "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh",
-  "postCreateCommand": "mise trust && mise install && mise run setup",
+  //
+  // Last, Claude Code by Anthropic's native installer, into ~/.local/bin
+  // (on PATH through remoteEnv). The one tool not pinned, on purpose: it
+  // updates itself often, its auto-update stays on, and a pin would only
+  // hold it back.
+  "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh && curl -fsSL https://claude.ai/install.sh | bash",
+  // The clone setup, which fails the create if it fails; then the pap and
+  // spec-review plugins, each saying so if it cannot install (offline, say);
+  // then pap doctor to show what is left (gh auth login, and claude's own
+  // sign-in, are yours), whose result never fails the create. bin/pap is
+  // pap's own checkout, which pins no pap of its own.
+  "postCreateCommand": "mise trust && mise install && mise run setup && { for p in pap spec-review; do claude plugin install \"$p\" --marketplace blairforce1/pap || echo \"postCreate: could not install the $p plugin; pap doctor says how\"; done; if command -v pap >/dev/null 2>&1; then pap doctor; else sh bin/pap doctor; fi || true; }",
   "customizations": {
     "vscode": {
       // The same list as .vscode/extensions.json; see the base README.

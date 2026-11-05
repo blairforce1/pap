@@ -21,7 +21,9 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 
 command -v git >/dev/null 2>&1 || { printf 'Bail out! git not found\n'; exit 1; }
 
-T="$(mktemp -d)"
+# pwd -P: macOS's temporary directory is under a symlink (/var to
+# /private/var), and git and pwd report the resolved path.
+T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 # git looks for no repository above $T.
 export GIT_CEILING_DIRECTORIES="$T"
@@ -272,7 +274,46 @@ ls_json() {
 }
 EOF
 }
-doctor() { (cd "$T/app" && env -u MISE_SHELL "$@" sh "$pap" doctor 2>&1); }
+# doctor runs on a PATH of stubs and links, never the machine's own tools:
+# $T/stub (mise), $T/tools (gh, jq, claude, flock), $T/linux (a uname that
+# says Linux, so the hints are the same on a macOS runner) and $T/sys, links
+# to the system commands pap itself needs. A case drops a directory to make
+# a tool missing. No stub reaches the network.
+mkdir "$T/tools" "$T/linux" "$T/mac" "$T/apt" "$T/dnf" "$T/sys" "$T/sysnogit" "$T/forbid"
+cat > "$T/tools/gh" <<'EOF'
+#!/bin/sh
+echo "gh $*" >> "$STUB_LOG"
+case "$*" in "auth status") exit "${STUB_GH_AUTH:-0}" ;; esac
+EOF
+cat > "$T/tools/claude" <<'EOF'
+#!/bin/sh
+echo "claude $*" >> "$STUB_LOG"
+case "$*" in
+  "plugin list")
+    [ "${STUB_PLUGINS-x}" != fail ] || exit 1
+    printf '%s\n' "${STUB_PLUGINS-  > pap@blairforce1-pap
+  > spec-review@blairforce1-pap}" ;;
+esac
+EOF
+printf '#!/bin/sh\nexit 0\n' > "$T/tools/jq"
+printf '#!/bin/sh\nexit 0\n' > "$T/tools/flock"
+printf '#!/bin/sh\necho Linux\n' > "$T/linux/uname"
+printf '#!/bin/sh\necho Darwin\n' > "$T/mac/uname"
+printf '#!/bin/sh\nexit 0\n' > "$T/apt/apt-get"
+printf '#!/bin/sh\nexit 0\n' > "$T/dnf/dnf"
+# What doctor --fix must never run, each logged if it is.
+# shellcheck disable=SC2016 # $* and $STUB_LOG expand in the stub, not here.
+for f in sudo apt-get apt dnf brew; do
+  printf '#!/bin/sh\necho "FORBIDDEN %s $*" >> "$STUB_LOG"\n' "$f" > "$T/forbid/$f"
+done
+chmod +x "$T"/tools/* "$T"/linux/* "$T"/mac/* "$T"/apt/* "$T"/dnf/* "$T"/forbid/*
+for c in sh git cut grep awk sed cat head tr dirname basename env; do
+  ln -s "$(command -v "$c")" "$T/sys/$c"
+  [ "$c" = git ] || ln -s "$(command -v "$c")" "$T/sysnogit/$c"
+done
+dpath="$T/stub:$T/tools:$T/linux:$T/sys"
+doctor() { (cd "$T/app" && env -u MISE_SHELL PATH="$dpath" "$@" sh "$pap" doctor 2>&1); }
+fixdoctor() { (cd "$T/app" && env -u MISE_SHELL PATH="$dpath" "$@" sh "$pap" doctor --fix 2>&1); }
 
 ls_json false 2.1.14
 out="$(doctor)"; rc=$?
@@ -298,7 +339,7 @@ out="$(doctor MISE_SHELL=bash)"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'This machine is ready' &&
   ! printf '%s\n' "$out" | grep -Eq '^  (missing|drift)'
 result $? "doctor, set up: every item ok; exits 0" "$out"
-out="$(doctor PATH="$MISE_DATA_DIR/shims:$PATH")"; rc=$?
+out="$(doctor PATH="$MISE_DATA_DIR/shims:$dpath")"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'ok       mise activated  (shims on PATH)'
 result $? "doctor: mise shims on PATH count as activated" "$out"
 
@@ -321,6 +362,104 @@ out="$(doctor MISE_SHELL=bash)"; rc=$?
   printf '%s\n' "$out" | grep -q 'drift    lefthook 2.1.14  (active is 2.1.13)' &&
   printf '%s\n' "$out" | grep -q 'ok       pre-commit hook installed'
 result $? "doctor, drifted: a foreign hook and an active version off its pin; exits 1" "$out"
+
+# --- doctor: the tools, and their install hints ------------------------------
+
+# Back to set up, so each case below fails on its one missing tool.
+printf '#!/bin/sh\n# lefthook\n' > "$hooks/pre-push"
+ls_json true 2.1.14
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 0 ] &&
+  printf '%s\n' "$out" | grep -q 'ok       gh signed in' &&
+  printf '%s\n' "$out" | grep -q 'ok       jq on PATH' &&
+  printf '%s\n' "$out" | grep -q 'ok       pap plugin installed' &&
+  printf '%s\n' "$out" | grep -q 'ok       spec-review plugin installed' &&
+  printf '%s\n' "$out" | grep -q 'ok       flock on PATH'
+result $? "doctor: gh signed in, jq, claude, both plugins and flock all ok; exits 0" "$out"
+
+# missing <label> <expected line> [env...]: doctor on a PATH without one
+# tool exits 1 and prints the line.
+missing() {
+  label="$1" line="$2"; shift 2
+  out="$(doctor MISE_SHELL=bash "$@")"; rc=$?
+  [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -qF "$line"
+  result $? "$label" "$out"
+}
+mkdir "$T/nogh" "$T/nojq" "$T/noclaude" "$T/noflock"
+for t in gh jq claude flock; do
+  for d in nogh nojq noclaude noflock; do
+    [ "$d" = "no$t" ] || cp "$T/tools/$t" "$T/$d/"
+  done
+done
+
+missing "doctor: gh missing, with mise install and the apt command" \
+  'missing  gh on PATH  (run mise install, or sudo apt install gh)' PATH="$T/stub:$T/nogh:$T/apt:$T/linux:$T/sys"
+printf '%s\n' "$out" | grep -qF 'skipped  gh signed in  (no gh)'
+result $? "doctor: gh missing skips the sign-in check" "$out"
+missing "doctor: gh not signed in names gh auth login" \
+  'missing  gh signed in  (run gh auth login)' STUB_GH_AUTH=1
+missing "doctor: jq missing, with the dnf command" \
+  'missing  jq on PATH  (run mise install, or sudo dnf install jq)' PATH="$T/stub:$T/nojq:$T/dnf:$T/linux:$T/sys"
+missing "doctor: jq missing on macOS, with the brew command" \
+  'missing  jq on PATH  (run mise install, or brew install jq)' PATH="$T/stub:$T/nojq:$T/mac:$T/sys"
+missing "doctor: jq missing on a Linux with neither apt nor dnf, with a link" \
+  'missing  jq on PATH  (run mise install, or https://jqlang.org/download/)' PATH="$T/stub:$T/nojq:$T/linux:$T/sys"
+missing "doctor: claude missing, with the native installer" \
+  'missing  claude on PATH  (curl -fsSL https://claude.ai/install.sh | bash)' PATH="$T/stub:$T/noclaude:$T/linux:$T/sys"
+printf '%s\n' "$out" | grep -qF 'skipped  pap plugins installed  (no claude)'
+result $? "doctor: claude missing skips the plugin check" "$out"
+missing "doctor: claude missing on macOS, with the brew cask" \
+  'missing  claude on PATH  (brew install --cask claude-code, or curl -fsSL https://claude.ai/install.sh | bash)' PATH="$T/stub:$T/noclaude:$T/mac:$T/sys"
+missing "doctor: spec-review plugin missing, with the install command" \
+  'missing  spec-review plugin installed  (claude plugin install spec-review --marketplace blairforce1/pap)' \
+  STUB_PLUGINS='  > pap@blairforce1-pap'
+missing "doctor: pap plugin missing, with the install command" \
+  'missing  pap plugin installed  (claude plugin install pap --marketplace blairforce1/pap)' \
+  STUB_PLUGINS='  > spec-review@blairforce1-pap'
+out="$(doctor MISE_SHELL=bash STUB_PLUGINS=fail)"; rc=$?
+[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qF 'skipped  pap plugins installed  (claude plugin list failed'
+result $? "doctor: claude plugin list failing skips the plugin check; exits 0" "$out"
+out="$(doctor MISE_SHELL=bash PATH="$T/stub:$T/noflock:$T/mac:$T/sys")"; rc=$?
+[ "$rc" = 0 ] &&
+  printf '%s\n' "$out" | grep -qF 'warn     flock on PATH  (brew install flock; heavy builds run without the machine lock)'
+result $? "doctor: flock missing is a warning with the brew command; exits 0" "$out"
+missing "doctor: mise missing on macOS, with the brew command" \
+  'missing  mise on PATH  (brew install mise)' PATH="$T/tools:$T/mac:$T/sys"
+missing "doctor: mise missing on Linux, with the install link" \
+  'missing  mise on PATH  (https://mise.jdx.dev/getting-started.html)' PATH="$T/tools:$T/linux:$T/sys"
+missing "doctor: git missing, with the apt command; the repository checks skipped" \
+  'missing  git on PATH  (sudo apt install git)' PATH="$T/stub:$T/tools:$T/apt:$T/linux:$T/sysnogit"
+printf '%s\n' "$out" | grep -qF 'skipped  git hooks and settings  (no git)' &&
+  printf '%s\n' "$out" | grep -qF 'skipped  pinned tools  (no git'
+result $? "doctor: git missing skips the hooks and the pins" "$out"
+
+# --- doctor --fix --------------------------------------------------------------
+
+# fixed_only: every call logged is mise trust, mise install or one of
+# doctor's read-only questions; nothing else ran.
+fixed_only() {
+  grep -qx trust "$STUB_LOG" && grep -qx install "$STUB_LOG" &&
+    ! grep -vxE 'trust|install|--version|trust --show|ls --current --json|gh auth status|claude plugin list' "$STUB_LOG"
+}
+: > "$STUB_LOG"
+out="$(fixdoctor STUB_GH_AUTH=1 PATH="$T/forbid:$T/stub:$T/nojq:$T/linux:$T/sys")"; rc=$?
+[ "$rc" = 1 ] && fixed_only &&
+  printf '%s\n' "$out" | grep -q '^fix: mise trust && mise install$' &&
+  printf '%s\n' "$out" | grep -qF 'missing  gh signed in  (run gh auth login)' &&
+  printf '%s\n' "$out" | grep -qF 'missing  jq on PATH  (run mise install, or sudo apt install jq)'
+result $? "doctor --fix: runs mise trust and mise install only, on PATH with sudo and apt; prints the rest" "$out
+$(cat "$STUB_LOG")"
+: > "$STUB_LOG"
+out="$(fixdoctor STUB_GH_AUTH=1 PATH="$T/forbid:$T/stub:$T/noflock:$T/mac:$T/sys")"; rc=$?
+[ "$rc" = 1 ] && fixed_only && printf '%s\n' "$out" | grep -qF 'warn     flock on PATH  (brew install flock'
+result $? "doctor --fix: on macOS runs no brew" "$out
+$(cat "$STUB_LOG")"
+: > "$STUB_LOG"
+out="$(fixdoctor PATH="$T/forbid:$T/tools:$T/linux:$T/sys")"; rc=$?
+[ "$rc" = 1 ] && ! grep -vxE 'gh auth status|claude plugin list' "$STUB_LOG" &&
+  printf '%s\n' "$out" | grep -q '^fix: no mise, so nothing to run'
+result $? "doctor --fix without mise: runs nothing, says so" "$out
+$(cat "$STUB_LOG")"
 
 # --- init when the clone setup fails ------------------------------------------
 

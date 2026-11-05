@@ -6,7 +6,7 @@
 #        pap sync [--version <v>]
 #        pap repo status|apply [--repo owner/name] [--dry-run] [--remove-checks]
 #        pap codeowners [--owner <owner>] [--check | -]
-#        pap doctor
+#        pap doctor [--fix]
 #        pap revisits
 #        pap coverage
 #        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
@@ -29,13 +29,20 @@
 # repo    scripts/repo-sync.sh: the GitHub side, settings to labels.
 # codeowners
 #         scripts/gen-codeowners.sh: .github/CODEOWNERS from the invariants.
-# doctor  The machine side repo status cannot see: mise on PATH and
-#         activated, this configuration trusted, the git hooks installed,
+# doctor  The machine side repo status cannot see: git, mise on PATH and
+#         activated, gh installed and signed in, jq, the claude CLI and the
+#         pap and spec-review plugins, flock (a warning only), this
+#         configuration trusted, the git hooks installed,
 #         blame.ignoreRevsFile set, and every pinned tool installed at its
-#         pin. Each item is ok, missing, drift or skipped; exits 1 unless
-#         every item is ok or skipped. Also counts local branches whose
-#         upstream is gone, as of the last fetch, and suggests mise run
-#         tidy; a stale branch is housekeeping and never fails doctor.
+#         pin. Each item is ok, missing, drift, warn or skipped, and a
+#         failing one names the command that fixes it on this platform
+#         (Linux with apt or dnf, macOS with Homebrew; WSL is Linux); exits
+#         1 unless every item is ok, warn or skipped. Also counts local
+#         branches whose upstream is gone, as of the last fetch, and
+#         suggests mise run tidy; a stale branch is housekeeping and never
+#         fails doctor. --fix first runs `mise trust` and `mise install`,
+#         the only fixes it makes; it never runs sudo, a package manager or
+#         gh auth login, and prints those for you to run.
 # revisits
 #         Reads the typed Revisit line of every record in decisions/
 #         (decision 0010) and prints one line per record: due, not due
@@ -402,19 +409,59 @@ cmd_sync() {
 d_bad=0
 item() { # item <state> <what> [detail]
   printf '  %-8s %s%s\n' "$1" "$2" "${3:+  ($3)}"
-  case "$1" in ok | skipped | stale) ;; *) d_bad=$((d_bad + 1)) ;; esac
+  case "$1" in ok | skipped | stale | warn) ;; *) d_bad=$((d_bad + 1)) ;; esac
+}
+
+# The platform the install hints are for: macos, apt, dnf or linux (any
+# other Linux, WSL included), or other.
+d_platform() {
+  case "$(uname -s 2>/dev/null)" in
+    Darwin) echo macos ;;
+    Linux)
+      if command -v apt-get >/dev/null 2>&1; then echo apt
+      elif command -v dnf >/dev/null 2>&1; then echo dnf
+      else echo linux; fi ;;
+    *) echo other ;;
+  esac
+}
+
+# how <apt package> <dnf package> <brew formula> <link>: the install
+# command for this platform, or the link where there is no obvious one.
+how() {
+  case "$d_os" in
+    apt) [ -z "$1" ] || { printf 'sudo apt install %s' "$1"; return; } ;;
+    dnf) [ -z "$2" ] || { printf 'sudo dnf install %s' "$2"; return; } ;;
+    macos) [ -z "$3" ] || { printf 'brew install %s' "$3"; return; } ;;
+  esac
+  printf '%s' "$4"
 }
 
 cmd_doctor() {
+  fix=false
+  [ "${1:-}" != --fix ] || { fix=true; shift; }
   [ $# -eq 0 ] || usage
-  to_top
+  d_os="$(d_platform)"
+  has_git=true
+  command -v git >/dev/null 2>&1 || has_git=false
+  [ "$has_git" = false ] || to_top
+  has_mise=true
+  command -v mise >/dev/null 2>&1 || has_mise=false
+
+  if [ "$fix" = true ]; then
+    if [ "$has_mise" = true ]; then
+      say "fix: mise trust && mise install"
+      if ! { mise trust && mise install; }; then say "fix: mise reported a failure, above"; fi
+    else
+      say "fix: no mise, so nothing to run; install it as below"
+    fi
+    say ""
+  fi
+
   say "mise"
-  if ! command -v mise >/dev/null 2>&1; then
-    item missing "mise on PATH" "https://mise.jdx.dev/getting-started.html"
-    has_mise=false
+  if [ "$has_mise" = false ]; then
+    item missing "mise on PATH" "$(how "" "" mise https://mise.jdx.dev/getting-started.html)"
   else
     item ok "mise on PATH" "$(mise --version 2>/dev/null | cut -d' ' -f1)"
-    has_mise=true
   fi
   shims="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
   if [ -n "${MISE_SHELL:-}" ]; then
@@ -428,37 +475,93 @@ cmd_doctor() {
   if [ "$has_mise" = false ]; then
     item skipped "configuration trusted" "no mise"
   elif mise trust --show 2>/dev/null | grep -qv ': trusted$'; then
-    item missing "configuration trusted" "run mise trust"
+    item missing "configuration trusted" "run mise trust, or pap doctor --fix"
   else
     item ok "configuration trusted"
   fi
 
-  say "" "git"
-  hooks="$(git rev-parse --git-path hooks)"
-  for h in pre-commit pre-push; do
-    if [ ! -f "$hooks/$h" ]; then
-      item missing "$h hook installed" "run mise run setup"
-    elif grep -q lefthook "$hooks/$h"; then
-      item ok "$h hook installed"
-    else
-      item drift "$h hook installed" "$hooks/$h is not lefthook's"
-    fi
-  done
-  if [ -n "$(git config blame.ignoreRevsFile || true)" ]; then
-    item ok "blame.ignoreRevsFile set"
+  # gh and jq are pinned by the base layer, so mise install is the first
+  # fix; the platform command is for a machine without mise.
+  say "" "tools"
+  if [ "$has_git" = true ]; then
+    item ok "git on PATH" "$(git --version | cut -d' ' -f3)"
   else
-    item missing "blame.ignoreRevsFile set" "run mise run setup"
+    item missing "git on PATH" "$(how git git git https://git-scm.com/downloads)"
   fi
-  gone="$(git for-each-ref --format='%(upstream:track)' refs/heads | grep -c '^\[gone\]$' || true)"
-  if [ "$gone" -eq 0 ]; then
-    item ok "no branch with a gone upstream"
+  if ! command -v gh >/dev/null 2>&1; then
+    item missing "gh on PATH" "run mise install, or $(how gh gh gh https://cli.github.com/)"
+    item skipped "gh signed in" "no gh"
   else
-    item stale "$gone branch(es) with a gone upstream" "run mise run tidy"
+    item ok "gh on PATH"
+    if gh auth status >/dev/null 2>&1; then
+      item ok "gh signed in"
+    else
+      item missing "gh signed in" "run gh auth login"
+    fi
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    item ok "jq on PATH"
+  else
+    item missing "jq on PATH" "run mise install, or $(how jq jq jq https://jqlang.org/download/)"
+  fi
+  if ! command -v claude >/dev/null 2>&1; then
+    if [ "$d_os" = macos ]; then
+      item missing "claude on PATH" "brew install --cask claude-code, or curl -fsSL https://claude.ai/install.sh | bash"
+    else
+      item missing "claude on PATH" "curl -fsSL https://claude.ai/install.sh | bash"
+    fi
+    item skipped "pap plugins installed" "no claude"
+  elif ! plugins="$(claude plugin list 2>/dev/null)"; then
+    item ok "claude on PATH"
+    item skipped "pap plugins installed" "claude plugin list failed; check with /plugin in Claude Code"
+  else
+    item ok "claude on PATH"
+    for p in pap spec-review; do
+      if printf '%s\n' "$plugins" | grep -Eq "(^|[^a-z-])$p@"; then
+        item ok "$p plugin installed"
+      else
+        item missing "$p plugin installed" "claude plugin install $p --marketplace blairforce1/pap"
+      fi
+    done
+  fi
+  if command -v flock >/dev/null 2>&1; then
+    item ok "flock on PATH"
+  else
+    item warn "flock on PATH" "$(how util-linux util-linux flock https://github.com/discoteq/flock); heavy builds run without the machine lock"
+  fi
+
+  say "" "git"
+  if [ "$has_git" = false ]; then
+    item skipped "git hooks and settings" "no git"
+  else
+    hooks="$(git rev-parse --git-path hooks)"
+    for h in pre-commit pre-push; do
+      if [ ! -f "$hooks/$h" ]; then
+        item missing "$h hook installed" "run mise run setup"
+      elif grep -q lefthook "$hooks/$h"; then
+        item ok "$h hook installed"
+      else
+        item drift "$h hook installed" "$hooks/$h is not lefthook's"
+      fi
+    done
+    if [ -n "$(git config blame.ignoreRevsFile || true)" ]; then
+      item ok "blame.ignoreRevsFile set"
+    else
+      item missing "blame.ignoreRevsFile set" "run mise run setup"
+    fi
+    gone="$(git for-each-ref --format='%(upstream:track)' refs/heads | grep -c '^\[gone\]$' || true)"
+    if [ "$gone" -eq 0 ]; then
+      item ok "no branch with a gone upstream"
+    else
+      item stale "$gone branch(es) with a gone upstream" "run mise run tidy"
+    fi
   fi
 
   say "" "tool pins"
   if [ "$has_mise" = false ]; then
     item skipped "pinned tools" "no mise"
+  elif [ "$has_git" = false ]; then
+    item skipped "pinned tools" "no git, so no repository to read the pins of"
   elif ! json="$(mise ls --current --json 2>&1)"; then
     item missing "pinned tools" "$(printf '%s\n' "$json" | head -n 1)"
   else
@@ -478,7 +581,7 @@ cmd_doctor() {
       case "$s" in "$top"/*) ;; *) continue ;; esac
       pinned=$((pinned + 1))
       if [ "$i" != true ]; then
-        item missing "$t $r" "run mise install"
+        item missing "$t $r" "run mise install, or pap doctor --fix"
       elif [ -n "$r" ] && [ "$v" != "$r" ]; then
         item drift "$t $r" "active is $v"
       else
@@ -702,8 +805,8 @@ cmd_measure() {
         if (merged[i] > span_hi) span_hi = merged[i]
       }
       nb = last - lo + 1; na = hi - first + 1; if (na < 0) na = 0
-      printf "# before: %d of 10%s\n", nb, nb < 10 ? ", short" : ""
-      printf "# after: %d of 10%s\n", na, na < 10 ? ", short" : ""
+      printf "# before: %d of 10%s\n", nb, (nb < 10 ? ", short" : "")
+      printf "# after: %d of 10%s\n", na, (na < 10 ? ", short" : "")
       # A rejection (decision 0002): a change/ pull request closed unmerged,
       # not a scratch preview opened to be closed.
       r = ""
