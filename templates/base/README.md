@@ -202,7 +202,14 @@ activated, the configuration trusted, the git hooks installed,
 `blame.ignoreRevsFile` set, each pinned tool installed at its pin, and
 how many local branches have a gone upstream (run `mise run tidy`).
 `pap repo status` reports the GitHub side, and `pap codeowners` regenerates
-`.github/CODEOWNERS`. `pap repo apply` never removes a required status
+`.github/CODEOWNERS`. `pap repo apply` keeps two rulesets: `main`, and
+`all-branches`, which blocks a force push on every branch but Renovate's
+and Dependabot's and has no bypass actors, because agents push with your
+own credentials (decision 0022). To force-push on purpose, disable
+`all-branches` (repository settings, Rules, Rulesets), push from your own
+terminal, and run `pap repo apply`, which restores it; until then `pap repo
+status` reports it as drift. The `/change` agents never force-push: the
+hook refuses it. `pap repo apply` never removes a required status
 check from the `main` ruleset unless given `--remove-checks`: a check it
 does not know is listed as kept. To have it add a check of the
 repository's own, a workflow job PAP does not ship, list the job's check

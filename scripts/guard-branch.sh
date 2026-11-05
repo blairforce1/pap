@@ -9,6 +9,14 @@
 #   push    Run the branch check, then read the git pre-push ref list from
 #           stdin (<local ref> <local sha> <remote ref> <remote sha> per
 #           line) and exit 1 if any ref targets refs/heads/main.
+#   push-args
+#           Decision 0022: refuse a force push. The remaining arguments are
+#           the words after `git push`, as the Claude Code hook
+#           (plugins/pap/hooks/guard-route.sh) reads them from an agent's
+#           tool call. Exit 1 if any is --force, -f (alone or bundled, as in
+#           -uf), --force-with-lease[=...], --force-if-includes, --mirror
+#           (which forces every ref), or a refspec starting with `+`. Not run by git: a person at a terminal is
+#           unaffected, and the GitHub ruleset all-branches is the backstop.
 #   hook    Deprecated: the pap plugin's PreToolUse hook before 0.2.0.
 #           Reads the tool-call JSON from stdin and runs the branch check in
 #           the session's repository when the command contains `git commit`
@@ -56,7 +64,28 @@ check_push_refs() {
   done
 }
 
+# check_push_args <word>...: refuse the first force form among the words.
+check_push_args() {
+  for word in "$@"; do
+    case "$word" in
+      --force | --force-with-lease | --force-with-lease=* | --force-if-includes | --mirror) form="$word" ;;
+      --*) continue ;;
+      -[uqvnd46]*f* | -f*) form="$word" ;;
+      +*) form="refspec $word" ;;
+      *) continue ;;
+    esac
+    printf 'guard-branch: refusing a force push (%s)\n' "$form" >&2
+    printf 'guard-branch: rule 22.1, decision 0022: no branch takes a force push; merge main into the branch instead of rebasing.\n' >&2
+    printf 'guard-branch: the override is deliberate and the human'"'"'s: they push from their own terminal, after disabling the all-branches ruleset on GitHub, then run pap repo apply to restore it.\n' >&2
+    exit 1
+  done
+}
+
 case "$mode" in
+  push-args)
+    shift
+    check_push_args "$@"
+    ;;
   branch)
     in_work_tree || exit 0
     check_branch 1
@@ -82,7 +111,7 @@ case "$mode" in
     check_branch 2
     ;;
   *)
-    printf 'usage: %s branch|push|hook\n' "$0" >&2
+    printf 'usage: %s branch|push|push-args|hook\n' "$0" >&2
     exit 64
     ;;
 esac
