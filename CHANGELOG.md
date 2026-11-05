@@ -21,6 +21,12 @@ not carry.
   `inbox_list`, `ci_repos` and `pap_repos`. No repositories are set until
   the PM calls `ci_repos` and `pap_repos`.
 
+#### Changed
+
+- The pane says cycles, not lanes: the tab, the rows and the README. `inbox_add`
+  takes `cycle` and still accepts `lane` as an alias; stored items keep their
+  `lane` field, so saved inboxes load.
+
 ## spec-review
 
 ### [1.3.1] - 2026-09-23

@@ -1,9 +1,9 @@
 // pm-console: the PM's console beside the chat.
-// - Waiting on you: what each lane's report asks of the Project Lead. The PM
+// - Waiting on you: what each cycle's report asks of the Project Lead. The PM
 //   records items with the inbox_add tool, with the report as detail. Items are
 //   grouped by ref; opening a group shows the report and ticks items. The PM
 //   can also call inbox_done. Kept in $.store, so it survives restarts.
-// - Lanes: this session's background agents, live from $.agent.list().
+// - Cycles: this session's background agents, live from $.agent.list().
 // - CI: average and slowest run time per workflow, from `gh run list`.
 // - Status line: one summary of all three.
 import { atom, read, update } from 'claude-code'
@@ -23,16 +23,16 @@ const lanes = atom(lanesRef, [] as LaneRow[])
 const ci = atom(ciRef, { at: 0, rows: [], error: '', repos: 0 } as CiStats)
 const pap = atom(papRef, { at: 0, latest: '', rows: [], repos: 0 } as PapStats)
 const tab = atom(tabRef, 'inbox')
-// The inbox group whose detail is open ('' = the list). A group is one report: its ref, else its lane.
+// The inbox group whose detail is open ('' = the list). A group is one report: its ref, else its cycle.
 const openGroupRef = { plugin: 'pm-console', key: 'openGroup' } as const
 const openGroup = atom(openGroupRef, '')
 const TABS = [
   ['inbox', 'Inbox', '1'],
-  ['lanes', 'Lanes', '2'],
+  ['cycles', 'Cycles', '2'],
   ['pap', 'PAP', '3'],
   ['ci', 'CI', '4'],
 ] as const
-const groupOf = (i: InboxItem) => i.ref || `lane ${i.lane}`
+const groupOf = (i: InboxItem) => i.ref || `cycle ${i.lane}`
 
 const STORE_INBOX = 'inbox-1'
 const STORE_REPOS = 'ci-repos'
@@ -258,26 +258,27 @@ export const register: Register = on => {
 
     await $.command.register({
       name: 'pm',
-      description: 'Open the PM console (what lanes ask of you, lanes, CI)',
+      description: 'Open the PM console (what cycles ask of you, cycles, CI)',
     })
     await $.tool.register({
       name: 'inbox_add',
       description:
-        'Add what a lane report asks of the Project Lead to the PM console (one short imperative line per item: review, decide, merge, run). Call when a lane reports.',
+        'Add what a cycle report asks of the Project Lead to the PM console (one short imperative line per item: review, decide, merge, run). Call when a cycle reports.',
       inputSchema: {
         type: 'object',
         properties: {
-          lane: { type: 'string', description: 'Lane number or slug, e.g. "105"' },
+          cycle: { type: 'string', description: 'Cycle number or slug, e.g. "105"' },
+          lane: { type: 'string', description: 'Alias of cycle, kept so existing callers keep working' },
           ref: { type: 'string', description: 'PR or thing it concerns, e.g. "ap#4"; items are grouped by it' },
           items: { type: 'array', items: { type: 'string' }, minItems: 1 },
           detail: {
             type: 'string',
             description:
-              'What the lane reported, shown when the Project Lead opens the group: built, deviations, decisions left, revisits. Short lines, no secrets.',
+              'What the cycle reported, shown when the Project Lead opens the group: built, deviations, decisions left, revisits. Short lines, no secrets.',
           },
           url: { type: 'string', description: 'Link to the PR or thing, copied from the detail view' },
         },
-        required: ['lane', 'items'],
+        required: ['items'],
       },
       isDeferred: false,
     })
@@ -376,12 +377,12 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: 'mcp__pm-console__inbox_add' }, async ($, e) => {
-    const input = e as unknown as { lane: string; ref?: string; items: string[]; detail?: string; url?: string }
+    const input = e as unknown as { cycle?: string; lane?: string; ref?: string; items: string[]; detail?: string; url?: string }
     const now = Date.now()
     const added: InboxItem[] = input.items.map((text, i) => ({
       id: `${now.toString(36)}${i}`,
       text,
-      lane: String(input.lane),
+      lane: String(input.cycle ?? input.lane ?? ''), // stored field stays `lane` so saved inboxes load
       ref: input.ref ?? '',
       at: now,
       isDone: false,
@@ -459,7 +460,7 @@ export const register: Register = on => {
     const clearDone = () => void changeInbox($, list => list.filter(i => !i.isDone))
     const counts: Record<string, string> = {
       inbox: `${open.length}`,
-      lanes: `${running}`,
+      cycles: `${running}`,
       pap: `${proposed}`,
       ci: '',
     }
@@ -500,7 +501,7 @@ export const register: Register = on => {
         {open.length === 0 && <Text dimColor>Nothing waiting.</Text>}
         {groups.map(g => {
           const first = g.items[0] as InboxItem
-          const tail = ` lane ${first.lane} · ${ago(first.at, now)} · ${g.items.length} ▸`
+          const tail = ` cycle ${first.lane} · ${ago(first.at, now)} · ${g.items.length} ▸`
           return (
             <Box key={`g-${g.name}`} flexDirection="column" marginBottom={1}>
               <Button key={`open-${g.name}`} plain onPress={showGroup(g.name)}>
@@ -529,7 +530,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Text bold>
           {shown}
-          <Text dimColor>{`  lane ${lead.lane} · ${ago(lead.at, now)}`}</Text>
+          <Text dimColor>{`  cycle ${lead.lane} · ${ago(lead.at, now)}`}</Text>
         </Text>
         <Text> </Text>
         {lead.detail
@@ -574,10 +575,10 @@ export const register: Register = on => {
 
     const inboxView = shown && detailView ? detailView : listView
 
-    const lanesView = (
+    const cyclesView = (
       <Box flexDirection="column">
-        <Text bold>LANES ({running} running)</Text>
-        {laneRows.length === 0 && <Text dimColor>No lanes this session.</Text>}
+        <Text bold>CYCLES ({running} running)</Text>
+        {laneRows.length === 0 && <Text dimColor>No cycles this session.</Text>}
         {laneRows.slice(-15).map(l => {
           const mark = ['running', 'pending', 'waiting'].includes(l.status) ? '●' : l.status === 'completed' ? '✓' : '✗'
           const tail = ` ${l.model ? `${l.model} · ` : ''}${l.status}${l.startedAt ? ` · ${ago(l.startedAt, now)}` : ''}`
@@ -640,7 +641,7 @@ export const register: Register = on => {
       </Box>
     )
 
-    const body = current === 'lanes' ? lanesView : current === 'pap' ? papView : current === 'ci' ? ciView : inboxView
+    const body = current === 'cycles' ? cyclesView : current === 'pap' ? papView : current === 'ci' ? ciView : inboxView
 
     return (
       <Box flexDirection="column">

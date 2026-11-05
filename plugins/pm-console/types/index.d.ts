@@ -5,7 +5,7 @@ export type InboxItem = {
   ref: string
   at: number
   isDone: boolean
-  // What the lane reported, for the detail view; the same on every item of one report.
+  // What the cycle reported, for the detail view; the same on every item of one report.
   detail?: string
   url?: string
 }
