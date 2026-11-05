@@ -117,15 +117,16 @@ repository's one tag series, `v<x.y.z>`, with the CLI and templates;
 
 #### Added
 
-- Decision 0018 (proposed): a project-manager session briefs one lane per
-  `/change`, keeps a tracker (a state file and an event log) committed on
-  every event, pauses and resumes lanes by save point, audits tokens and
-  time every five merged change PRs, and opens, approves and merges
-  nothing. Each audit classifies its rules as project or general; the
-  general ones go back to PAP as an ordinary change, from a PAP
-  candidates list in the tracker. Rules 18.1 to 18.5, enforced by nothing
-  yet. Backlog item H-012 carries the `/pap:pm` skill, the `pap:lane`
-  agent, the templates and the console.
+- Decision 0018 (proposed): a project-manager session launches one cycle
+  per `/change` (a cycle is one change, run by one member today; the
+  vocabulary is TSP's), keeps a tracker (a state file and an event log)
+  committed on every event, pauses and relaunches cycles by save point,
+  audits tokens and time every five merged change PRs, and opens,
+  approves and merges nothing. Each audit classifies its rules as project
+  or general; the general ones go back to PAP as an ordinary change, from
+  a PAP candidates list in the tracker. Rules 18.1 to 18.5, enforced by
+  nothing yet. Backlog item H-012 carries the `/pap:pm` skill, the
+  `pap:member` agent, the templates and the console.
 
 ### [0.11.0] - 2026-11-02
 

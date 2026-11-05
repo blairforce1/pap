@@ -34,9 +34,9 @@ Related: vision §How we will know; process 5.11. Class: feature
 Related: process 5.4, 5.6, 5.8; decision 0017. Class: feature
 Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with scenarios and the process amendments; the binding check (rule 17.1); `pr-checks` for rules 17.3 and 17.4; a vocabulary pass in `spec-review-qa`; executed runners in the dotnet and go layers. The first three ship in one release, the intervention's boundary. `/spec` reads `intent.md`, so H-005's `/intent` comes first; rule 17.2 needs its `/findings`.
 
-**H-012** We believe a packaged project-manager role (a `/pap:pm` skill, a `pap:lane` agent, tracker and brief templates) will produce changes run through lanes with less rework and no work lost to a shutdown, measured by lanes that get a message after their first report (decision 0018).
+**H-012** We believe a packaged project-manager role (a `/pap:pm` skill, a `pap:member` agent, tracker and brief templates) will produce changes run through cycles with less rework and no work lost to a shutdown, measured by cycles that get a message after their first report (decision 0018).
 Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
-Built in slices: `/pap:pm` (`start`, `brief`, `event`, `pause`, `resume`, `audit`, the last classifying each rule as project or general); the `pap:lane` agent definition; the tracker and brief templates (the state file with its PAP candidates section); the PM console, designed separately. The first three ship in one release, the intervention's boundary.
+Built in slices: `/pap:pm` (`start`, `launch`, `event`, `pause`, `relaunch`, `audit`, the last classifying each rule as project or general); the `pap:member` agent definition; the tracker and brief templates (the state file with its PAP candidates section); the PM console, designed separately. The first three ship in one release, the intervention's boundary.
 
 ## Unranked
 
