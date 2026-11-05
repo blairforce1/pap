@@ -17,7 +17,7 @@
 - **The [Team Software Process](https://en.wikipedia.org/wiki/Team_software_process)** gave a self-directed team a launch, a plan, defined roles and a postmortem. PAP is PSP for each member and TSP for the team: the project-manager session is the team leader and coach, who launches each cycle and runs the postmortem across them, and the members are the agents, one member today, with developer, QA, research and review roles possible later. A PAP cycle is one change, much smaller than a TSP cycle, and ends at a draft pull request.
 - **[Kaizen](https://en.wikipedia.org/wiki/Kaizen)**: continuous improvement through small, measured changes. In PAP a process change is an experiment with a decision record (0001), a typed revisit date that is counted, not remembered (0010), and an audit every five merged changes that turns each miss into a rule the next brief carries (0018).
 
-Several mechanics come from Anthropic's AI-Native SDLC Playbook (a conventions file agents read, provenance on generated artefacts, an eval suite tied to process changes, merge as the trigger for the next phase); the outer-loop measures and event vocabulary come from DORA and CDEvents.
+Several mechanics come from Anthropic's [AI-Native SDLC Playbook](https://claude.com/resources/articles/the-ai-native-sdlc-playbook) (published 2026-08-21: a conventions file agents read, provenance on generated artefacts, an eval suite tied to process changes, merge as the trigger for the next phase); the outer-loop measures and event vocabulary come from DORA and CDEvents.
 
 ## How it works
 
