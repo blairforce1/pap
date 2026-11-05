@@ -50,7 +50,7 @@ from `gh`, 2026-10-21 to 2026-11-05. Every cycle counted had one member.
 | --------------------------------------------------------- | ------------------------------------------------------------ |
 | Cycle launches (`Agent` calls naming a `/change`)         | 111, of which 7 were relaunches of a paused cycle            |
 | Other agents (research, one judgement call)               | 4                                                            |
-| Pull requests merged across the three repositories        | 118: 107 from `change/`, 10 by Renovate                      |
+| Pull requests merged across the three repositories        | 118: 107 from `change/`, 10 by Renovate, 1 other             |
 | Change pull requests closed unmerged                      | 1 (its premise was false)                                    |
 | Tokens per cycle, last completion notice                  | median 157k, quartiles 118k and 235k, max 739k; 21.1M in all |
 | Minutes to a cycle's first report                         | median 11, quartiles 5 and 20, max 109                       |
