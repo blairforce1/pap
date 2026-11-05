@@ -77,9 +77,17 @@ from main is a push from main. Delete the branch on GitHub instead (the
 repository deletes a merged pull request's branch on merge; otherwise the
 Branches page or `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>`
 from a shell as yourself), and `mise run tidy` removes the local branch
-and worktree once its upstream is gone. A force push is refused by the
-hook too, and by an all-branches ruleset, as proposed in
-[#90](https://github.com/blairforce1/pap/pull/90) (decision 0022).
+and worktree once its upstream is gone.
+
+**The guard hook refuses `git push --force` (or `-f`,
+`--force-with-lease`, `+<refspec>`).** No branch takes a force push
+(decision 0022, proposed): the hook refuses an agent's, and the
+`all-branches` ruleset `pap repo apply` creates refuses everyone's, with
+no bypass actors, because agents push with your credentials. A branch
+behind main merges main; it is never rebased. To force-push on purpose,
+disable the `all-branches` ruleset (repository settings, Rules, Rulesets),
+push from your own terminal, then run `pap repo apply`, which restores it;
+until then `pap repo status` reports it as drift.
 
 **The hook refuses `--no-verify`, `LEFTHOOK=0` or `core.hooksPath`.** An
 agent session may not bypass a git hook (rule 5.1). Fix what the hook

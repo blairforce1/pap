@@ -78,11 +78,13 @@ required status check by name), the enforcement layers of decision 0002,
 and labels. It exits 1 unless everything is ok, unavailable or skipped.
 
 `apply` prints the intended changes, then makes them unless `--dry-run`.
-It creates or updates the `main` ruleset by name (squash merge only,
+It creates or updates two rulesets by name: `main` (squash merge only,
 linear history, no deletion, no force push, review threads resolved, the
-required checks), applies the settings and security options, and creates
-or updates the labels from pap's `.github/labels.yml` and, for each layer
-`.config/pap.toml` names, `.github/labels/<layer>.yml`. It never deletes a
+required checks) and `all-branches` (no force push on any branch, no
+bypass actors; decision 0022, proposed). It applies the settings and
+security options, and creates or updates the labels from pap's
+`.github/labels.yml` and, for each layer `.config/pap.toml` names,
+`.github/labels/<layer>.yml`. It never deletes a
 label and never removes a required check it does not know unless given
 `--remove-checks`.
 
