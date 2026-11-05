@@ -29,6 +29,7 @@ Related: vision §How we will know. Class: feature
 
 **H-005** We believe `/intent` and `/findings` skills will produce closed changes whose escapes are attributed to a phase, measured by the share of closed changes with a merged `findings.md`.
 Related: vision §How we will know; process 5.11. Class: feature
+Built in slices: `/intent` landed (decision 0020: the interview, the recorded yes, `intent.md` committed on the change branch before the spec and the code); `/findings` next, which rule 17.2 also waits for.
 
 **H-011** We believe a spec whose acceptance scenarios are written in a shared domain vocabulary and bound to tests will produce conformance to the spec that is checked rather than judged, measured by `fix:` or `revert:` pull requests merged within 14 days that touch a file a scenario-carrying change changed (decision 0017).
 Related: process 5.4, 5.6, 5.8; decision 0017. Class: feature

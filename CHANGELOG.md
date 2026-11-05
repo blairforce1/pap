@@ -189,6 +189,22 @@ not carry.
   `spec(<slug>): ...` and hands on to `/change`. Half a page for docs and
   chore, none for a spike. Main session only. The second slice of backlog
   item H-011.
+- Decision 0020 (proposed): an intent is accepted by the human's yes to it
+  restated in process 5.3's sections, recorded in `intent.md`
+  (`accepted-by:`, `accepted-on:`), not by a separate merge; `intent.md`
+  and `spec.md` are committed on the change branch before the code and the
+  one pull request carries them in order; intent churn is still recorded.
+  Rule 20.1, taught by the skill and enforced by nothing yet; rule 2.2
+  narrowed for the intent and spec skills. Process 5.1 phase 1 and 5.3 amended to match;
+  5.3's frontmatter gains `source:` (rule 11.2) and the two acceptance
+  lines.
+- `/intent <slug> <class>`, followed by the ask in the human's words: reads
+  the product layer, interviews in small batches (one for `docs`, `chore`
+  and `spike`), challenges the hypothesis or reactive reason, the measure,
+  the non-goals, the invariants and protected paths, the class and the
+  open questions, restates the intent for a yes, then writes and commits
+  `changes/<slug>/intent.md` on `change/<slug>` and hands on to the spec.
+  Main session only. The first slice of backlog item H-005.
 
 #### Changed
 
@@ -197,6 +213,9 @@ not carry.
 - `/change` builds to `changes/<slug>/spec.md` where the branch has one
   (its scenarios are the acceptance criteria), and its pull request body
   has a "How to revert" section, the spec's Undo where there is a spec.
+- `/change` reads `changes/<slug>/intent.md` where the branch has one, as
+  the brief's intent: its class and hypothesis stand, and a differing
+  `<class>` argument or brief is reported as a contradiction.
 
 ### [0.11.0] - 2026-11-02
 

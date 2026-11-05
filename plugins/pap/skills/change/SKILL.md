@@ -1,7 +1,7 @@
 ---
 name: change
 description: "Run one change end to end under decision 0002: a worktree on change/<slug> from a fresh main, commits as you go, local checks, a cold review, and a draft pull request with every Checks box answered, then stop. Use when the human invokes /change <slug> <class> [Record: NNNN] followed by a brief, or asks to make a change, open a PR for a task, or work on a change branch in a repository that adopts PAP. It replaces the re-typed per-change preamble; the brief says only what to build."
-argument-hint: "<slug> <class> [Record: NNNN] then the brief"
+argument-hint: "<slug> <feature|infra|security-sensitive|bugfix|spike|chore|docs> [Record: NNNN] <brief>"
 ---
 
 # Change
@@ -37,6 +37,8 @@ Every later command runs in the printed path (`cd` into it, or `git -C`).
 ## 2. Read, then report only contradictions
 
 Read what the brief names, plus `rules.md` and the decision records it cites for the files you will touch. Do not summarise what you read. Report only what contradicts the brief: a file or task that does not exist, a rule the brief would break, an instruction that conflicts with another. One line each, with the resolution you are taking. None found: say "No contradictions" and proceed.
+
+If `changes/<slug>/intent.md` exists on the branch (written by `/intent`, decision 0020), read it first: it is the brief's intent, and its `class` and `hypothesis` stand. A `<class>` argument or a brief that differs from it is a contradiction to report.
 
 ## 3. Build
 
