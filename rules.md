@@ -194,3 +194,10 @@ A cycle's brief names its budget in tokens or wall time, set from the last audit
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
 - Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses a brief without a budget line; `/pap:pm audit` reports the medians the next budgets are set from; the `pap:member` agent definition carries the stop at the cap.
+
+### 19.1 A cold review runs before a draft pull request
+
+Before `/change` opens its draft pull request, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` against the worktree where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
+
+- Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md)
+- Enforced by: Nothing yet. Taught by the `/change` skill ([`plugins/pap/skills/change/SKILL.md`](plugins/pap/skills/change/SKILL.md), step 5); nothing refuses a pull request whose Verification lacks the row.

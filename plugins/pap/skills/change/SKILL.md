@@ -1,6 +1,6 @@
 ---
 name: change
-description: "Run one change end to end under decision 0002: a worktree on change/<slug> from a fresh main, commits as you go, local checks, and a draft pull request with every Checks box answered, then stop. Use when the human invokes /change <slug> <class> [Record: NNNN] followed by a brief, or asks to make a change, open a PR for a task, or work on a change branch in a repository that adopts PAP. It replaces the re-typed per-change preamble; the brief says only what to build."
+description: "Run one change end to end under decision 0002: a worktree on change/<slug> from a fresh main, commits as you go, local checks, a cold review, and a draft pull request with every Checks box answered, then stop. Use when the human invokes /change <slug> <class> [Record: NNNN] followed by a brief, or asks to make a change, open a PR for a task, or work on a change branch in a repository that adopts PAP. It replaces the re-typed per-change preamble; the brief says only what to build."
 argument-hint: "<slug> <class> [Record: NNNN] then the brief"
 ---
 
@@ -50,7 +50,11 @@ Read what the brief names, plus `rules.md` and the decision records it cites for
 
 Run `mise run check` and `mise run test` in the worktree before opening the pull request. A task that does not exist is named in the report and in the Checks answer, not invented. A failure is fixed before the pull request is opened, or opened with the failure stated in Verification and the box unticked.
 
-## 5. Open the draft pull request
+## 5. Review cold
+
+Before opening the pull request, have the branch reviewed by a context that did not write it (decision 0019). Spawn one read-only subagent and give it only the brief, the worktree's absolute path and the command `git -C <worktree> diff origin/main...HEAD`, not your reasoning. It runs `/code-review low` against that worktree where the skill exists, reads the diff against the brief either way, edits nothing, and returns its findings; a `/code-review` that could not see the diff counts as not available. Fix each finding and commit, rerunning step 4 if the fix touched what it checks, or answer it with a reason. Verification gets one row: the review ran, its level (or that `/code-review` was not available), the findings, which were fixed, any left with the reason, and the reviewer's tokens.
+
+## 6. Open the draft pull request
 
 Title: conventional commit, `type(scope): description`, under 72 characters. A `process:` title needs the `Record:` line.
 
@@ -67,7 +71,7 @@ Decisions and tradeoffs to review:
 - One bullet per deviation from the brief or open call.
 
 ## Verification
-The verification table: what was run, what it showed. Every check the brief asked for, including the ones not run and why.
+The verification table: what was run, what it showed. Every check the brief asked for, including the ones not run and why, and the cold review's row (step 5).
 
 ## Checks
 Tick a box only if it is true. An unticked box needs a one-line reason below it, otherwise the PR is not ready.
@@ -92,7 +96,7 @@ gh pr edit --add-label "class:<class>"         # only if the read-back lacks it
 
 Then, in risk mode, answer the protected-path box as above. Start the CI wait in the background and report without waiting for it.
 
-## 6. Report in chat, then stop
+## 7. Report in chat, then stop
 
 The verification table lives in the pull request body only. The chat report is exactly:
 

@@ -161,6 +161,17 @@ not carry.
   agent, the templates and the console; H-013 trials a two-member cycle,
   developer and QA, against one member plus a fresh-context review
   (decision 0019).
+- Decision 0019 (proposed): before `/change` opens its draft pull request,
+  a read-only subagent given only the brief and the branch diff reviews it,
+  with `/code-review low` where that skill exists; findings are fixed or
+  answered, and Verification carries the review's row. Rule 19.1, taught by
+  the skill and enforced by nothing yet. The control arm for backlog H-013
+  (decision 0018).
+
+#### Changed
+
+- `/change` has a new step 5, "Review cold", between the local checks and
+  opening the pull request; the later steps are renumbered 6 and 7.
 
 ### [0.11.0] - 2026-11-02
 
