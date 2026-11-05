@@ -9,6 +9,13 @@ not carry.
 
 ## pm-console
 
+### [0.1.1] - 2026-11-05
+
+#### Added
+
+- An icon: a red lens in a navy disc, as `.claude-plugin/icon.png` with its
+  SVG source `icon.svg`, shown at the top of the README.
+
 ### [0.1.0] - 2026-11-05
 
 #### Added
@@ -138,12 +145,28 @@ not carry.
 
 #### Added
 
+- Decision 0018 (proposed): a project-manager session launches one cycle
+  per `/change` (a cycle is one change, run by one member today; the
+  vocabulary is TSP's), keeps a tracker (a state file and an event log)
+  committed on every event, pauses and relaunches cycles by save point,
+  audits tokens and time every five merged change PRs, and opens,
+  approves and merges nothing. Each audit classifies its rules as project
+  or general; the general ones go back to PAP as an ordinary change, from
+  a PAP candidates list in the tracker. Three send-backs end a cycle
+  (`ASK:`), a fix round re-checks only the diff since the last report, and
+  every brief carries a token or wall-time budget the cycle pauses at
+  (`PAUSED:`), set from the audit's medians; the audit reports rounds to
+  pass per merged pull request. Rules 18.1 to 18.7, enforced by nothing
+  yet. Backlog item H-012 carries the `/pap:pm` skill, the `pap:member`
+  agent, the templates and the console; H-013 trials a two-member cycle,
+  developer and QA, against one member plus a fresh-context review
+  (decision 0019).
 - Decision 0019 (proposed): before `/change` opens its draft pull request,
   a read-only subagent given only the brief and the branch diff reviews it,
   with `/code-review low` where that skill exists; findings are fixed or
   answered, and Verification carries the review's row. Rule 19.1, taught by
   the skill and enforced by nothing yet. The control arm for backlog H-013
-  (decision 0018, proposed in #81).
+  (decision 0018).
 
 #### Changed
 

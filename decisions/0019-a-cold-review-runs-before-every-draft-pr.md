@@ -4,7 +4,7 @@
 - **Date:** 2026-11-05
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none; amends the `/change` skill of [0006](0006-changes-are-carried-by-a-skill.md)
-- **PIP:** the owner's call of 2026-11-05 to add a fresh-context review before every draft pull request. Anthropic's account of its own practice, "How the Claude Code team does code review" (2026-10-15, <https://claude.dev/blog/solving-code-review-at-anthropic/>), is to verify, then have a second agent read the diff cold before a human sees it. In the project-manager session's first two weeks, 19 of 108 cycles needed a message after their first report, and the reworked cycles used a median of 690k tokens against 157k for the rest (decision 0018, proposed in [#81](https://github.com/blairforce1/pap/pull/81)). Today `/change` checks its work in the same context that wrote it
+- **PIP:** the owner's call of 2026-11-05 to add a fresh-context review before every draft pull request. Anthropic's account of its own practice, "How the Claude Code team does code review" (2026-10-15, <https://claude.dev/blog/solving-code-review-at-anthropic/>), is to verify, then have a second agent read the diff cold before a human sees it. In the project-manager session's first two weeks, 19 of 108 cycles needed a message after their first report, and the reworked cycles used a median of 690k tokens against 157k for the rest (decision [0018](0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)). Today `/change` checks its work in the same context that wrote it
 - **Expected effect:** cycles that get a message after their first report ↓ from 19 of 108 (18%); median tokens on the cycles that still get one ↓ from 690k; median tokens per cycle not ↑ by more than the reviewer's tokens, which the Verification row records
 - **Introduced in:** not yet released; the release that ships the step in `/change`
 - **Revisit:** after 20 change PRs from #85: both effects over those 20 change pull requests, the findings the reviews fixed, and the share of reviews that found nothing
@@ -60,7 +60,7 @@ is before the human reads the pull request.
 - **Self-review in the authoring context.** Lost: it is today's practice,
   and it reads the change with the assumptions that wrote it.
 - **A second member, a QA, on every cycle.** Lost as the default: it is
-  backlog item H-013 (decision 0018, proposed in #81), unproven and dearer. This record is
+  backlog item H-013 (decision [0018](0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)), unproven and dearer. This record is
   H-013's control arm: a one-member cycle with a cold review is the
   baseline a two-member cycle has to beat.
 - **`/code-review` at `medium` or above.** Lost for now: more findings,
