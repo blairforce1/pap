@@ -1,6 +1,6 @@
 {
   "name": "pm-console",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "PM console: what the cycles ask of the Project Lead, running cycles, PAP state, CI timings and a status line",
   "author": {
     "name": "blairforce1"

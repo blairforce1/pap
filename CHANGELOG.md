@@ -9,6 +9,13 @@ not carry.
 
 ## pm-console
 
+### [0.1.1] - 2026-11-05
+
+#### Added
+
+- An icon: a red lens in a navy disc, as `.claude-plugin/icon.png` with its
+  SVG source `icon.svg`, shown at the top of the README.
+
 ### [0.1.0] - 2026-11-05
 
 #### Added

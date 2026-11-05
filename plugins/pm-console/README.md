@@ -1,5 +1,7 @@
 # pm-console
 
+<img src=".claude-plugin/icon.png" width="96" height="96" alt="PM console icon">
+
 A pane beside the chat for a Claude Code session working as the project
 manager (PM) under PAP, the way decision 0018 (proposed) describes: one main
 session briefs one background cycle per change and keeps the tracker. When
