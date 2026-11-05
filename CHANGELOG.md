@@ -184,6 +184,12 @@ not carry.
   `changes/<slug>/intent.md` on `change/<slug>` and hands on to the spec.
   Main session only. The first slice of backlog item H-005.
 
+- `/pap:accept <NNNN> [NNNN ...]`: a skill only a person can invoke that
+  checks each decision record is on main and `proposed`, shows its title
+  and Decision items, sets only its Status line to
+  `accepted (<login>, YYYY-MM-DD)` on a new `change/accept-<ids>` branch,
+  and opens a draft `class:docs` pull request; the model cannot invoke it.
+
 #### Changed
 
 - `/change` has a new step 5, "Review cold", between the local checks and
