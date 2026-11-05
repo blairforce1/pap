@@ -161,6 +161,14 @@ not carry.
 
 #### Added
 
+- `docs/`: user guides for adopting and using PAP without its author:
+  getting started, adopt a repository, set up the account (the `.github`
+  repository, labels, Renovate), start a project, make a change, run a
+  project (the PM way of working and the console), decide and improve, and
+  troubleshooting. Each says what is a command today, what is by hand and
+  what is planned (`H-NNN`); the process document, `rules.md` and
+  `decisions/` stay the reference. The README gains a Documentation section
+  and a `docs/` row.
 - Decision 0018 (proposed): a project-manager session launches one cycle
   per `/change` (a cycle is one change, run by one member today; the
   vocabulary is TSP's), keeps a tracker (a state file and an event log)
