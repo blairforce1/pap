@@ -33,6 +33,7 @@ Related: vision §How we will know; process 5.11. Class: feature
 **H-011** We believe a spec whose acceptance scenarios are written in a shared domain vocabulary and bound to tests will produce conformance to the spec that is checked rather than judged, measured by `fix:` or `revert:` pull requests merged within 14 days that touch a file a scenario-carrying change changed (decision 0017).
 Related: process 5.4, 5.6, 5.8; decision 0017. Class: feature
 Built in slices: `product/domain.md` and `/envision` seeding it; `/spec` with scenarios and the process amendments; the binding check (rule 17.1); `pr-checks` for rules 17.3 and 17.4; a vocabulary pass in `spec-review-qa`; executed runners in the dotnet and go layers. The first three ship in one release, the intervention's boundary. `/spec` reads `intent.md`, so H-005's `/intent` comes first; rule 17.2 needs its `/findings`.
+Status: the `/spec` slice landed (decision 0021): scenarios in `features/<slug>.feature` tagged `@id` and `@pending`, terms seeded into `product/domain.md` by the spec that first needs them (the `/envision` slice is still to come), the review board run by class with dispositions recorded, the human's yes recorded in `spec.md`, and an Operations section for feature, infra and security-sensitive changes. Next: the binding check.
 
 **H-012** We believe a packaged project-manager role (a `/pap:pm` skill, a `pap:member` agent, tracker and brief templates) will produce changes run through cycles with less rework and no work lost to a shutdown, measured by cycles that get a message after their first report (decision 0018).
 Related: decisions 0002, 0018; `CLAUDE.md` (one pull request per agent context). Class: feature
@@ -42,6 +43,10 @@ Built in slices: `/pap:pm` (`start`, `launch`, `event`, `pause`, `relaunch`, `au
 Related: decisions 0002, 0018, 0019; H-012. Class: feature
 Method: a role is added only when its measurement wins; the arm without it is the control, as Anthropic's guidance on folding subagents into the main loop has it (decision 0018, evidence).
 Before the trial: decision 0002's stop, which `CLAUDE.md` states as one pull request per agent context, has to be restated as one pull request per cycle; that is a later decision, not part of 0018.
+
+**H-015** We believe an operations member that owns phases 8 to 10 (designs the signals, control bands and undo at spec time; delivers in stages: merge to staging, then live behind a flag, promoted when the bands hold; watches the operation window on a schedule; on a breach runs the pre-authorised reversible actions and opens the revert as a pull request for the human; turns every breach into findings and an eval) will produce escapes caught inside the operation window rather than by a user, measured by escapes caught in the window as a share of all escapes, and by time from breach to undo.
+Related: process 5.9, 5.11, 6.2; decision 0021 (the spec's Operations section is its input, and its operational scenarios are what it binds); H-005 (`/findings`); H-013's method, a role is added only when its measurement wins. Class: feature
+Pilot on a real product's first deployment, not on pap, which deploys nothing. Automatic action on a live system, even a reversible and pre-authorised one, needs its own decision record before the watcher acts; until then it proposes and the human runs the undo (process 5.9).
 
 ## Unranked
 
