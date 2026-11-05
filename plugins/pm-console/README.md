@@ -9,17 +9,17 @@ of each PAP repository and the CI timings beside it.
 
 ```
 status line:  PM ▸ 2 running · 3 waiting on you · 1 decisions proposed · CI slowest tests ~3m22
-┌ PM console ─────────────────────────────────────────────────────┐
-│ [ 1 Inbox 3 ] [ 2 Cycles 2 ] [ 3 PAP 1 ] [ 4 CI ]                 │
-│                                                                  │
-│ WAITING ON YOU (3)                                               │
-│ widgets#41                              cycle 12 · 2h · 2 ▸       │
-│   ☐ review and merge                                             │
-│   ☐ decide: keep the old export for one release, or drop it     │
-│ widgets#43                              cycle 14 · 20m · 1 ▸      │
-│   ☐ add owner-reviewed, then merge                               │
-│ Open a group to see the report and tick items.                   │
-└──────────────────────────────────────────────────────────────────┘
+┌ PM console ───────────────────────────────────────
+│ [ 1 Inbox 3 ] [ 2 Cycles 2 ] [ 3 PAP 1 ] [ 4 CI ]
+│
+│ WAITING ON YOU (3)
+│ widgets#41                              cycle 12 · 2h · 2 ▸
+│   ☐ review and merge
+│   ☐ decide: keep the old export for one release, or drop it
+│ widgets#43                              cycle 14 · 20m · 1 ▸
+│   ☐ add owner-reviewed, then merge
+│ Open a group to see the report and tick items.
+└────────────────────────────────────────────────────
 ```
 
 ## Install
