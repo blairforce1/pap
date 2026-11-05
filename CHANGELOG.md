@@ -167,11 +167,30 @@ not carry.
   answered, and Verification carries the review's row. Rule 19.1, taught by
   the skill and enforced by nothing yet. The control arm for backlog H-013
   (decision 0018).
+- Decision 0020 (proposed): an intent is accepted by the human's yes to it
+  restated in process 5.3's sections, recorded in `intent.md`
+  (`accepted-by:`, `accepted-on:`), not by a separate merge; `intent.md`
+  and `spec.md` are committed on the change branch before the code and the
+  one pull request carries them in order; intent churn is still recorded.
+  Rule 20.1, taught and enforced by nothing yet; rule 2.2 narrowed for the
+  intent and spec skills. Process 5.1 phase 1 and 5.3 amended to match;
+  5.3's frontmatter gains `source:` (rule 11.2) and the two acceptance
+  lines.
+- `/intent <slug> <class>`, followed by the ask in the human's words: reads
+  the product layer, interviews in small batches (one for `docs`, `chore`
+  and `spike`), challenges the hypothesis or reactive reason, the measure,
+  the non-goals, the invariants and protected paths, the class and the
+  open questions, restates the intent for a yes, then writes and commits
+  `changes/<slug>/intent.md` on `change/<slug>` and hands on to the spec.
+  Main session only. The first slice of backlog item H-005.
 
 #### Changed
 
 - `/change` has a new step 5, "Review cold", between the local checks and
   opening the pull request; the later steps are renumbered 6 and 7.
+- `/change` reads `changes/<slug>/intent.md` where the branch has one, as
+  the brief's intent: its class and hypothesis stand, and a differing
+  `<class>` argument or brief is reported as a contradiction.
 
 ### [0.11.0] - 2026-11-02
 
