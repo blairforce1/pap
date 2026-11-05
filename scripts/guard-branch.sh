@@ -14,8 +14,8 @@
 #           the words after `git push`, as the Claude Code hook
 #           (plugins/pap/hooks/guard-route.sh) reads them from an agent's
 #           tool call. Exit 1 if any is --force, -f (alone or bundled, as in
-#           -uf), --force-with-lease[=...], --force-if-includes, or a refspec
-#           starting with `+`. Not run by git: a person at a terminal is
+#           -uf), --force-with-lease[=...], --force-if-includes, --mirror
+#           (which forces every ref), or a refspec starting with `+`. Not run by git: a person at a terminal is
 #           unaffected, and the GitHub ruleset all-branches is the backstop.
 #   hook    Deprecated: the pap plugin's PreToolUse hook before 0.2.0.
 #           Reads the tool-call JSON from stdin and runs the branch check in
@@ -68,7 +68,7 @@ check_push_refs() {
 check_push_args() {
   for word in "$@"; do
     case "$word" in
-      --force | --force-with-lease | --force-with-lease=* | --force-if-includes) form="$word" ;;
+      --force | --force-with-lease | --force-with-lease=* | --force-if-includes | --mirror) form="$word" ;;
       --*) continue ;;
       -[uqvnd46]*f* | -f*) form="$word" ;;
       +*) form="refspec $word" ;;

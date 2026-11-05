@@ -35,7 +35,7 @@
 #         on pulls/<n>/merge. In every repository that adopts PAP, opted in
 #         to risk mode or not. Removing a label and every other gh call pass.
 #   0022  a `git push` with --force, -f, --force-with-lease,
-#         --force-if-includes or a `+<refspec>` runs guard-branch.sh's
+#         --force-if-includes, --mirror or a `+<refspec>` runs guard-branch.sh's
 #         push-args check, which refuses it, on any branch. A push is
 #         let through if the repository's guard predates push-args.
 #

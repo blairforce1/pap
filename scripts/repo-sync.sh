@@ -299,6 +299,7 @@ jq -e 'type == "array" and all(.[]; type == "string" and length > 0)' <<<"$decla
 declared="$(jq -c 'unique | map({context: ., integration_id: 15368})' <<<"$declared")"
 
 api_get "repos/$repo/rulesets?per_page=100"
+rulesets_code="$code" rulesets_list="$body"
 if [ "$code" != 200 ]; then
   record ruleset error "$item" "HTTP $code"
 else
@@ -376,12 +377,11 @@ branches_file="$root/.github/rulesets/all-branches.json"
 branches_name="$(jq -r .name "$branches_file")"
 branches_enforcement=""
 item="ruleset '$branches_name'"
-api_get "repos/$repo/rulesets?per_page=100"
-if [ "$code" != 200 ]; then
-  record ruleset error "$item" "HTTP $code"
+if [ "$rulesets_code" != 200 ]; then
+  record ruleset error "$item" "HTTP $rulesets_code"
 else
   branches_id="$(jq -r --arg n "$branches_name" \
-    'map(select(.name == $n and .source_type == "Repository")) | first | .id // empty' <<<"$body")"
+    'map(select(.name == $n and .source_type == "Repository")) | first | .id // empty' <<<"$rulesets_list")"
   branches_want="$(jq -S --slurpfile t "$branches_file" "$normalise" "$branches_file")"
   if [ -z "$branches_id" ]; then
     record ruleset missing "$item"

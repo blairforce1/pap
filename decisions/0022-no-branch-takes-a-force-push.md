@@ -82,6 +82,12 @@ other is either a wall the human cannot open or a door the agent can.
 - **A force push refused in the git pre-push hook as well.** Lost: a
   person at a terminal is meant to be unaffected by the agent guard, and a
   pre-push hook cannot tell a person from an agent either.
+- **Bypass actors for the Renovate and Dependabot apps instead of the
+  branch exclusions.** An `Integration` bypass gives the human none, and
+  closes the gap below. Lost for now: it needs each app's id per
+  installation, and a self-hosted Renovate pushing with a personal token
+  is the human's credentials again, so it would be refused. A later record
+  can take it if the gap is used.
 - **A ruleset without the bot exclusions.** Lost: Renovate and Dependabot
   would fail to rebase their branches in every adopting repository, and
   the owner would disable the ruleset to let them, which is the override
@@ -94,13 +100,16 @@ other is either a wall the human cannot open or a door the agent can.
 - Harder: a branch that needs history rewritten (a leaked secret, a
   wrong author) costs the human three steps and leaves drift until the
   third. That cost is the point.
-- Harder: GitHub will not let the default branch be renamed while force
-  pushes are blocked on it and nobody may bypass; renaming it is the same
-  deliberate override.
+- Harder: "Update branch" with rebase on a pull request is refused; the
+  merge option, which is PAP's rule anyway, still works.
+- Harder: GitHub's docs say the default branch cannot be renamed while
+  force pushes are blocked on it and nobody may bypass. `main.json`
+  already did that; renaming it is the same deliberate override.
 - Limit: the hook reads the command as written. `bash -c`, `eval`, a
-  script, a push refspec in git config and `git push --mirror` pass it;
-  the ruleset still refuses each of them, outside `renovate/` and
-  `dependabot/`.
+  script and a push refspec in git config pass it; the ruleset still
+  refuses each of them, outside `renovate/` and `dependabot/`.
+- Limit: an agent that names a branch `renovate/...` or `dependabot/...`
+  can force-push it past the ruleset; only the hook refuses that.
 - Limit: an agent can still disable the ruleset through `gh api`. Nothing
   refuses that call; `pap repo status` shows the result.
 - Measurement: force pushes are counted from each repository's audit log

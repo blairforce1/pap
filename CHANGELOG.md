@@ -176,7 +176,7 @@ not carry.
   as drift, which is how the deliberate override shows. And
   `scripts/guard-branch.sh push-args`, which the `PreToolUse` hook runs on
   an agent's `git push`, refuses `--force`, `-f`, `--force-with-lease`,
-  `--force-if-includes` and `+<refspec>` on any branch; a person at a
+  `--force-if-includes`, `--mirror` and `+<refspec>` on any branch; a person at a
   terminal is unaffected.
 
 #### Changed

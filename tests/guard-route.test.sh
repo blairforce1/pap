@@ -259,6 +259,7 @@ check 2 "$T/G2" 'git push origin +change/x'
 check 2 "$T/G2" "git push origin '+change/x'"
 check 2 "$T/G2" 'git push origin +HEAD:refs/heads/change/x'
 check 2 "$T/G2" 'git add . && git commit -m x && git push -f'
+check 2 "$T/G2" 'git push --mirror origin'
 
 # Near misses that must pass: a plain push, an upstream, a delete, the
 # negated options, a force in a message, and a repository that does not
