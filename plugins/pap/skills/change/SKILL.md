@@ -38,6 +38,8 @@ Every later command runs in the printed path (`cd` into it, or `git -C`).
 
 Read what the brief names, plus `rules.md` and the decision records it cites for the files you will touch. Do not summarise what you read. Report only what contradicts the brief: a file or task that does not exist, a rule the brief would break, an instruction that conflicts with another. One line each, with the resolution you are taking. None found: say "No contradictions" and proceed.
 
+If `changes/<slug>/intent.md` exists on the branch (written by `/intent`, decision 0020), read it first: it is the brief's intent, and its `class` and `hypothesis` stand. A `<class>` argument or a brief that differs from it is a contradiction to report.
+
 ## 3. Build
 
 - Commit each logical step as it lands, conventional commit subject, with the co-author trailer for generated content. Never bypass a hook (rule 5.1); a failing hook is fixed or handed to the human.
