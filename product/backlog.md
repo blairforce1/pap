@@ -59,6 +59,11 @@ Related: vision §Non-goals (export, not render). Class: feature
 
 **H-010** We believe an outcome eval suite of real tasks, run on every change to skills, hooks or model, will produce configuration changes that do not silently regress, measured by eval pass rate per configuration version.
 Related: process 6.2. Class: infra
+Runner: PAP is a plugin, so `claude plugin eval` ([docs](https://code.claude.com/docs/en/plugin-evals); with and without the plugin as baseline, graders, non-zero exit for CI) is the intended harness, gated in the tests workflow. A decision record follows when the first suite lands. Case design follows [Automating eval design and hillclimbing](https://claude.dev/blog/automating-eval-design-and-hillclimbing/).
+
+**H-014** We believe auto-merging `risk:low` pull requests on green checks will produce faster flow with no loss of quality, measured by the rate of `fix:` or `revert:` pull requests touching them within 14 days, which stays at or below the human-merged rate.
+Related: decision 0016, rule 16.2. Class: infra
+Parked. It contradicts decision 0016 and rule 16.2 today (an agent never merges; the owner merges every pull request), so it waits until 0016's revisit comes back clean. Precedent: the Claude Code team merges low-risk pull requests without a human ([Solving code review at Anthropic](https://claude.dev/blog/solving-code-review-at-anthropic/)).
 
 ## Dropped
 
