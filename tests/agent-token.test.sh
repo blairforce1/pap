@@ -356,11 +356,13 @@ EOF
   answer GET__users_example-org 200 '{"login":"example-org","type":"Organization"}'
   answer GET__users_example-org_installation 200 '{"id":4343}'
   answer POST__app_installations_4343_access_tokens 201 "{\"token\":\"ghs_fake_org\",\"expires_at\":\"$(future 3600)\"}"
-  out="$(printf 'n\n' | (cd "$T/repo" && sh -x "$pap" agent-setup --owner example-org --name example-org-agent 2> "$T/pap-trace") 2>&1)"; rc=$?
+  out="$(printf 'n\n' | p agent-setup --owner example-org --name example-org-agent 2>&1)"; rc=$?
+  # TEMPORARY diagnostic: python3 alone, as the listener starts it.
+  probe="$( { date +%s; python3 -c 'import sys, http.server, threading; print("probe ok", sys.executable, sys.version.split()[0])'; echo "rc=$?"; date +%s; } 2>&1 | tr '\n' ' ')"
   [ "$rc" = 1 ] && cmp -s "$FAKE_KEYRING" "$T/app.pem" &&
     printf '%s\n' "$out" | grep -q 'installed on example-org (installation 4343)' && grep -q 'action="https://github.com/organizations/example-org/settings/apps/new?state=' "$T/form.html" &&
     sed -n 's/.*name=manifest value="\([^"]*\)".*/\1/p' "$T/form.html" | grep -q '&quot;name&quot;: &quot;example-org-agent&quot;'
-  result $? "agent-setup: an organisation's form, and --name" "rc=$rc $out / trace: $(grep -v '^+* *\(conf_get\|awk\|\[\|case\|say\|printf\)' "$T/pap-trace" | tail -n 25) / browser: $(cat "$T/opened.log" "$T/browser.err" 2>&1) / form: $(head -c 300 "$T/form.html" 2>&1)"
+  result $? "agent-setup: an organisation's form, and --name" "rc=$rc out=[$out] / probe: $probe / browser: $(cat "$T/opened.log" "$T/browser.err" 2>&1) / form: $(head -c 300 "$T/form.html" 2>&1)"
 
   setup_reset; conversion
   answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
