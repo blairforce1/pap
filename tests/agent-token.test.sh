@@ -405,6 +405,23 @@ EOF
     [ "$(git config --global --get-all url.https://github.com/.insteadOf | sort | tr '\n' ' ')" = "git@github.com: ssh://git@github.com/ " ] &&
     printf '%s\n' "$out" | grep -qF 'ok       SSH GitHub URLs read as HTTPS'
   result $? "agent-setup: yes switches origin and adds each rewrite once, topping up a partial one" "$out2 / $out"
+  # A global config git cannot write, as home-manager's link into
+  # /nix/store: no stop, the lines to add instead, doctor still runs.
+  mkdir -p "$T/nix/store/x-git"
+  cat > "$T/nix/store/x-git/config" <<'EOF'
+[credential "https://github.com"]
+  helper =
+  helper = !gh auth git-credential
+EOF
+  chmod 444 "$T/nix/store/x-git/config"; chmod 555 "$T/nix/store/x-git"
+  ln -s "$T/nix/store/x-git/config" "$T/hm-gitconfig"
+  out="$(printf 'y\n' | GIT_CONFIG_GLOBAL="$T/hm-gitconfig" p agent-setup 2>&1)"; rc=$?
+  chmod 755 "$T/nix/store/x-git"
+  [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'is not writable here; it is managed elsewhere' &&
+    printf '%s\n' "$out" | grep -qxF '    insteadOf = ssh://git@github.com/' &&
+    printf '%s\n' "$out" | grep -qF 'programs.git.settings.url."https://github.com/".insteadOf = [ "git@github.com:" "ssh://git@github.com/" ];' &&
+    printf '%s\n' "$out" | grep -q 'pap-agent is set up on this machine' && ! printf '%s\n' "$out" | grep -q 'could not lock'
+  result $? "agent-setup: a read-only global config (home-manager) gets the lines to add, and setup carries on" "rc=$rc $out"
   unset PAP_BROWSER
 fi
 

@@ -191,6 +191,15 @@ app's settings page or pass `--name` for a new one.
 **`pap agent-setup`: `GitHub has no account <owner>`.** `--owner`, or
 `origin`'s owner, is not a GitHub login.
 
+**`pap agent-setup`: `the global git config (...) is not writable here;
+it is managed elsewhere`.** You answered yes to the SSH-to-HTTPS rewrite,
+but git could not write your global config: it is read-only, such as
+home-manager's link into `/nix/store`. Setup carries on. Add the printed
+`[url "https://github.com/"]` lines where the file is generated; with
+home-manager, `programs.git.settings.url."https://github.com/".insteadOf =
+[ "git@github.com:" "ssh://git@github.com/" ];`, then switch generations.
+`pap doctor` shows the rewrite ok once it is in effect.
+
 **The guard hook refuses `git push` to an SSH remote.** An agent pushes
 over HTTPS, as the app (rule 23.1). Switch the clone once, from your
 terminal: `git remote set-url origin https://github.com/<owner>/<repo>.git`.

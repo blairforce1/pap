@@ -1019,6 +1019,24 @@ a_rewritten() {
   have="$(git config --global --get-all url.https://github.com/.insteadOf 2>/dev/null || true)"
   for v in $a_rewrites; do printf '%s\n' "$have" | grep -qxF "$v" || return 1; done
 }
+# a_managed_config: the global git config could not be written (a
+# read-only file, such as home-manager's link into /nix/store). Say so and
+# print what to add where it is managed; never fails.
+a_managed_config() {
+  f="${GIT_CONFIG_GLOBAL:-}"
+  if [ -z "$f" ]; then
+    f="$HOME/.gitconfig"
+    [ -e "$f" ] || f="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+  fi
+  t="$(readlink "$f" 2>/dev/null || true)"
+  say "agent-setup: the global git config ($f${t:+ -> $t}) is not writable here; it is managed elsewhere. Add this to its source:" \
+    '[url "https://github.com/"]' '    insteadOf = git@github.com:' '    insteadOf = ssh://git@github.com/'
+  case "$f $t" in
+    */nix/store/*)
+      say "agent-setup: it looks like home-manager; in its git module:" \
+        '  programs.git.settings.url."https://github.com/".insteadOf = [ "git@github.com:" "ssh://git@github.com/" ];' ;;
+  esac
+}
 a_rewrite_cmds() {
   say "git config --global --add url.\"https://github.com/\".insteadOf git@github.com:" \
     "git config --global --add url.\"https://github.com/\".insteadOf ssh://git@github.com/"
@@ -1149,10 +1167,13 @@ cmd_agent_setup() {
     case "$answer" in
       y | Y | yes)
         have="$(git config --global --get-all url.https://github.com/.insteadOf 2>/dev/null || true)"
+        wrote=true
         for v in $a_rewrites; do
-          printf '%s\n' "$have" | grep -qxF "$v" || git config --global --add url.https://github.com/.insteadOf "$v"
+          printf '%s\n' "$have" | grep -qxF "$v" ||
+            git config --global --add url.https://github.com/.insteadOf "$v" 2>/dev/null || { wrote=false; break; }
         done
-        say "agent-setup: git now reads GitHub's SSH URLs as HTTPS." ;;
+        if [ "$wrote" = true ]; then say "agent-setup: git now reads GitHub's SSH URLs as HTTPS."
+        else a_managed_config; fi ;;
       *) say "agent-setup: global git config left as it is." ;;
     esac
   fi
