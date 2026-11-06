@@ -51,6 +51,20 @@ mkrepo "$T/G sp" && adopt "$T/G sp"
 mkrepo "$T/D"    && adopt "$T/D"  && git -C "$T/D" switch -q --detach
 mkrepo "$T/U"
 
+# By default every case runs as a session pap claude started (rule 23.4):
+# the agent directory in GH_CONFIG_DIR and a pap install's shim first for
+# gh, with a fake pap beside it and a fake real gh behind it.
+I="$T/install"
+mkdir -p "$I/bin" "$I/scripts/shim" "$I/templates/base" "$T/realgh" "$T/home" "$T/xdg/gh-agent"
+cp "$here/scripts/shim/gh" "$I/scripts/shim/gh"
+printf '#!/bin/sh\nexit 1\n' > "$I/bin/pap"
+printf '#!/bin/sh\nexit 0\n' > "$T/realgh/gh"
+chmod +x "$I/scripts/shim/gh" "$I/bin/pap" "$T/realgh/gh"
+chmod 700 "$T/xdg/gh-agent"
+path0="$PATH"
+export HOME="$T/home" XDG_CONFIG_HOME="$T/xdg" GH_CONFIG_DIR="$T/xdg/gh-agent"
+export PATH="$I/scripts/shim:$T/realgh:$path0"
+
 n=0
 failed=0
 
@@ -414,6 +428,65 @@ for repo in G U; do
     failed=$((failed + 1))
   fi
 done
+
+# --- rule 23.4: only a session pap claude started reaches GitHub --------------
+
+mkrepo "$T/H" && adopt "$T/H" && git -C "$T/H" switch -q -c change/x
+git -C "$T/H" remote add origin https://github.com/example-owner/example-repo.git
+mkdir -p "$T/H/scripts/shim" "$T/nokey"
+cp "$here/scripts/shim/gh" "$T/H/scripts/shim/gh"
+printf '#!/bin/sh\nexit 1\n' > "$T/nokey/pap"
+chmod +x "$T/nokey/pap"
+git -C "$T/U" remote add origin https://github.com/example-owner/example-repo.git
+# session <pap|plain|dironly|shimonly|container>
+session() {
+  unset REMOTE_CONTAINERS
+  export GH_CONFIG_DIR="$T/xdg/gh-agent" PATH="$I/scripts/shim:$T/realgh:$path0"
+  case "$1" in
+    plain) unset GH_CONFIG_DIR; PATH="$T/realgh:$path0" ;;
+    dironly) PATH="$T/realgh:$path0" ;;
+    shimonly) unset GH_CONFIG_DIR ;;
+    container) unset GH_CONFIG_DIR; PATH="$T/realgh:$T/nokey:$path0"; export REMOTE_CONTAINERS=true ;;
+  esac
+}
+cat > "$T/net" <<'EOF'
+gh pr list
+command gh pr view 1
+env gh api user
+git fetch
+git pull
+git push origin change/x
+git ls-remote origin
+git remote update
+git clone https://github.com/example-owner/other.git
+EOF
+for s in plain dironly shimonly; do
+  session "$s"
+  while IFS= read -r c; do check 2 "$T/H" "$c"; done < "$T/net"
+  check 2 "$T/U" "git -C $T/H fetch"
+  for c in 'git status' 'git log' 'git diff' 'git commit -m x' 'git fetch ../G'; do check 0 "$T/H" "$c"; done
+  check 0 "$T/U" 'gh pr list'
+  check 0 "$T/U" 'git fetch'
+done
+session pap
+while IFS= read -r c; do check 0 "$T/H" "$c"; done < "$T/net"
+printf 'github.com:\n    user: example-owner\n' > "$T/xdg/gh-agent/hosts.yml"
+check 2 "$T/H" 'gh pr list'
+rm "$T/xdg/gh-agent/hosts.yml"
+session container
+check 0 "$T/H" 'gh pr list'
+check 0 "$T/H" 'git fetch'
+session plain
+msg="$(jq -nc --arg d "$T/H" '{tool_name: "Bash", cwd: $d, tool_input: {command: "gh pr list"}}' | "$router" 2>&1)"
+n=$((n + 1))
+if printf '%s\n' "$msg" | grep -qF 'pap claude --resume'; then
+  printf 'ok %d - a plain-claude refusal names pap claude and pap claude --resume\n' "$n"
+else
+  printf 'not ok %d - a plain-claude refusal names pap claude --resume\n' "$n"
+  printf '%s\n' "$msg" | sed 's/^/# /'
+  failed=$((failed + 1))
+fi
+session pap
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }

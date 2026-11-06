@@ -21,6 +21,11 @@
 #
 # The real gh is the first gh on PATH that is not a copy of this shim (each
 # carries the pap-gh-shim marker on line 2), so it never runs itself.
+#
+# With PAP_SHIM_CHECK=1 it runs no gh and mints no token: it exits 0 where
+# it would run gh (stepping aside, or with a token to come) and as it would
+# otherwise where it refuses. The guard hook asks it so, so the session
+# checks live in one place (rule 23.4).
 
 set -u
 
@@ -48,7 +53,8 @@ if [ -n "${CLAUDECODE:-}" ] && top="$(git rev-parse --show-toplevel 2>/dev/null)
   [ -x "$top/scripts/guard-branch.sh" ]; then
   agent=true
 fi
-[ "$agent" = true ] || exec "$real" "$@"
+run_real() { [ -z "${PAP_SHIM_CHECK:-}" ] || exit 0; exec "$real" "$@"; }
+[ "$agent" = true ] || run_real "$@"
 
 # pap itself: the sibling bin/pap when the shim is pap's own (a checkout or
 # the install pap claude put first on PATH), else the pap on PATH (the base
@@ -66,7 +72,7 @@ fi
 if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
   # Exit 1 is "no key"; a key without a client id still mints, and fails.
   "$pap" agent-key status >/dev/null 2>&1
-  [ $? != 1 ] || exec "$real" "$@"
+  [ $? != 1 ] || run_real "$@"
 fi
 
 # Rule 23.4: only the agent's own gh directory, as pap claude sets it.
@@ -83,6 +89,8 @@ if [ -s "$agentdir/hosts.yml" ]; then
   printf 'gh (pap shim): %s/hosts.yml holds a sign-in, which the agent directory never should; remove that file (rule 23.4)\n' "$agentdir" >&2
   exit 1
 fi
+
+[ -z "${PAP_SHIM_CHECK:-}" ] || exit 0
 
 # The token is agent-token's stdout; its stderr, the reason on failure, goes
 # to a file of its own so no warning on stderr can end up in GH_TOKEN.
