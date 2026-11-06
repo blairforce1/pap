@@ -442,6 +442,12 @@ result $? "doctor, an agent shell from pap claude: ok, and your sign-in is not r
 out="$(doctor MISE_SHELL=bash CLAUDECODE=1)"; rc=$?
 [ "$rc" = 1 ] && has "drift    this shell  (an agent shell not started by pap claude (GH_CONFIG_DIR is unset); quit and run pap claude)"
 result $? "doctor, an agent shell not started by pap claude is drift" "$out"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$ad")"; rc=$?
+[ "$rc" = 1 ] && has "drift    gh is the shim  (gh is $T/tools/gh, past the pap-agent shim; quit and run pap claude)"
+result $? "doctor, an agent shell whose gh is not the shim is drift, naming pap claude" "$out"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$ad" PATH="$here/scripts/shim:$dpath")"
+has "ok       gh is the shim  ($here/scripts/shim/gh)"
+result $? "doctor, an agent shell whose gh is the shim: ok" "$out"
 
 # --- doctor: the tools, and their install hints ------------------------------
 

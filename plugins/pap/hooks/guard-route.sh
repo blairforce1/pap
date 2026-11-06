@@ -45,7 +45,11 @@
 #         gh run by a path (`/usr/bin/gh`, `./gh`, `~/bin/gh`, also after
 #         env, command or exec) or with a `PATH=` assignment is refused
 #         (rule 23.1): it skips the shim. `command gh` and `env gh` find
-#         the shim on PATH and pass. In every repository, adopting or not,
+#         the shim on PATH and pass. In an adopting repository, gh by name
+#         and git push, fetch, pull, clone, ls-remote or remote update to a
+#         GitHub HTTPS remote are refused unless the session was started by
+#         pap claude (rule 23.4; see session_ok). In every repository,
+#         adopting or not,
 #         GH_CONFIG_DIR changed in assignment position (= or += as a prefix
 #         or after env, export, declare, typeset, readonly or local; unset,
 #         env -u, env -i) is refused (rule 23.4): pap claude sets it to the
@@ -260,6 +264,8 @@ targets="$(jq -r '
       | ([$w[] | select(test("^(env|command|exec|nohup|time|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $h
       | (if (($h // "") | test("/gh$")) or ($h == "gh" and ($w | any(test("^PATH="))))
          then .out += ["ghpath\t\($st.dir)\t\($h)"] else . end)
+      # Rule 23.4: any gh by name, for the session check.
+      | (if $h == "gh" then .out += ["ghcall\t\($st.dir)\tgh"] else . end)
       # Rule 23.4: the keyring entry gh keeps the owner token in (service
       # gh:github.com), and gh printing that token.
       | ($w | join(" ")) as $j
@@ -299,6 +305,10 @@ targets="$(jq -r '
               | (if $m.sub == "commit" or $m.sub == "push" then .out += ["branch\t\($t)"] else . end)
               | (if $m.sub == "push"
                  then .out += ["push\t\($t)\t\($args | map(unquote) | join("\u001f"))"] else . end)
+              # Rule 23.4: git that talks to a remote, through the credential helper.
+              | (if ($m.sub | IN("push", "fetch", "pull", "clone", "ls-remote"))
+                    or ($m.sub == "remote" and ($args[0] // "") == "update")
+                 then .out += ["gitnet\t\($t)\t\($m.sub)\t\($args | map(unquote) | join("\u001f"))"] else . end)
               | (if $lh != null then .out += ["bypass\t\($t)\t\($lh)"] else . end)
               | (if ($m.opts | test("core\\.hookspath"; "i"))
                     or ($m.sub == "config" and ($m.rest | test("core\\.hookspath"; "i")))
@@ -335,6 +345,62 @@ labelled() {
   jq -e '[(if type == "object" then .labels? else . end) | arrays | .[]
           | (strings, (objects | .name? | strings))]
          | any(ascii_downcase | gsub("^\\s+|\\s+$"; "") == "owner-reviewed")' "$1" >/dev/null 2>&1
+}
+
+# Rule 23.4: whether this session was started by pap claude, asked of the
+# gh first on PATH. Claude Code runs hooks with its own environment, which
+# pap claude set. That gh must be the shim, and the shim, in its check mode,
+# applies its own tests: the agent directory and an empty hosts.yml. A shim
+# without the check mode fails it. A dev container with no key passes, as
+# the shim steps aside there (pap agent-key status exits 1); the hook never
+# runs a shim from the working tree, which the agent can edit.
+session=""
+session_ok() { # session_ok <root>
+  if [ -z "$session" ]; then
+    session=no
+    if { [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; } && command -v pap >/dev/null 2>&1; then
+      pap agent-key status >/dev/null 2>&1
+      [ $? != 1 ] || session=yes
+    fi
+    g="$(command -v gh 2>/dev/null)" || g=""
+    l2=""
+    [ -z "$g" ] || { read -r _ && read -r l2; } 2>/dev/null < "$g" || true
+    case "$l2" in
+      "# pap-gh-shim:"*)
+        if grep -q PAP_SHIM_CHECK "$g" 2>/dev/null &&
+          (cd "$1" && CLAUDECODE=1 PAP_SHIM_CHECK=1 "$g" >/dev/null 2>&1); then
+          session=yes
+        fi ;;
+    esac
+  fi
+  [ "$session" = yes ]
+}
+# github_https <root> <sub> <words>: whether the git call reaches GitHub
+# over HTTPS, each URL as git resolves it (a remote's, insteadOf applied).
+# Any word that resolves to GitHub counts. The repository is the first word
+# that is a remote or looks like a URL or path, so an option's value
+# (--depth 1, -o x) is not taken for it; with none, the default remote (each
+# named remote, or every remote, for remote update).
+github_https() {
+  gw="$(printf '%s' "$3" | tr '\037' '\n' | grep -v '^-')"
+  remotes="$(git -C "$1" remote 2>/dev/null)"
+  if [ "$2" = remote ]; then
+    gw="$(printf '%s\n' "$gw" | sed 1d)"
+    [ -n "$gw" ] || gw="$remotes"
+  elif [ "$2" != clone ]; then
+    repo=""
+    for w in $gw; do
+      if printf '%s\n' "$remotes" | grep -qxF -- "$w"; then repo="$w"; break; fi
+      case "$w" in */* | *:* | .) repo="$w"; break ;; esac
+    done
+    [ -n "$repo" ] || gw="$gw
+$(git -C "$1" ls-remote --get-url 2>/dev/null)"
+  fi
+  printf '%s\n' "$gw" | while IFS= read -r w; do
+    [ -n "$w" ] || continue
+    u="$(git -C "$1" ls-remote --get-url "$w" 2>/dev/null)" || u="$w"
+    if printf '%s\n' "$u" | grep -qiE '^https?://([^/@]*@)?(www\.)?github\.com(:[0-9]+)?(/|$)'; then echo yes; break; fi
+  done | grep -q yes
 }
 
 while IFS="$tab" read -r kind target reason file; do
@@ -406,6 +472,14 @@ while IFS="$tab" read -r kind target reason file; do
     ghpath)
       printf 'guard-route: refusing gh run as %s, past the pap gh shim, in %s\n' "$reason" "$root" >&2
       printf 'guard-route: rule 23.1: run gh by name with PATH as it is, so the shim gives it the pap-agent token.\n' >&2
+      status=2
+      ;;
+    ghcall | gitnet)
+      [ "$kind" = ghcall ] || github_https "$root" "$reason" "$file" || continue
+      session_ok "$root" && continue
+      [ "$kind" = ghcall ] || reason="git $reason"
+      printf 'guard-route: refusing %s in %s: this Claude Code session was not started by pap claude, so it could act as your own GitHub sign-in\n' "$reason" "$root" >&2
+      printf 'guard-route: rule 23.4: quit and start the session with pap claude (pap claude --resume to keep this conversation).\n' >&2
       status=2
       ;;
     merge)

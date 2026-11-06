@@ -43,11 +43,15 @@ warns if the token is in `hosts.yml` in plain text instead.
   Support/gh-agent`), mode 700, that never holds a sign-in, and with
   `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN` and
   `GITHUB_ENTERPRISE_TOKEN` unset. A `gh` in an agent shell so finds no
-  stored account.
-- **The `gh` shim**, first on `PATH` in an adopting repository, gives an
-  agent's `gh` and git push a `pap-agent` token. It refuses when
-  `GH_CONFIG_DIR` is not exactly the agent directory (a session started
-  as plain `claude` included) or when that directory holds a github.com
+  stored account. It also puts its own `scripts/shim` first on `PATH`:
+  Claude Code's Bash tool runs commands non-interactively, so the base
+  layer's mise `[env]` path, which only shells mise activates and
+  `mise exec`/`mise run` get, never reaches an agent.
+- **The `gh` shim**, first on `PATH` in every shell `pap claude` starts,
+  runs the real `gh` unchanged outside an adopting repository. In one it
+  gives an agent's `gh` and git push a `pap-agent` token. It refuses when
+  `GH_CONFIG_DIR` is not exactly the agent directory (a plain `claude`
+  session where mise's `PATH` still puts the base layer's copy first) or when that directory holds a github.com
   sign-in (any non-empty `hosts.yml`: one naming you would make gh fetch your token from the keyring), and it never falls back to a stored one.
 - **The guard hook** refuses an agent's command that changes
   `GH_CONFIG_DIR` (sets, exports, unsets it, or starts with `env -i`), names the agent directory or signs gh in (`gh auth login`, `switch`, `refresh`), which keeps it empty, runs `gh`
@@ -55,7 +59,17 @@ warns if the token is in `hosts.yml` in plain text instead.
   (`secret-tool lookup`/`search` naming `gh:`, `security
   find-generic-password`/`find-internet-password` naming `gh:`, `security
   dump-keychain`), or asks gh for the token (`gh auth token`, `gh auth
-  status -t`).
+  status -t`). In an adopting repository it also refuses an agent's `gh`,
+  and git's `push`, `fetch`, `pull`, `clone`, `ls-remote` and `remote
+  update` to a GitHub HTTPS remote, unless the session was started by
+  `pap claude`. Claude Code runs hooks with its own environment, the one
+  `pap claude` set, so the hook asks the `gh` first on its `PATH`: it must
+  be the shim, and the shim's check mode (`PAP_SHIM_CHECK=1`) must accept
+  the session by the shim's own tests; a shim without that check mode
+  fails it. A dev container with no key passes, as the shim steps aside
+  there, judged by `pap agent-key status`, never by a shim in the working
+  tree. Local git (`status`, `log`, `diff`,
+  `commit`) is never refused for this.
 - **`/pap:reviewed` and `/pap:accept`** are the only paths back to your
   sign-in. Their scripts run `gh` from gh's default directory with the
   tokens unset, so the label and the acceptance show you. Only you can
@@ -73,17 +87,17 @@ warns if the token is in `hosts.yml` in plain text instead.
 An agent runs as your operating-system user. This separates what each
 process sees; it is not isolation. Every known way round it:
 
-| Escape                                                                                                      | Mitigation                                                                                                                                                                          | What is left                                                                                             |
-| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Reading the keyring by other means: a script, `python`, `bash -c`, `eval`, a name the hook cannot parse     | The hook catches the plain forms                                                                                                                                                    | Any process of yours can read your keyring entry; on macOS `/usr/bin/security` reads it without a dialog |
-| Claude Code started without `pap claude`                                                                    | The shim refuses every `gh` in an adopting repository; `pap doctor` reports the shell                                                                                               | Outside an adopting repository, `gh` there uses your sign-in                                             |
-| `GH_CONFIG_DIR`, `HOME` or `XDG_CONFIG_HOME` changed in a way the hook cannot parse                         | The shim refuses anything but the agent directory in an adopting repository                                                                                                         | Outside one, gh can reach your directory                                                                 |
-| `reviewed.sh` or `accept.sh` run through `bash -c`, `eval`, a copy or a link under another name             | The hook refuses them by name and path                                                                                                                                              | Those forms pass                                                                                         |
-| Writing a `hosts.yml` into the agent directory, or a `gh auth login` there, by a form the hook cannot parse | The hook refuses commands naming the directory or `$GH_CONFIG_DIR` and `gh auth login`; the shim refuses a non-empty `hosts.yml` in an adopting repository; `pap doctor` reports it | Outside an adopting repository, gh there would fetch your token from the keyring                         |
-| `command env -i gh`, `sudo`, `xargs` or `find -exec` forms                                                  | The hook reads only the first word of a command                                                                                                                                     | They pass; in an adopting repository the shim still checks the directory                                 |
-| A git hook during your `/pap:accept` push                                                                   | The push keeps the caller's environment; only its credential helper is gh as you                                                                                                    | The hook can read that helper from `GIT_CONFIG_PARAMETERS`                                               |
-| An agent merging a pull request                                                                             | The hook refuses `gh pr merge` and the API merge                                                                                                                                    | GitHub allows it; slice (c) reports it                                                                   |
-| Reading the cached installation token                                                                       | Mode 0600 in a 0700 directory, at most an hour old                                                                                                                                  | A process of yours can read it while it is valid                                                         |
+| Escape                                                                                                      | Mitigation                                                                                                                                                                          | What is left                                                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reading the keyring by other means: a script, `python`, `bash -c`, `eval`, a name the hook cannot parse     | The hook catches the plain forms                                                                                                                                                    | Any process of yours can read your keyring entry; on macOS `/usr/bin/security` reads it without a dialog                                                                                                                            |
+| Claude Code started without `pap claude`                                                                    | In an adopting repository the hook refuses its `gh` and its git calls to GitHub over HTTPS, naming `pap claude`; `pap doctor` reports the shell and a `gh` that is not the shim     | Outside an adopting repository its `PATH` lacks the shim (Claude Code's shells never get mise's `[env]`), so a plain `gh` there is the real one with your sign-in; so is a `gh` the hook cannot parse (`bash -c`, `eval`, a script) |
+| `GH_CONFIG_DIR`, `HOME` or `XDG_CONFIG_HOME` changed in a way the hook cannot parse                         | The shim refuses anything but the agent directory in an adopting repository                                                                                                         | Outside one, gh can reach your directory                                                                                                                                                                                            |
+| `reviewed.sh` or `accept.sh` run through `bash -c`, `eval`, a copy or a link under another name             | The hook refuses them by name and path                                                                                                                                              | Those forms pass                                                                                                                                                                                                                    |
+| Writing a `hosts.yml` into the agent directory, or a `gh auth login` there, by a form the hook cannot parse | The hook refuses commands naming the directory or `$GH_CONFIG_DIR` and `gh auth login`; the shim refuses a non-empty `hosts.yml` in an adopting repository; `pap doctor` reports it | Outside an adopting repository, gh there would fetch your token from the keyring                                                                                                                                                    |
+| `command env -i gh`, `sudo`, `xargs` or `find -exec` forms                                                  | The hook reads only the first word of a command                                                                                                                                     | They pass; in an adopting repository the shim still checks the directory                                                                                                                                                            |
+| A git hook during your `/pap:accept` push                                                                   | The push keeps the caller's environment; only its credential helper is gh as you                                                                                                    | The hook can read that helper from `GIT_CONFIG_PARAMETERS`                                                                                                                                                                          |
+| An agent merging a pull request                                                                             | The hook refuses `gh pr merge` and the API merge                                                                                                                                    | GitHub allows it; slice (c) reports it                                                                                                                                                                                              |
+| Reading the cached installation token                                                                       | Mode 0600 in a 0700 directory, at most an hour old                                                                                                                                  | A process of yours can read it while it is valid                                                                                                                                                                                    |
 
 **A dev container** changes this. With no key in the container, the shim
 steps aside and the container keeps the human sign-in it has (decision
