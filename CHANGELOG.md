@@ -161,6 +161,17 @@ not carry.
 
 #### Added
 
+- Decision 0023's second slice (rule 23.4): `pap agent-owner init` moves
+  your `gh` sign-in into a `GH_CONFIG_DIR` of its own, recorded in
+  `agent.conf`, and signs gh's default directory out only after confirming
+  it; `pap claude` starts Claude Code with that variable and any GitHub
+  token unset, so agent shells find no stored account; the `gh` shim
+  refuses a set `GH_CONFIG_DIR` in an agent shell; the guard hook refuses
+  an agent's command that sets it, and in an adopting repository a `gh`
+  run by path or with `PATH=`; `/pap:reviewed` and `/pap:accept` run as
+  you from the recorded directory; `pap doctor` checks all three.
+  `docs/account-setup.md` has the one-time move: start sessions with
+  `pap claude` from now on.
 - Decision 0023's first slice (rule 23.1): `pap agent-key import` and
   `status` keep the `pap-agent` app's private key in the OS keyring;
   `pap agent-token` mints and caches an installation token for the
