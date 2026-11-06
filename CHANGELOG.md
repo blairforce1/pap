@@ -195,6 +195,15 @@ not carry.
 
 #### Fixed
 
+- The guard hook refuses, in an adopting repository, an agent's `gh` and
+  git's `push`, `fetch`, `pull`, `clone`, `ls-remote` and `remote update` to
+  a GitHub HTTPS remote unless the session was started by `pap claude`,
+  naming `pap claude` and `pap claude --resume`. It asks the shim, in a new
+  `PAP_SHIM_CHECK=1` check mode, so the shim's tests (agent directory,
+  empty `hosts.yml`, a dev container with no key) live in one place. A
+  session started as plain `claude`, and every cycle a PM session so
+  started launches, is refused there; outside an adopting repository its
+  `gh` is still the real one with your sign-in.
 - Agent shells never got the `gh` shim: it reached `PATH` only through the
   base layer's mise `[env]`, which Claude Code's non-interactive Bash tool
   never applies, so `gh` was the real one, as the owner before rule 23.4

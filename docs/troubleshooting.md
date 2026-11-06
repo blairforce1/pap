@@ -218,6 +218,16 @@ sign-in; quit and run pap claude (rule 23.4)`.** Quit the session and start
 it with `pap claude`, with the same arguments (`pap claude --resume`
 resumes).
 
+**`guard-route: refusing gh in <repo>: this Claude Code session was not
+started by pap claude, so it could act as your own GitHub sign-in`** (or
+`refusing git fetch`, `git push` and the like). The guard hook's check of
+the same thing, made before the command runs: the `gh` first on the
+session's `PATH` is not the pap shim, or the shim does not accept the
+session. Quit and start it with `pap claude` (`pap claude --resume` keeps
+the conversation). A project-manager session started as plain `claude`
+passes this to every cycle it starts, since they inherit its environment:
+restart the PM session with `pap claude`.
+
 **`gh (pap shim): <agent dir>/hosts.yml holds a github.com sign-in`.**
 Something signed in inside the agent directory, which must stay empty.
 Remove that `hosts.yml` from your own terminal.
