@@ -211,8 +211,10 @@ The same, step by step, when `pap agent-setup` cannot run:
    origin, the credential helper, and that a token mints for the
    repository's owner.
 
-From then on, in an agent session in an adopting repository, the `gh` shim
-the base layer puts first on `PATH` (`scripts/shim/gh`) mints a token
+From then on, in an agent session started with `pap claude` in an adopting
+repository, the `gh` shim `pap claude` puts first on `PATH` (pap's own
+`scripts/shim/gh`; the base layer's mise `[env]` path reaches only shells
+mise activates and `mise exec`/`mise run`, never Claude Code's) mints a token
 through `pap agent-token` and runs `gh` with it; git's pushes go through
 the same shim. When the token cannot be minted it says why and stops; it
 never falls back to your sign-in. Your own terminal is unaffected: the

@@ -50,8 +50,8 @@ warns if the token is in `hosts.yml` in plain text instead.
 - **The `gh` shim**, first on `PATH` in every shell `pap claude` starts,
   runs the real `gh` unchanged outside an adopting repository. In one it
   gives an agent's `gh` and git push a `pap-agent` token. It refuses when
-  `GH_CONFIG_DIR` is not exactly the agent directory (a session started
-  as plain `claude` included) or when that directory holds a github.com
+  `GH_CONFIG_DIR` is not exactly the agent directory (a plain `claude`
+  session where mise's `PATH` still puts the base layer's copy first) or when that directory holds a github.com
   sign-in (any non-empty `hosts.yml`: one naming you would make gh fetch your token from the keyring), and it never falls back to a stored one.
 - **The guard hook** refuses an agent's command that changes
   `GH_CONFIG_DIR` (sets, exports, unsets it, or starts with `env -i`), names the agent directory or signs gh in (`gh auth login`, `switch`, `refresh`), which keeps it empty, runs `gh`

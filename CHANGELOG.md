@@ -201,7 +201,8 @@ not carry.
   and signed out after it. `pap claude` now puts pap's own `scripts/shim`
   first on `PATH`, where the shim calls its sibling `bin/pap` for the
   token, and `pap doctor` reports an agent shell whose `gh` is not the
-  shim. A session not started with `pap claude` still gets the real `gh`
+  shim. `pap claude` stops with the reason when its install has no
+  `scripts/shim/gh`. A session not started with `pap claude` still gets the real `gh`
   with your sign-in; rule 23.1 and `docs/agent-identity-security.md` now
   say so.
 
