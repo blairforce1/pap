@@ -174,6 +174,23 @@ pin carries it.
 The shim found no real `gh` after itself. `mise install` provides the
 pinned one.
 
+**`pap agent-setup`: `python3 is needed for the browser hand-off`.**
+Install python3, or register the app by hand ([account
+setup](account-setup.md#by-hand)).
+
+**`pap agent-setup`: `no answer from GitHub in time; run pap agent-setup
+again`.** The browser never came back to the loopback port with the
+right `state` (the page was closed, the app not created, or another tab
+answered). Run it again; nothing was stored.
+
+**`pap agent-setup`: `GitHub refused the manifest conversion (HTTP
+<n>)`.** The code had expired (it lasts an hour) or was used. Run it
+again. If GitHub kept an app from the first attempt, delete it on the
+app's settings page or pass `--name` for a new one.
+
+**`pap agent-setup`: `GitHub has no account <owner>`.** `--owner`, or
+`origin`'s owner, is not a GitHub login.
+
 **The guard hook refuses `git push` to an SSH remote.** An agent pushes
 over HTTPS, as the app (rule 23.1). Switch the clone once, from your
 terminal: `git remote set-url origin https://github.com/<owner>/<repo>.git`.

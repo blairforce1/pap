@@ -88,7 +88,69 @@ Decision 0023 gives agent sessions their own GitHub identity, a GitHub App
 called `pap-agent`, so a push, pull request, label or comment an agent
 makes shows as `pap-agent[bot]` and not as you. You register it once, under
 your personal account, and install it wherever PAP is adopted. It costs
-nothing on GitHub's side and takes about half an hour.
+nothing on GitHub's side.
+
+### With `pap agent-setup`
+
+From an adopting repository, on the machine that runs agents:
+
+```sh
+pap agent-setup [--owner <login>] [--name <app-name>]
+```
+
+It registers the app by GitHub's manifest flow
+([Registering a GitHub App from a manifest](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest),
+and [the conversion endpoint](https://docs.github.com/en/rest/apps/apps?apiVersion=2022-11-28#create-a-github-app-from-a-manifest)):
+
+1. It opens your browser on a form served from a short-lived loopback
+   port, which posts `scripts/pap-agent-manifest.json` to GitHub: the
+   permissions below and nothing else, no active webhook, public. The
+   name defaults to `<owner>-pap-agent`, because app names are global;
+   `--name` overrides it. `--owner` defaults to `origin`'s owner; an
+   organisation gets its own registration page. Check the name and press
+   **Create GitHub App**.
+2. GitHub redirects back to the loopback port with a one-hour code; pap
+   checks the `state` it sent, converts the code, and puts the returned
+   private key straight into the keyring and the client id into pap's
+   config. The key, the client secret and the webhook secret are never
+   written to disk or printed.
+3. It opens the app's install page. Install it on the owner with the
+   adopting repositories selected, then press Enter; pap confirms the
+   installation with the app's own token. It adds no repositories to an
+   installation itself: that endpoint needs a user token from the app,
+   which your `gh` sign-in is not, so a repository added later is
+   selected on the installation's page.
+4. If this clone's `origin` is SSH, it asks (default no) to switch it to
+   `https://github.com/<owner>/<repo>.git`.
+5. It asks (default no) to have git read GitHub's SSH URLs as HTTPS for
+   every clone, in your global git config:
+
+   ```sh
+   git config --global --add url."https://github.com/".insteadOf git@github.com:
+   git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/
+   ```
+
+   It never adds a value twice. `pap doctor` reports whether the rewrite
+   is in effect and prints these two commands if not; it never writes
+   them, even with `--fix`.
+6. It prints `pap doctor`'s agent-app items.
+
+Run it again at any time: with the key already here it skips
+registration and goes on to the installation and the checks. It needs
+`python3` for the browser hand-off; without it, use the manual steps.
+
+**The hard stop is yours.** The guard hook refuses an agent's push to an
+SSH remote and the rewrite turns SSH URLs into HTTPS, but a person's or
+a script's SSH push still works while your account has an SSH
+authentication key. To make HTTPS the only way in, remove the
+authentication key from your GitHub account (Settings, SSH and GPG keys)
+and keep the signing key, which signs commits and is a separate entry.
+GitHub then refuses every SSH push. `pap agent-setup` never touches
+GitHub keys; that is your own act.
+
+### By hand
+
+The same, step by step, when `pap agent-setup` cannot run:
 
 1. **Register the app.** On GitHub: Settings, Developer settings, GitHub
    Apps, New GitHub App, under your personal account.

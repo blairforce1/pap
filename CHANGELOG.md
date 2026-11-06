@@ -167,8 +167,12 @@ not carry.
   repository's owner; the base layer's `gh` shim, first on `PATH`, runs
   `gh` and git's pushes with it in an agent session and never falls back
   to a stored sign-in; `pap doctor` checks what the app needs; the guard
-  hook refuses an agent's push to an SSH remote. `docs/account-setup.md`
-  has the app's one-time setup.
+  hook refuses an agent's push to an SSH remote. `pap agent-setup`
+  registers the app by GitHub's manifest flow, keys the keyring without
+  writing the key to disk, confirms the installation, offers to switch an
+  SSH origin and to add the global SSH-to-HTTPS `insteadOf` rewrite (which
+  `pap doctor` reports), and runs doctor's agent-app checks;
+  `docs/account-setup.md` has it, with the manual steps as the fallback.
 - Decision 0023: agent sessions act on GitHub as their own
   GitHub App, so GitHub can tell an agent's push, pull request, label or
   comment from the owner's; commits stay the owner's, SSH-signed, with the
