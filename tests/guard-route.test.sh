@@ -433,10 +433,12 @@ done
 
 mkrepo "$T/H" && adopt "$T/H" && git -C "$T/H" switch -q -c change/x
 git -C "$T/H" remote add origin https://github.com/example-owner/example-repo.git
-mkdir -p "$T/H/scripts/shim" "$T/nokey"
-cp "$here/scripts/shim/gh" "$T/H/scripts/shim/gh"
+mkdir -p "$T/nokey" "$T/key" "$T/oldshim"
 printf '#!/bin/sh\nexit 1\n' > "$T/nokey/pap"
-chmod +x "$T/nokey/pap"
+printf '#!/bin/sh\nexit 0\n' > "$T/key/pap"
+# A shim from before the check mode: the marker, and gh run regardless.
+printf '#!/bin/sh\n# pap-gh-shim: old\nexit 0\n' > "$T/oldshim/gh"
+chmod +x "$T/nokey/pap" "$T/key/pap" "$T/oldshim/gh"
 git -C "$T/U" remote add origin https://github.com/example-owner/example-repo.git
 # session <pap|plain|dironly|shimonly|container>
 session() {
@@ -459,6 +461,10 @@ git push origin change/x
 git ls-remote origin
 git remote update
 git clone https://github.com/example-owner/other.git
+git clone http://www.github.com:443/example-owner/other.git
+git fetch --depth 1
+git push -o ci.skip origin change/x
+git fetch ../G change/x && git fetch
 EOF
 for s in plain dironly shimonly; do
   session "$s"
@@ -476,6 +482,11 @@ rm "$T/xdg/gh-agent/hosts.yml"
 session container
 check 0 "$T/H" 'gh pr list'
 check 0 "$T/H" 'git fetch'
+PATH="$T/realgh:$T/key:$path0"
+check 2 "$T/H" 'gh pr list'
+session plain
+PATH="$T/oldshim:$T/realgh:$path0"
+check 2 "$T/H" 'gh pr list'
 session plain
 msg="$(jq -nc --arg d "$T/H" '{tool_name: "Bash", cwd: $d, tool_input: {command: "gh pr list"}}' | "$router" 2>&1)"
 n=$((n + 1))

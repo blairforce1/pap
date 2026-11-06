@@ -350,47 +350,56 @@ labelled() {
 # Rule 23.4: whether this session was started by pap claude, asked of the
 # gh first on PATH. Claude Code runs hooks with its own environment, which
 # pap claude set. That gh must be the shim, and the shim, in its check mode,
-# applies its own tests: the agent directory, an empty hosts.yml, and a dev
-# container with no key stepping aside. A shim from before the check mode
-# lets the call through, as an older guard-branch.sh does.
+# applies its own tests: the agent directory and an empty hosts.yml. A shim
+# without the check mode fails it. A dev container with no key passes, as
+# the shim steps aside there (pap agent-key status exits 1); the hook never
+# runs a shim from the working tree, which the agent can edit.
 session=""
 session_ok() { # session_ok <root>
   if [ -z "$session" ]; then
     session=no
+    if { [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; } && command -v pap >/dev/null 2>&1; then
+      pap agent-key status >/dev/null 2>&1
+      [ $? != 1 ] || session=yes
+    fi
     g="$(command -v gh 2>/dev/null)" || g=""
     l2=""
     [ -z "$g" ] || { read -r _ && read -r l2; } 2>/dev/null < "$g" || true
-    shim=""
-    case "$l2" in "# pap-gh-shim:"*) shim="$g" ;; esac
-    if [ -z "$shim" ] && { [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; }; then
-      shim="$1/scripts/shim/gh"
-    fi
-    if [ -n "$shim" ] && [ -x "$shim" ]; then
-      if ! grep -q PAP_SHIM_CHECK "$shim" 2>/dev/null ||
-        (cd "$1" && CLAUDECODE=1 PAP_SHIM_CHECK=1 "$shim" >/dev/null 2>&1); then
-        session=yes
-      fi
-    fi
+    case "$l2" in
+      "# pap-gh-shim:"*)
+        if grep -q PAP_SHIM_CHECK "$g" 2>/dev/null &&
+          (cd "$1" && CLAUDECODE=1 PAP_SHIM_CHECK=1 "$g" >/dev/null 2>&1); then
+          session=yes
+        fi ;;
+    esac
   fi
   [ "$session" = yes ]
 }
 # github_https <root> <sub> <words>: whether the git call reaches GitHub
-# over HTTPS, the URL as git resolves it (a remote's, insteadOf applied).
-# The repository is the first word that is not an option (any word, for
-# clone; each named remote, or every remote, for remote update); with none,
-# the default remote.
+# over HTTPS, each URL as git resolves it (a remote's, insteadOf applied).
+# Any word that resolves to GitHub counts. The repository is the first word
+# that is a remote or looks like a URL or path, so an option's value
+# (--depth 1, -o x) is not taken for it; with none, the default remote (each
+# named remote, or every remote, for remote update).
 github_https() {
   gw="$(printf '%s' "$3" | tr '\037' '\n' | grep -v '^-')"
-  case "$2" in
-    clone) ;;
-    remote) gw="$(printf '%s\n' "$gw" | sed 1d)"; [ -n "$gw" ] || gw="$(git -C "$1" remote 2>/dev/null)" ;;
-    *) gw="$(printf '%s\n' "$gw" | sed -n 1p)" ;;
-  esac
-  [ -n "$gw" ] || gw="$(git -C "$1" ls-remote --get-url 2>/dev/null)"
+  remotes="$(git -C "$1" remote 2>/dev/null)"
+  if [ "$2" = remote ]; then
+    gw="$(printf '%s\n' "$gw" | sed 1d)"
+    [ -n "$gw" ] || gw="$remotes"
+  elif [ "$2" != clone ]; then
+    repo=""
+    for w in $gw; do
+      if printf '%s\n' "$remotes" | grep -qxF -- "$w"; then repo="$w"; break; fi
+      case "$w" in */* | *:* | .) repo="$w"; break ;; esac
+    done
+    [ -n "$repo" ] || gw="$gw
+$(git -C "$1" ls-remote --get-url 2>/dev/null)"
+  fi
   printf '%s\n' "$gw" | while IFS= read -r w; do
     [ -n "$w" ] || continue
     u="$(git -C "$1" ls-remote --get-url "$w" 2>/dev/null)" || u="$w"
-    case "$u" in https://github.com/* | https://*@github.com/*) echo yes; break ;; esac
+    if printf '%s\n' "$u" | grep -qiE '^https?://([^/@]*@)?(www\.)?github\.com(:[0-9]+)?(/|$)'; then echo yes; break; fi
   done | grep -q yes
 }
 
