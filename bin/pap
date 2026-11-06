@@ -972,10 +972,11 @@ cmd_agent_token() {
 # /callback takes GitHub's redirect, checks state and prints the code. The
 # first line out is the port. Gives up after PAP_SETUP_TIMEOUT seconds.
 a_listener='
-import html, json, sys, time, urllib.parse
+import html, json, os, sys, threading, urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 state, action, manifest_file = sys.argv[1:4]
-deadline = time.time() + int(sys.argv[4])
+# The deadline is a watchdog: a blocking accept, no select timeout to rely on.
+threading.Timer(int(sys.argv[4]), lambda: os._exit(1)).start()
 manifest = json.load(open(manifest_file))
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -998,12 +999,12 @@ class H(BaseHTTPRequestHandler):
             self.reply(400, "<!doctype html><p>pap: not the callback this setup is waiting for.")
 server = HTTPServer(("127.0.0.1", 0), H)
 server.done = False
-server.timeout = 1
 port = server.server_address[1]
 print(port, flush=True)
-while not server.done and time.time() < deadline:
+while not server.done:
     server.handle_request()
-sys.exit(0 if server.done else 1)
+sys.stdout.flush()
+os._exit(0)
 '
 
 a_open() { # a_open <url>: the browser, or the URL to open by hand
