@@ -82,9 +82,11 @@ export MISE_DATA_DIR="$T/misedata"
 # answers, and no global git config of the machine's.
 export XDG_CONFIG_HOME="$T/xdg" XDG_RUNTIME_DIR="$T/run" FAKE_KEYRING="$T/keyring" FAKE_GH="$T/fakegh"
 export PAP_GITHUB_API=http://github.invalid GIT_CONFIG_GLOBAL="$T/gitconfig"
-unset REMOTE_CONTAINERS 2>/dev/null || true
-mkdir -p "$T/xdg/pap" "$T/run" "$T/fakegh"
-printf 'client_id=Iv1.example\n' > "$T/xdg/pap/agent.conf"
+unset REMOTE_CONTAINERS CLAUDECODE GH_CONFIG_DIR GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
+mkdir -p "$T/xdg/pap" "$T/run" "$T/fakegh" "$T/owner-gh"
+# Rule 23.4: the owner's gh directory, signed in (a marker the stub gh reads).
+printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/owner-gh" > "$T/xdg/pap/agent.conf"
+: > "$T/owner-gh/signed-in"
 printf 'not a real key\n' > "$FAKE_KEYRING"
 : > "$GIT_CONFIG_GLOBAL"
 PATH="$T/stub:$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'mise/shims' | paste -sd: -)"
@@ -297,7 +299,15 @@ mkdir "$T/tools" "$T/linux" "$T/mac" "$T/apt" "$T/dnf" "$T/sys" "$T/sysnogit" "$
 cat > "$T/tools/gh" <<'EOF'
 #!/bin/sh
 echo "gh $*" >> "$STUB_LOG"
-case "$*" in "auth status") exit "${STUB_GH_AUTH:-0}" ;; esac
+case "$*" in
+  "auth status") exit "${STUB_GH_AUTH:-0}" ;;
+  # github.com in GH_CONFIG_DIR's directory: signed in when it holds the
+  # marker; gh's default directory signed in only with STUB_GH_DEFAULT=0.
+  "auth status --hostname github.com")
+    if [ -n "${GH_CONFIG_DIR:-}" ]; then [ -f "$GH_CONFIG_DIR/signed-in" ]; exit $?; fi
+    [ -z "${GH_TOKEN:-}" ] || exit 0
+    exit "${STUB_GH_DEFAULT:-1}" ;;
+esac
 EOF
 cat > "$T/tools/claude" <<'EOF'
 #!/bin/sh
@@ -389,6 +399,48 @@ out="$(doctor MISE_SHELL=bash)"; rc=$?
   printf '%s\n' "$out" | grep -q 'drift    lefthook 2.1.14  (active is 2.1.13)' &&
   printf '%s\n' "$out" | grep -q 'ok       pre-commit hook installed'
 result $? "doctor, drifted: a foreign hook and an active version off its pin; exits 1" "$out"
+
+# --- doctor: the owner's sign-in (rule 23.4) ----------------------------------
+
+printf '#!/bin/sh\n# lefthook\n' > "$hooks/pre-push"
+ls_json true 2.1.14
+has() { printf '%s\n' "$out" | grep -qF "$1"; }
+out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/owner-gh")"; rc=$?
+[ "$rc" = 0 ] && has "ok       owner's gh directory signed in  ($T/owner-gh)" &&
+  has "ok       gh's default directory holds no sign-in" &&
+  has "ok       GH_CONFIG_DIR set in your terminal  ($T/owner-gh)"
+result $? "doctor, owner's terminal: owner directory signed in, default directory clean, GH_CONFIG_DIR set; exits 0" "$out"
+out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/owner-gh" STUB_GH_DEFAULT=0)"; rc=$?
+[ "$rc" = 0 ] && has "warn     gh's default directory holds no sign-in  (it is signed in to github.com, where an agent shell finds it: env -u GH_CONFIG_DIR gh auth logout --hostname github.com)"
+result $? "doctor: the default directory signed in is a warning naming the logout command" "$out"
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 0 ] && has "warn     GH_CONFIG_DIR set in your terminal  (unset, so gh here has no sign-in: export GH_CONFIG_DIR=\"$T/owner-gh\")"
+result $? "doctor, a terminal without GH_CONFIG_DIR: a warning with the export line" "$out"
+mkdir -p "$T/other-gh"
+out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/other-gh")"; rc=$?
+[ "$rc" = 1 ] && has "drift    GH_CONFIG_DIR set in your terminal  (it is $T/other-gh, not the recorded $T/owner-gh)"
+result $? "doctor: GH_CONFIG_DIR not the recorded directory is drift" "$out"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$T/owner-gh")"; rc=$?
+[ "$rc" = 1 ] && has "drift    GH_CONFIG_DIR unset in this agent shell  (it is set, so gh would use a stored sign-in and the shim refuses; restart Claude Code with pap claude)" &&
+  has "skipped  owner's gh directory signed in  ($T/owner-gh; checked only from your own terminal, never from an agent shell)"
+result $? "doctor, an agent shell with GH_CONFIG_DIR: refused as drift; the owner directory is not read" "$out"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1)"
+has "ok       GH_CONFIG_DIR unset in this agent shell"
+result $? "doctor, an agent shell started by pap claude: GH_CONFIG_DIR unset is ok" "$out"
+rm "$T/owner-gh/signed-in"
+out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/owner-gh")"; rc=$?
+[ "$rc" = 1 ] && has "missing  owner's gh directory signed in  ($T/owner-gh has no github.com sign-in; pap agent-owner init)"
+result $? "doctor: an owner directory with no sign-in is missing" "$out"
+: > "$T/owner-gh/signed-in"
+printf 'client_id=Iv1.example\n' > "$T/xdg/pap/agent.conf"
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 1 ] && has "missing  owner's gh directory recorded  (in your own terminal: pap agent-owner init; see docs/account-setup.md)"
+result $? "doctor: no owner directory recorded is missing, naming pap agent-owner init" "$out"
+printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/gone-gh" > "$T/xdg/pap/agent.conf"
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 1 ] && has "missing  owner's gh directory exists  ($T/gone-gh is gone; in your own terminal: pap agent-owner init)"
+result $? "doctor: a recorded owner directory that is gone is missing" "$out"
+printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/owner-gh" > "$T/xdg/pap/agent.conf"
 
 # --- doctor: the tools, and their install hints ------------------------------
 
@@ -555,7 +607,7 @@ printf 'not a real key\n' > "$FAKE_KEYRING"
 # doctor's read-only questions; nothing else ran.
 fixed_only() {
   grep -qx trust "$STUB_LOG" && grep -qx install "$STUB_LOG" &&
-    ! grep -vxE 'trust|install|--version|trust --show|ls --current --json|gh auth status|claude plugin list' "$STUB_LOG"
+    ! grep -vxE 'trust|install|--version|trust --show|ls --current --json|gh auth status( --hostname github.com)?|claude plugin list' "$STUB_LOG"
 }
 : > "$STUB_LOG"
 out="$(fixdoctor STUB_GH_AUTH=1 PATH="$T/forbid:$T/stub:$T/nojq:$T/linux:$T/sys")"; rc=$?
@@ -572,7 +624,7 @@ result $? "doctor --fix: on macOS runs no brew" "$out
 $(cat "$STUB_LOG")"
 : > "$STUB_LOG"
 out="$(fixdoctor PATH="$T/forbid:$T/tools:$T/linux:$T/sys")"; rc=$?
-[ "$rc" = 1 ] && ! grep -vxE 'gh auth status|claude plugin list' "$STUB_LOG" &&
+[ "$rc" = 1 ] && ! grep -vxE 'gh auth status( --hostname github.com)?|claude plugin list' "$STUB_LOG" &&
   printf '%s\n' "$out" | grep -q '^fix: no mise, so nothing to run'
 result $? "doctor --fix without mise: runs nothing, says so" "$out
 $(cat "$STUB_LOG")"

@@ -13,6 +13,8 @@
 #        pap agent-key import <pem> [--client-id <id>] | status
 #        pap agent-token [--owner <login>]
 #        pap agent-setup [--owner <login>] [--name <app-name>]
+#        pap agent-owner init [--dir <path>]
+#        pap claude [<claude args>...]
 #        pap version
 #
 # init    Applies base plus the named layers (dotnet, go, risk) to the repository at
@@ -42,7 +44,12 @@
 #         HTTPS origin (an SSH one is reported with the set-url fix and
 #         never changed), gh by name as git's credential helper for
 #         github.com, and a token minting for origin's owner; in a dev
-#         container with no key the shim steps aside, by decision. Each item is ok, missing, drift, warn or skipped, and a
+#         container with no key the shim steps aside, by decision. Rule
+#         23.4's owner sign-in: the owner's gh directory recorded, there
+#         and signed in (checked only outside an agent shell), gh's default
+#         directory signed out of github.com (a warning), and GH_CONFIG_DIR
+#         set in your terminal (a warning when not) and unset in an agent
+#         shell. Each item is ok, missing, drift, warn or skipped, and a
 #         failing one names the command that fixes it on this platform
 #         (Linux with apt or dnf, macOS with Homebrew; WSL is Linux); exits
 #         1 unless every item is ok, warn or skipped. Also counts local
@@ -120,6 +127,24 @@
 #         and prints doctor's agent-app
 #         items. With a key already here it skips registration. Needs
 #         python3 for the hand-off; PAP_BROWSER names the browser command.
+# agent-owner
+#         Decision 0023 point 2, rule 23.4: init moves the owner's gh
+#         sign-in into a GH_CONFIG_DIR of its own (--dir, else the recorded
+#         one, else $XDG_CONFIG_HOME/gh-owner, default ~/.config; on macOS
+#         without XDG_CONFIG_HOME ~/Library/Application Support/gh-owner)
+#         and records its path as owner_gh_config_dir in agent.conf. It runs
+#         `gh auth login --insecure-storage` there (gh's keyring entry is
+#         shared by every config directory, so a keyring sign-in would be
+#         deleted by the next step), confirms the sign-in, and only then
+#         offers (y/N) `gh auth logout` of github.com in gh's default
+#         directory, confirming the owner's again after. Prints the export
+#         line for your shell, and the home.nix form when the shell's rc
+#         file is home-manager's; never edits an rc file. Refused in an
+#         agent session.
+# claude  Runs claude with GH_CONFIG_DIR, GH_TOKEN and GITHUB_TOKEN unset,
+#         every argument passed through, so an agent shell has no stored
+#         GitHub account and only the gh shim's pap-agent token works
+#         (rule 23.4). Start every Claude Code session with it.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -172,7 +197,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,16p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,18p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -567,6 +592,50 @@ d_agent() {
   fi
 }
 
+# d_owner: doctor's owner sign-in items (rule 23.4). Needs has_git and top.
+# Never prints a token: it reads only gh auth status's exit code.
+d_owner() {
+  if [ "$has_git" = false ] || [ ! -x "$top/scripts/guard-branch.sh" ]; then
+    item skipped "owner sign-in" "this repository does not adopt PAP"
+    return 0
+  fi
+  a_cf="$(a_config)"
+  od="$(conf_get owner_gh_config_dir)"
+  if ! command -v gh >/dev/null 2>&1; then
+    item skipped "owner sign-in" "no gh"
+    return 0
+  fi
+  if [ -z "$od" ]; then
+    item missing "owner's gh directory recorded" "in your own terminal: pap agent-owner init; see docs/account-setup.md"
+  elif [ ! -d "$od" ]; then
+    item missing "owner's gh directory exists" "$od is gone; in your own terminal: pap agent-owner init"
+  elif [ -n "${CLAUDECODE:-}" ]; then
+    item skipped "owner's gh directory signed in" "$od; checked only from your own terminal, never from an agent shell"
+  elif o_gh "$od" auth status --hostname github.com >/dev/null 2>&1; then
+    item ok "owner's gh directory signed in" "$od"
+  else
+    item missing "owner's gh directory signed in" "$od has no github.com sign-in; pap agent-owner init"
+  fi
+  if d_gh auth status --hostname github.com >/dev/null 2>&1; then
+    item warn "gh's default directory holds no sign-in" "it is signed in to github.com, where an agent shell finds it: env -u GH_CONFIG_DIR gh auth logout --hostname github.com"
+  else
+    item ok "gh's default directory holds no sign-in"
+  fi
+  if [ -n "${CLAUDECODE:-}" ]; then
+    if [ -n "${GH_CONFIG_DIR:-}" ]; then
+      item drift "GH_CONFIG_DIR unset in this agent shell" "it is set, so gh would use a stored sign-in and the shim refuses; restart Claude Code with pap claude"
+    else
+      item ok "GH_CONFIG_DIR unset in this agent shell"
+    fi
+  elif [ -z "${GH_CONFIG_DIR:-}" ]; then
+    item warn "GH_CONFIG_DIR set in your terminal" "unset, so gh here has no sign-in: export GH_CONFIG_DIR=$(o_quote "${od:-$(o_default)}")"
+  elif [ -n "$od" ] && [ "$GH_CONFIG_DIR" != "$od" ]; then
+    item drift "GH_CONFIG_DIR set in your terminal" "it is $GH_CONFIG_DIR, not the recorded $od"
+  else
+    item ok "GH_CONFIG_DIR set in your terminal" "$GH_CONFIG_DIR"
+  fi
+}
+
 cmd_doctor() {
   fix=false
   [ "${1:-}" != --fix ] || { fix=true; shift; }
@@ -726,6 +795,9 @@ EOF
 
   say "" "agent app (decision 0023)"
   d_agent
+
+  say "" "owner sign-in (rule 23.4)"
+  d_owner
 
   say ""
   if [ "$d_bad" -eq 0 ]; then
@@ -1198,6 +1270,92 @@ cmd_agent_setup() {
   say "pap-agent is set up on this machine."
 }
 
+# agent-owner, claude ---------------------------------------------------------
+# Decision 0023 point 2, rule 23.4: the owner's gh sign-in lives in a
+# GH_CONFIG_DIR of its own, which no agent shell gets.
+
+o_default() {
+  if a_mac && [ -z "${XDG_CONFIG_HOME:-}" ]; then printf '%s/Library/Application Support/gh-owner' "$HOME"
+  else printf '%s/gh-owner' "${XDG_CONFIG_HOME:-$HOME/.config}"; fi
+}
+# o_gh <dir> <gh args...>: gh as the owner, from <dir>. CLAUDECODE is unset
+# so the shim passes through to the real gh instead of refusing.
+o_gh() { ( d="$1"; shift; unset GH_TOKEN GITHUB_TOKEN CLAUDECODE; GH_CONFIG_DIR="$d"; export GH_CONFIG_DIR; gh "$@" ); }
+# d_gh <gh args...>: gh from its default directory, with no token in the way.
+d_gh() { ( unset GH_TOKEN GITHUB_TOKEN CLAUDECODE GH_CONFIG_DIR; gh "$@" ); }
+# o_quote <path>: the path in double quotes for a shell line.
+o_quote() { printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"$`]/\\&/g')"; }
+
+cmd_agent_owner() {
+  [ "${1:-}" = init ] || usage
+  shift
+  a_cf="$(a_config)"
+  dir=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dir) [ $# -ge 2 ] || usage; dir="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  [ -z "${CLAUDECODE:-}" ] || die "agent-owner: run this in your own terminal, not in an agent session (rule 23.4)"
+  command -v gh >/dev/null 2>&1 || die "agent-owner: gh is not on PATH; run mise install"
+  [ -n "$dir" ] || dir="$(conf_get owner_gh_config_dir)"
+  [ -n "$dir" ] || dir="$(o_default)"
+  case "$dir" in /*) ;; *) die "agent-owner: --dir must be an absolute path" ;; esac
+  mkdir -p "$dir" && chmod 700 "$dir" || die "agent-owner: cannot create $dir"
+
+  # 1. The owner's sign-in, in its own directory.
+  if o_gh "$dir" auth status --hostname github.com >/dev/null 2>&1; then
+    say "agent-owner: $dir is already signed in to github.com."
+  else
+    say "agent-owner: signing in to github.com in $dir (gh auth login)."
+    o_gh "$dir" auth login --hostname github.com --insecure-storage ||
+      die "agent-owner: gh auth login did not finish; nothing else was changed"
+  fi
+  o_gh "$dir" auth status --hostname github.com >/dev/null 2>&1 ||
+    die "agent-owner: $dir is not signed in to github.com; nothing else was changed"
+  login="$(o_gh "$dir" api user --jq .login 2>/dev/null)" ||
+    die "agent-owner: $dir is signed in but gh api user failed; nothing else was changed"
+  conf_set owner_gh_config_dir "$dir"
+  say "agent-owner: $dir works, signed in as $login; recorded in $a_cf."
+
+  # 2. Only now, the default directory's sign-in, on a yes.
+  if d_gh auth status --hostname github.com >/dev/null 2>&1; then
+    ask "agent-owner: gh's default directory is still signed in to github.com, where an agent shell finds it. Sign it out now? [y/N]"
+    case "$answer" in
+      y | Y | yes)
+        d_gh auth logout --hostname github.com || die "agent-owner: gh auth logout failed; run it yourself: env -u GH_CONFIG_DIR gh auth logout --hostname github.com"
+        o_gh "$dir" auth status --hostname github.com >/dev/null 2>&1 ||
+          die "agent-owner: $dir lost its sign-in with the logout; run pap agent-owner init again"
+        say "agent-owner: the default directory is signed out; $dir still works." ;;
+      *) say "agent-owner: the default directory left signed in; pap doctor warns until it is signed out." ;;
+    esac
+  else
+    say "agent-owner: gh's default directory holds no github.com sign-in."
+  fi
+
+  # 3. What the owner's shell needs; pap never edits rc files.
+  q="$(o_quote "$dir")"
+  say "" "Add this to your interactive shell's startup file, then open a new terminal:" "  export GH_CONFIG_DIR=$q"
+  case "$(basename "${SHELL:-sh}")" in
+    zsh) rc="${ZDOTDIR:-$HOME}/.zshrc" ;;
+    fish) rc="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"; say "  (fish: set -gx GH_CONFIG_DIR $q)" ;;
+    *) rc="$HOME/.bashrc" ;;
+  esac
+  t="$(readlink "$rc" 2>/dev/null || true)"
+  case "$t" in
+    */nix/store/*)
+      say "Your shell's $rc is home-manager's; in home.nix instead:" \
+        "  home.sessionVariables.GH_CONFIG_DIR = $q;" ;;
+  esac
+  say "Start Claude Code with pap claude, which leaves it unset for agents."
+}
+
+cmd_claude() {
+  unset GH_CONFIG_DIR GH_TOKEN GITHUB_TOKEN
+  exec claude "$@"
+}
+
 # revisits -------------------------------------------------------------------
 
 # field <file> <name>: the value of a record header line, "- **Name:** value".
@@ -1581,6 +1739,8 @@ case "$cmd" in
   agent-key) cmd_agent_key "$@" ;;
   agent-token) cmd_agent_token "$@" ;;
   agent-setup) cmd_agent_setup "$@" ;;
+  agent-owner) cmd_agent_owner "$@" ;;
+  claude) cmd_claude "$@" ;;
   revisits) cmd_revisits "$@" || true ;;
   coverage) cmd_coverage "$@" || true ;;
   measure) cmd_measure "$@" || true ;;
