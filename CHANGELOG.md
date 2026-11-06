@@ -193,6 +193,18 @@ not carry.
   0022's override and 0016's label gate once it ships. Backlog item H-016
   names the slices and their order.
 
+#### Fixed
+
+- Agent shells never got the `gh` shim: it reached `PATH` only through the
+  base layer's mise `[env]`, which Claude Code's non-interactive Bash tool
+  never applies, so `gh` was the real one, as the owner before rule 23.4
+  and signed out after it. `pap claude` now puts pap's own `scripts/shim`
+  first on `PATH`, where the shim calls its sibling `bin/pap` for the
+  token, and `pap doctor` reports an agent shell whose `gh` is not the
+  shim. A session not started with `pap claude` still gets the real `gh`
+  with your sign-in; rule 23.1 and `docs/agent-identity-security.md` now
+  say so.
+
 ### [0.13.0] - 2026-11-06
 
 #### Added

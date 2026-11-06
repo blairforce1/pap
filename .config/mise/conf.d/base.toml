@@ -33,9 +33,12 @@ gh = "2.103.3"
 jq = "1.8.2"
 
 [env]
-# The gh shim (decision 0023, rule 23.1), ahead of every tool's directory:
+# The gh shim (decision 0023, rule 23.1), ahead of every tool's directory,
+# in shells mise activates and under mise exec and mise run. Claude Code's
+# Bash tool runs commands non-interactively, so this never reaches an agent:
+# pap claude puts pap's own copy first on PATH instead. Where it is first,
 # in an agent session in this repository gh, and git's pushes through
-# `gh auth git-credential`, act as the pap-agent app. Elsewhere it runs the
+# `gh auth git-credential`, act as the pap-agent app; elsewhere it runs the
 # real gh unchanged. It needs openssl and curl from the machine.
 _.path = ["{{config_root}}/scripts/shim"]
 

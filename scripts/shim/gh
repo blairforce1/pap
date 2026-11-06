@@ -1,6 +1,7 @@
 #!/bin/sh
-# pap-gh-shim: the base layer's gh, first on PATH through
-# .config/mise/conf.d/base.toml (decision 0023, rule 23.1).
+# pap-gh-shim: pap's gh, first on PATH in agent shells because pap claude
+# puts pap's own scripts/shim there (decision 0023, rule 23.1); the base
+# layer's copy is first only where mise's [env] applies.
 #
 # In an agent session (CLAUDECODE set, which Claude Code sets in every Bash
 # call and a person's terminal never has) inside a repository that adopts
@@ -49,8 +50,9 @@ if [ -n "${CLAUDECODE:-}" ] && top="$(git rev-parse --show-toplevel 2>/dev/null)
 fi
 [ "$agent" = true ] || exec "$real" "$@"
 
-# pap itself: this checkout's bin/pap when the shim is pap's own, else the
-# pap on PATH (the base layer pins it through mise).
+# pap itself: the sibling bin/pap when the shim is pap's own (a checkout or
+# the install pap claude put first on PATH), else the pap on PATH (the base
+# layer pins it through mise, which a non-interactive shell lacks).
 here="$(cd "$(dirname "$0")" && pwd -P)"
 if [ -x "$here/../../bin/pap" ] && [ -d "$here/../../templates/base" ]; then
   pap="$here/../../bin/pap"
