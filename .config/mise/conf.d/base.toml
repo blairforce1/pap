@@ -32,6 +32,13 @@ yq = "4.53.6"
 gh = "2.103.3"
 jq = "1.8.2"
 
+[env]
+# The gh shim (decision 0023, rule 23.1), ahead of every tool's directory:
+# in an agent session in this repository gh, and git's pushes through
+# `gh auth git-credential`, act as the pap-agent app. Elsewhere it runs the
+# real gh unchanged. It needs openssl and curl from the machine.
+_.path = ["{{config_root}}/scripts/shim"]
+
 [tasks.setup]
 description = "Install the git hooks and point git blame at the ignore list"
 run = [
