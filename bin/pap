@@ -36,7 +36,12 @@
 #         pap and spec-review plugins, flock (a warning only), this
 #         configuration trusted, the git hooks installed,
 #         blame.ignoreRevsFile set, and every pinned tool installed at its
-#         pin. Each item is ok, missing, drift, warn or skipped, and a
+#         pin. In a repository that adopts PAP, decision 0023's agent app:
+#         openssl and curl, the key in the keyring, the client id, an
+#         HTTPS origin (an SSH one is reported with the set-url fix and
+#         never changed), gh by name as git's credential helper for
+#         github.com, and a token minting for origin's owner; in a dev
+#         container with no key the shim steps aside, by decision. Each item is ok, missing, drift, warn or skipped, and a
 #         failing one names the command that fixes it on this platform
 #         (Linux with apt or dnf, macOS with Homebrew; WSL is Linux); exits
 #         1 unless every item is ok, warn or skipped. Also counts local
@@ -86,8 +91,8 @@
 #         you to delete the file. status says whether the key is there and
 #         what the config holds; it exits 0 only when key and client id are.
 #         The config is not secret: $XDG_CONFIG_HOME/pap/agent.conf
-#         (default ~/.config) on Linux, ~/Library/Application
-#         Support/pap/agent.conf on macOS. It holds client_id=<id> and one
+#         (default ~/.config) on Linux, and on macOS when XDG_CONFIG_HOME
+#         is set; otherwise ~/Library/Application Support/pap/agent.conf. It holds client_id=<id> and one
 #         installation.<owner>=<id> line per owner, filled on first use.
 # agent-token
 #         Decision 0023: prints an installation token of pap-agent for the
@@ -618,6 +623,73 @@ EOF
     [ "$pinned" -gt 0 ] || item skipped "pinned tools" "nothing pinned here"
   fi
 
+  # Decision 0023: what the gh shim needs to act as pap-agent. Only in a
+  # repository that adopts PAP, which is where the shim acts.
+  say "" "agent app (decision 0023)"
+  if [ "$has_git" = false ] || [ ! -x "$top/scripts/guard-branch.sh" ]; then
+    item skipped "agent app" "this repository does not adopt PAP"
+  else
+    a_cf="$(a_config)"
+    in_box=false
+    if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then in_box=true; fi
+    a_tools=true
+    for c in openssl curl; do
+      if command -v "$c" >/dev/null 2>&1; then
+        item ok "$c on PATH" "the machine's; the base layer does not pin it"
+      else
+        a_tools=false
+        item missing "$c on PATH" "$(how "$c" "$c" "$c" "https://github.com/$c/$c")"
+      fi
+    done
+    kr="$(a_keyring)"
+    a_key=false
+    if has_key; then
+      a_key=true
+      item ok "key in the keyring" "$kr"
+    elif [ "$in_box" = true ]; then
+      item skipped "key in the keyring" "dev container: the gh shim steps aside and gh keeps your sign-in, by decision 0023"
+    elif ! command -v "$kr" >/dev/null 2>&1; then
+      a_tools=false
+      item missing "$kr on PATH" "$(how libsecret-tools libsecret "" https://wiki.gnome.org/Projects/Libsecret)"
+    else
+      item missing "key in the keyring" "pap agent-key import <pem> --client-id <id>; see docs/account-setup.md"
+    fi
+    cid="$(conf_get client_id)"
+    if [ -n "$cid" ]; then
+      item ok "client id in pap's config" "$a_cf"
+    elif [ "$in_box" = false ] || [ "$a_key" = true ]; then
+      item missing "client id in pap's config" "pap agent-key import <pem> --client-id <id>"
+    fi
+    url="$(git remote get-url origin 2>/dev/null || true)"
+    if ! slug="$(gh_slug "$url")"; then
+      item skipped "origin, credential helper, installation" "origin is not on GitHub"
+    else
+      owner="${slug%%/*}"
+      case "$url" in
+        https://*) item ok "origin is HTTPS" ;;
+        # Reported, never changed: doctor --fix leaves remotes alone.
+        *) item missing "origin is HTTPS" "git remote set-url origin https://github.com/$slug.git" ;;
+      esac
+      helper="$(git config --get-urlmatch credential.helper https://github.com 2>/dev/null || true)"
+      reset="git config --global --replace-all credential.https://github.com.helper '' && git config --global --add credential.https://github.com.helper '!gh auth git-credential'"
+      case "$helper" in
+        '!gh auth git-credential') item ok "gh is git's credential helper for github.com" ;;
+        *'gh auth git-credential') item drift "gh is git's credential helper for github.com" "it calls ${helper%% auth git-credential} by path, past the shim: $reset" ;;
+        *) item missing "gh is git's credential helper for github.com" "$reset" ;;
+      esac
+      if [ "$a_key" = true ] && [ -n "$cid" ] && [ "$a_tools" = true ]; then
+        workdir
+        if err="$( (cmd_agent_token --owner "$owner") 2>&1 >/dev/null)"; then
+          item ok "pap-agent installed on $owner" "a token mints"
+        else
+          item missing "pap-agent installed on $owner" "${err#pap: agent-token: }"
+        fi
+      elif [ "$in_box" = false ]; then
+        item skipped "pap-agent installed on $owner" "needs the key, the client id, openssl and curl"
+      fi
+    fi
+  fi
+
   say ""
   if [ "$d_bad" -eq 0 ]; then
     say "This machine is ready."
@@ -637,7 +709,7 @@ a_account=private-key
 
 a_mac() { [ "$(uname -s 2>/dev/null)" = Darwin ]; }
 a_config() {
-  if a_mac; then printf '%s/Library/Application Support/pap/agent.conf' "$HOME"
+  if a_mac && [ -z "${XDG_CONFIG_HOME:-}" ]; then printf '%s/Library/Application Support/pap/agent.conf' "$HOME"
   else printf '%s/pap/agent.conf' "${XDG_CONFIG_HOME:-$HOME/.config}"; fi
 }
 a_keyring() { if a_mac; then echo security; else echo secret-tool; fi; }
