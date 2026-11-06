@@ -45,6 +45,7 @@ cat > "$T/stub/gh" <<'EOF'
 # Fake gh. FAKE_STATE, FAKE_HEAD and the labels file FAKE_LABELS (one per
 # line) describe the one pull request; FAKE_FAIL names a subcommand to fail.
 echo "gh $*" >> "$FAKE_LOG"
+echo "GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} CLAUDECODE=${CLAUDECODE-<unset>}" >> "$FAKE_ENV"
 [ "${FAKE_FAIL:-}" != "$1 $2" ] || { echo "fake gh: $1 $2 failed" >&2; exit 1; }
 filter=''
 for a in "$@"; do
@@ -63,9 +64,16 @@ case "$1 $2" in
 esac
 EOF
 chmod +x "$T/stub/gh"
-export FAKE_LOG="$T/gh.log" FAKE_LABELS="$T/labels.txt"
+export FAKE_LOG="$T/gh.log" FAKE_LABELS="$T/labels.txt" FAKE_ENV="$T/gh.env"
 PATH="$T/stub:$PATH"
 export PATH
+# Rule 23.4: the owner's gh directory, recorded where pap agent-owner init
+# puts it; and the environment of an agent shell, which the script must
+# not pass on to gh.
+export XDG_CONFIG_HOME="$T/xdg"
+mkdir -p "$T/xdg/pap" "$T/owner gh"
+printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/owner gh" > "$T/xdg/pap/agent.conf"
+export CLAUDECODE=1 GH_TOKEN=ghs_agent_token GITHUB_TOKEN=ghs_agent_token2
 
 HEAD=3a7b521f07c2c0c74f197989ceb5fe64c34a8660
 
@@ -74,6 +82,7 @@ fixture() {
   export FAKE_STATE="$1" FAKE_HEAD="$HEAD"
   printf '%s\n' "$2" | tr ',' '\n' | grep . > "$FAKE_LABELS" || : > "$FAKE_LABELS"
   : > "$FAKE_LOG"
+  : > "$FAKE_ENV"
   unset FAKE_FAIL FAKE_EDIT_NOOP
 }
 # run <args...>: the script; sets $out and $rc.
@@ -142,6 +151,23 @@ fixture OPEN 'class:infra,risk:high'
 run 7 ''
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^owner-reviewed added' && [ "$(edits)" = 1 ]
 result $? "an empty second argument is no SHA" "exit $rc; $out"
+
+# Rule 23.4: every gh call runs as the owner, from the owner's directory.
+fixture OPEN 'class:infra,risk:high'
+run 7
+[ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(wc -l < "$FAKE_ENV" | tr -d ' ')" -ge 4 ] &&
+  [ "$(sort -u "$FAKE_ENV")" = "GH_CONFIG_DIR=$T/owner gh GH_TOKEN=<unset> GITHUB_TOKEN=<unset> CLAUDECODE=<unset>" ]
+result $? "every gh call has GH_CONFIG_DIR the owner's, GH_TOKEN, GITHUB_TOKEN and CLAUDECODE unset" "exit $rc; $(cat "$FAKE_ENV")"
+fixture OPEN 'class:infra,risk:high'
+mv "$T/xdg/pap/agent.conf" "$T/agent.conf.away"
+run 7
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: no owner gh directory is recorded.*pap agent-owner init' && [ ! -s "$FAKE_LOG" ]
+result $? "no owner directory recorded: refused naming pap agent-owner init, gh not called" "exit $rc; $out"
+printf 'owner_gh_config_dir=%s\n' "$T/gone" > "$T/xdg/pap/agent.conf"
+run 7
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: no owner gh directory' && [ ! -s "$FAKE_LOG" ]
+result $? "a recorded owner directory that is gone: refused, gh not called" "exit $rc; $out"
+mv "$T/agent.conf.away" "$T/xdg/pap/agent.conf"
 
 # Failures: gh itself, or a label that did not land.
 fixture OPEN 'class:infra,risk:high'

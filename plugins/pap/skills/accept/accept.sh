@@ -29,6 +29,9 @@
 # a label but class:docs and never writes an Approved-by line.
 # A refusal prints "refused:" and exits 0, so a skill invocation renders it;
 # a git or gh failure exits 1. Ids are checked before any use.
+# The push and every gh call run as the owner from the recorded owner gh
+# directory (rule 23.4); with none recorded it refuses, naming
+# pap agent-owner init. The fetch goes as whoever the shim says.
 set -u
 
 usage='usage: /pap:accept [--repo <path>] <NNNN> [NNNN ...]'
@@ -74,6 +77,23 @@ for id in "$@"; do
 done
 # shellcheck disable=SC2046
 set -- $(printf '%s\n' "$@" | sort -u)
+
+# Rule 23.4: this script is the one door back to the owner's sign-in. Every
+# gh call below runs as the owner, from the gh directory `pap agent-owner
+# init` recorded in pap's user config (agent.conf), with GH_TOKEN unset so
+# the agent app's token cannot stand in, and CLAUDECODE unset so the gh shim
+# passes through instead of refusing the set GH_CONFIG_DIR.
+if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
+  conf="$HOME/Library/Application Support/pap/agent.conf"
+else
+  conf="${XDG_CONFIG_HOME:-$HOME/.config}/pap/agent.conf"
+fi
+owner_gh=""
+[ ! -f "$conf" ] || owner_gh="$(awk 'index($0, "owner_gh_config_dir=") == 1 { v = substr($0, 21) } END { print v }' "$conf")"
+[ -n "$owner_gh" ] && [ -d "$owner_gh" ] ||
+  refuse "no owner gh directory is recorded in $conf, so this cannot act as you. In your own terminal run pap agent-owner init (docs/account-setup.md), then invoke this again."
+as_owner() { (unset GH_TOKEN GITHUB_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
+gh() { as_owner command gh "$@"; }
 
 # The default branch is main, as the /change worktree script assumes.
 git fetch -q origin || fail "git could not fetch origin."
@@ -153,7 +173,7 @@ title="docs(decisions): accept $ids"
 git -C "$wt" add -- $paths || fail "git add failed in $wt."
 git -C "$wt" commit -q -m "$title" \
   -m "Status set to $new at the Project Lead's /pap:accept." || fail "git commit failed in $wt."
-git -C "$wt" push -q -u origin "$branch" || fail "git push of $branch failed."
+as_owner git -C "$wt" push -q -u origin "$branch" || fail "git push of $branch failed."
 
 # The protected-path box: decisions/** is fixed high in risk mode (decision
 # 0016); otherwise a CODEOWNERS path needs the owner's Approved-by line,
