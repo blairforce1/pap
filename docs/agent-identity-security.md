@@ -65,8 +65,10 @@ warns if the token is in `hosts.yml` in plain text instead.
   `pap claude`. Claude Code runs hooks with its own environment, the one
   `pap claude` set, so the hook asks the `gh` first on its `PATH`: it must
   be the shim, and the shim's check mode (`PAP_SHIM_CHECK=1`) must accept
-  the session by the shim's own tests. A dev container with no key passes,
-  as the shim steps aside there. Local git (`status`, `log`, `diff`,
+  the session by the shim's own tests; a shim without that check mode
+  fails it. A dev container with no key passes, as the shim steps aside
+  there, judged by `pap agent-key status`, never by a shim in the working
+  tree. Local git (`status`, `log`, `diff`,
   `commit`) is never refused for this.
 - **`/pap:reviewed` and `/pap:accept`** are the only paths back to your
   sign-in. Their scripts run `gh` from gh's default directory with the

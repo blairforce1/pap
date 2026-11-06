@@ -200,7 +200,8 @@ not carry.
   a GitHub HTTPS remote unless the session was started by `pap claude`,
   naming `pap claude` and `pap claude --resume`. It asks the shim, in a new
   `PAP_SHIM_CHECK=1` check mode, so the shim's tests (agent directory,
-  empty `hosts.yml`, a dev container with no key) live in one place. A
+  empty `hosts.yml`) live in one place; a shim without that mode fails it,
+  and a dev container with no key passes. A
   session started as plain `claude`, and every cycle a PM session so
   started launches, is refused there; outside an adopting repository its
   `gh` is still the real one with your sign-in.
