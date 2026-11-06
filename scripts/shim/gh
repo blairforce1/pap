@@ -10,7 +10,9 @@
 # through `gh auth git-credential`, so they come here too.
 #
 # When minting fails it names the reason and exits 1: it never runs gh with
-# a stored sign-in instead. Everywhere else it runs the real gh unchanged.
+# a stored sign-in instead. Everywhere else it runs the real gh unchanged,
+# except that with CLAUDECODE and GH_CONFIG_DIR both set it refuses in any
+# repository (rule 23.4).
 # In a dev container (/.dockerenv or REMOTE_CONTAINERS) with no key it steps
 # aside by decision 0023 point 5: the container keeps the human's sign-in.
 #
@@ -18,6 +20,15 @@
 # carries the pap-gh-shim marker on line 2), so it never runs itself.
 
 set -u
+
+# Rule 23.4: an agent shell carries no owner sign-in. GH_CONFIG_DIR set here
+# means Claude Code was started from the owner's terminal with it exported,
+# so gh would find the owner's stored account. Refuse, in every repository,
+# before gh is even looked for.
+if [ -n "${CLAUDECODE:-}" ] && [ -n "${GH_CONFIG_DIR:-}" ]; then
+  printf 'gh (pap shim): GH_CONFIG_DIR is set in this agent shell, so gh would act with a stored sign-in; quit Claude Code and start it with pap claude (rule 23.4)\n' >&2
+  exit 1
+fi
 
 real=""
 IFS_was="$IFS"
