@@ -85,8 +85,10 @@ repositories (`gh auth login`), on every machine that runs them.
 ## The `pap-agent` app
 
 Decision 0023 gives agent sessions their own GitHub identity, a GitHub App
-called `pap-agent`, so a push, pull request, label or comment an agent
-makes shows as `pap-agent[bot]` and not as you. You register it once, under
+named `<owner>-pap-agent` (for example `blairforce1-pap-agent`; app names
+are global, so each adopter registers its own), so a push, pull request,
+label or comment an agent makes shows as `<owner>-pap-agent[bot]` and not
+as you. You register it once, under
 your personal account, and install it wherever PAP is adopted. It costs
 nothing on GitHub's side.
 
@@ -154,7 +156,7 @@ The same, step by step, when `pap agent-setup` cannot run:
 
 1. **Register the app.** On GitHub: Settings, Developer settings, GitHub
    Apps, New GitHub App, under your personal account.
-   - Name `pap-agent`; any homepage URL, such as the pap repository's.
+   - Name `<owner>-pap-agent`; any homepage URL, such as the pap repository's.
    - Webhook: untick **Active**. The app takes no webhook.
    - Repository permissions, exactly these and nothing else: **Contents**
      read and write, **Pull requests** read and write, **Workflows** read
