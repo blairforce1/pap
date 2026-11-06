@@ -29,8 +29,8 @@
 # a label but class:docs and never writes an Approved-by line.
 # A refusal prints "refused:" and exits 0, so a skill invocation renders it;
 # a git or gh failure exits 1. Ids are checked before any use.
-# The push and every gh call run as the owner from the recorded owner gh
-# directory (rule 23.4); with none recorded it refuses, naming
+# Every gh call, and the credential the push asks for, run as the owner
+# from the recorded owner gh directory (rule 23.4); with none recorded it refuses, naming
 # pap agent-owner init. The fetch goes as whoever the shim says.
 set -u
 
@@ -83,6 +83,8 @@ set -- $(printf '%s\n' "$@" | sort -u)
 # init` recorded in pap's user config (agent.conf), with GH_TOKEN unset so
 # the agent app's token cannot stand in, and CLAUDECODE unset so the gh shim
 # passes through instead of refusing the set GH_CONFIG_DIR.
+# The config's place and format are bin/pap's a_config and conf_get; keep
+# the two in step.
 if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
   conf="$HOME/Library/Application Support/pap/agent.conf"
 else
@@ -92,7 +94,7 @@ owner_gh=""
 [ ! -f "$conf" ] || owner_gh="$(awk 'index($0, "owner_gh_config_dir=") == 1 { v = substr($0, 21) } END { print v }' "$conf")"
 [ -n "$owner_gh" ] && [ -d "$owner_gh" ] ||
   refuse "no owner gh directory is recorded in $conf, so this cannot act as you. In your own terminal run pap agent-owner init (docs/account-setup.md), then invoke this again."
-as_owner() { (unset GH_TOKEN GITHUB_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
+as_owner() { (unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
 gh() { as_owner command gh "$@"; }
 
 # The default branch is main, as the /change worktree script assumes.
@@ -173,7 +175,12 @@ title="docs(decisions): accept $ids"
 git -C "$wt" add -- $paths || fail "git add failed in $wt."
 git -C "$wt" commit -q -m "$title" \
   -m "Status set to $new at the Project Lead's /pap:accept." || fail "git commit failed in $wt."
-as_owner git -C "$wt" push -q -u origin "$branch" || fail "git push of $branch failed."
+# The push itself keeps the agent's environment, so git hooks do not run
+# with the owner's: only git's credential helper, for this push, is gh as
+# the owner. An empty credential.helper first clears every configured one.
+q="'$(printf '%s' "$owner_gh" | sed "s/'/'\\\\''/g")'"
+helper="!env -u GH_TOKEN -u GITHUB_TOKEN -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN -u CLAUDECODE GH_CONFIG_DIR=$q gh auth git-credential"
+git -C "$wt" -c credential.helper= -c "credential.helper=$helper" push -q -u origin "$branch" || fail "git push of $branch failed."
 
 # The protected-path box: decisions/** is fixed high in risk mode (decision
 # 0016); otherwise a CODEOWNERS path needs the owner's Approved-by line,

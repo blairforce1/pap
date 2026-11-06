@@ -167,8 +167,9 @@ not carry.
   it; `pap claude` starts Claude Code with that variable and any GitHub
   token unset, so agent shells find no stored account; the `gh` shim
   refuses a set `GH_CONFIG_DIR` in an agent shell; the guard hook refuses
-  an agent's command that sets it, and in an adopting repository a `gh`
-  run by path or with `PATH=`; `/pap:reviewed` and `/pap:accept` run as
+  an agent's command that sets it, every command in a session that
+  inherited it, and in an adopting repository a `gh` run by path or with
+  `PATH=`; `/pap:reviewed` and `/pap:accept` run as
   you from the recorded directory; `pap doctor` checks all three.
   `docs/account-setup.md` has the one-time move: start sessions with
   `pap claude` from now on.

@@ -48,6 +48,7 @@ echo "gh $*" >> "$FAKE_LOG"
 echo "gh GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} CLAUDECODE=${CLAUDECODE-<unset>}" >> "$FAKE_ENV"
 case "$1 $2" in
   "api user") echo example-lead ;;
+  "auth git-credential") cat > /dev/null; printf 'username=x-access-token\npassword=fake-owner\n' ;;
   "pr create")
     while [ $# -gt 0 ]; do
       [ "$1" = --body-file ] && cp "$2" "$FAKE_BODY"
@@ -117,10 +118,17 @@ record 0005 proposed
 git add decisions
 git commit -q -m 'a new record'
 git checkout -q main
-# The push's environment, as git's credential helper (gh) would see it.
+# The push's own environment, which its git hooks get, and the credential
+# git would ask for it: the origin here is a path, so the hook asks for one
+# itself, through the helpers the push was given.
 cat > .git/hooks/pre-push << 'EOF'
 #!/bin/sh
 echo "push GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} CLAUDECODE=${CLAUDECODE-<unset>}" >> "$FAKE_ENV"
+# Only a push given a helper asks: the suite's own pushes have none.
+case "${GIT_CONFIG_PARAMETERS:-}" in
+  *"gh auth git-credential"*)
+    printf 'protocol=https\nhost=github.com\n\n' | GIT_TERMINAL_PROMPT=0 git credential fill | sed -n 's/^password=/cred /p' >> "$FAKE_ENV" ;;
+esac
 EOF
 chmod +x .git/hooks/pre-push
 
@@ -184,9 +192,11 @@ grep -q '^Change: none$' "$FAKE_BODY" && grep -q '^Record: none$' "$FAKE_BODY" &
 result $? "body: protected-path box unticked with the head to approve, no Approved-by line" "$(cat "$FAKE_BODY")"
 
 owner_env="GH_CONFIG_DIR=$T/owner gh GH_TOKEN=<unset> GITHUB_TOKEN=<unset> CLAUDECODE=<unset>"
-[ "$(grep -c '^gh ' "$FAKE_ENV")" = 2 ] && [ "$(sed -n 's/^gh //p' "$FAKE_ENV" | sort -u)" = "$owner_env" ] &&
-  [ "$(sed -n 's/^push //p' "$FAKE_ENV")" = "$owner_env" ]
-result $? "the push and both gh calls run as the owner: owner's GH_CONFIG_DIR, no GH_TOKEN, GITHUB_TOKEN or CLAUDECODE" "$(cat "$FAKE_ENV")"
+[ "$(grep -c '^gh ' "$FAKE_ENV")" = 3 ] && [ "$(sed -n 's/^gh //p' "$FAKE_ENV" | sort -u)" = "$owner_env" ] &&
+  [ "$(sed -n 's/^cred //p' "$FAKE_ENV")" = fake-owner ]
+result $? "both gh calls and the push's credential run as the owner: owner's GH_CONFIG_DIR, no GH_TOKEN, GITHUB_TOKEN or CLAUDECODE" "$(cat "$FAKE_ENV")"
+[ "$(sed -n 's/^push //p' "$FAKE_ENV")" = "GH_CONFIG_DIR=<unset> GH_TOKEN=ghs_agent_token GITHUB_TOKEN=ghs_agent_token2 CLAUDECODE=1" ]
+result $? "the push's git hooks keep the caller's environment, not the owner's" "$(cat "$FAKE_ENV")"
 
 # The branch now exists: a second run for the same ids is refused.
 git -C "$wt" checkout -q --detach

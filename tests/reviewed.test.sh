@@ -168,6 +168,14 @@ run 7
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: no owner gh directory' && [ ! -s "$FAKE_LOG" ]
 result $? "a recorded owner directory that is gone: refused, gh not called" "exit $rc; $out"
 mv "$T/agent.conf.away" "$T/xdg/pap/agent.conf"
+# macOS without XDG_CONFIG_HOME: pap's config is under ~/Library/Application Support.
+fixture OPEN 'class:infra,risk:high'
+mkdir -p "$T/mac" "$T/home/Library/Application Support/pap" "$T/home/mac gh"
+printf '#!/bin/sh\necho Darwin\n' > "$T/mac/uname"; chmod +x "$T/mac/uname"
+printf 'owner_gh_config_dir=%s\n' "$T/home/mac gh" > "$T/home/Library/Application Support/pap/agent.conf"
+out="$(env -u XDG_CONFIG_HOME HOME="$T/home" PATH="$T/mac:$PATH" sh "$script" 7 2>&1)"; rc=$?
+[ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(sort -u "$FAKE_ENV" | cut -d' ' -f1-2)" = "GH_CONFIG_DIR=$T/home/mac gh" ]
+result $? "macOS: the owner directory is read from ~/Library/Application Support/pap/agent.conf" "exit $rc; $out; $(cat "$FAKE_ENV")"
 
 # Failures: gh itself, or a label that did not land.
 fixture OPEN 'class:infra,risk:high'

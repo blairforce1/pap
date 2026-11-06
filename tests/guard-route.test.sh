@@ -34,6 +34,9 @@ trap 'rm -rf "$T"' EXIT INT TERM
 # rewrite, for one, turns the SSH remotes below into HTTPS ones.
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL="$T/gitconfig"
 : > "$GIT_CONFIG_GLOBAL"
+# The owner's terminal exports GH_CONFIG_DIR (rule 23.4); the hook refuses
+# everything while it is set, so the suite runs without it.
+unset GH_CONFIG_DIR 2>/dev/null || true
 
 mkrepo() {
   git init -q -b main "$1"
@@ -153,6 +156,26 @@ check 0 "$T/G2" 'env -u GH_CONFIG_DIR gh pr list'
 # shellcheck disable=SC2016 # the command is the hook's input, unexpanded
 check 0 "$T/G2" 'echo "$GH_CONFIG_DIR"'
 check 0 "$T/G2" 'GH_CONFIG_DIRS=x gh pr list'
+check 2 "$T/G2" 'GH_CONFIG_DIR+=/x gh pr list'
+check 2 "$T/U"  'export GH_CONFIG_DIR+=/x'
+check 2 "$T/U"  'env -u GH_CONFIG_DIR GH_CONFIG_DIR=/x gh pr list'
+check 0 "$T/U"  'grep -rn GH_CONFIG_DIR= docs'
+check 0 "$T/U"  'echo GH_CONFIG_DIR=/x'
+# A session started as plain claude from the owner's terminal: every Bash
+# call is refused, in every repository.
+n=$((n + 1))
+bad=""
+for c in 'ls' 'git status'; do
+  printf '%s' "$(jq -nc --arg c "$c" --arg d "$T/U" '{tool_name: "Bash", cwd: $d, tool_input: {command: $c}}')" |
+    GH_CONFIG_DIR="$T/owner" "$router" >/dev/null 2>&1
+  [ $? = 2 ] || bad="$bad $c;"
+done
+if [ -z "$bad" ]; then
+  printf 'ok %d - GH_CONFIG_DIR in the session environment refuses every Bash call\n' "$n"
+else
+  printf 'not ok %d - GH_CONFIG_DIR in the session environment refuses every Bash call (passed:%s)\n' "$n" "$bad"
+  failed=$((failed + 1))
+fi
 
 # Rule 23.1: gh by a path or with PATH changed skips the shim, in an
 # adopting repository; command gh and env gh find the shim and pass.
@@ -256,7 +279,9 @@ check 2 "$T/G2" 'gh pr merge 7'
 # The /pap:reviewed skill runs its script through the Bash tool when a person
 # invokes it; the hook lets the script through, as it does any script, and
 # still refuses the direct gh call above. Rule 16.2 and the skill's
-# disable-model-invocation keep the agent from the script.
+# disable-model-invocation keep the agent from the script; since rule 23.4
+# the script acts as the owner, and an agent running it by path is an
+# escape the hook cannot tell from the person's invocation.
 check 0 "$T/G2" 'sh plugins/pap/skills/reviewed/reviewed.sh "7 abc1234"'
 check 0 "$T/G2" '/home/u/.claude/plugins/cache/pap/skills/reviewed/reviewed.sh "7" "abc1234"'
 check 2 "$T/G2" 'gh pr merge --auto --squash 7'

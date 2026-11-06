@@ -257,15 +257,16 @@ not a secret, as `owner_gh_config_dir` in pap's `agent.conf`. Then:
 
 Open a new terminal, and from now on **start Claude Code with `pap
 claude`** (any `claude` arguments pass through). It runs `claude` with
-`GH_CONFIG_DIR`, `GH_TOKEN` and `GITHUB_TOKEN` unset, so an agent shell
+`GH_CONFIG_DIR` and every GitHub token variable unset, so an agent shell
 has no stored account and only the shim's `pap-agent` token works. Started
 as plain `claude` from your terminal, a session inherits the variable, and
-the shim refuses every `gh` call in it until you restart it with `pap
-claude`. A shell alias, `alias claude='pap claude'`, saves remembering.
+the guard hook refuses every Bash call in it, as the shim refuses every
+`gh`, until you restart it with `pap claude`. A shell alias, `alias claude='pap claude'`, saves remembering.
 
 `/pap:reviewed` and `/pap:accept` are the one way back: their scripts run
-`gh`, and accept's push, from the recorded directory with `GH_TOKEN`
-unset, so the label, branch, push and pull request show you. Only you can
+`gh` from the recorded directory with the tokens unset, and accept's push
+asks its credential of `gh` the same way, so the label, branch, push and
+pull request show you. Only you can
 invoke them (`disable-model-invocation`), and without a recorded directory
 they say how to set it up and stop. `pap doctor`'s "owner sign-in" section
 checks the directory (recorded, there, signed in; never from an agent
@@ -275,7 +276,10 @@ agent's.
 
 What this does not stop: an agent runs as your user, so a command that
 reads `hosts.yml` in your directory by path is not refused (the keyring
-would be no better: any process of yours can read it). The guard hook
-refuses a command that sets `GH_CONFIG_DIR`, but not one hidden in `bash
--c`, `eval` or a script. The owner directory is a boundary for `gh`, not
-a sandbox.
+would be no better: any process of yours can read it), and nor is an
+agent running the two skills' scripts by path, which then act as you:
+your own `/pap:reviewed` reaches the hook as the same call. The guard
+hook refuses a command that sets `GH_CONFIG_DIR`, but not one hidden in
+`bash -c`, `eval` or a script, nor `HOME` pointed at a copy of your
+directory. Rule 23.4 lists every known gap. The owner directory is a
+boundary for `gh`, not a sandbox.

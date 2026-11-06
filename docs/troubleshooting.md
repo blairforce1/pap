@@ -219,11 +219,19 @@ sign-in. The shim refuses every `gh` call, and git's pushes with it,
 until the session is restarted: quit it and run `pap claude`, with the
 same arguments (`pap claude --resume` resumes).
 
+**The guard hook refuses every command: `GH_CONFIG_DIR is set in this
+Claude Code session, so its shells hold your gh sign-in; quit and start it
+with pap claude (rule 23.4)`.** Same cause as the shim's message above:
+the session inherited your terminal's `GH_CONFIG_DIR`. Restart it with
+`pap claude`.
+
 **The guard hook refuses `GH_CONFIG_DIR set in an agent's command`.** An
 agent's command assigned or exported `GH_CONFIG_DIR`, the way to reach
-your sign-in. It is refused in every repository. Nothing an agent does
+your sign-in (`=` or `+=`, as a prefix, after `env` or after `export`
+and its kin). It is refused in every repository. Nothing an agent does
 needs it; if the command was yours to run, run it in your own terminal.
-A heredoc line that assigns it is read as a command and refused too.
+A mention elsewhere, such as `grep GH_CONFIG_DIR= docs`, passes; a
+heredoc line that assigns it is read as a command and refused.
 
 **The guard hook refuses `gh run as <path>, past the pap gh shim`.** In
 an adopting repository an agent ran `gh` by a path (`/usr/bin/gh`,
@@ -246,6 +254,10 @@ was changed`**, or **`gh auth login did not finish`**. The login in the
 owner directory did not leave a sign-in, so nothing was recorded and
 gh's default directory was not touched. Run it again; `gh auth status`
 with `GH_CONFIG_DIR` set to the directory shows what gh sees.
+
+**`pap: agent-owner: <dir> is gh's default directory; the owner's must
+be another`.** `--dir` named the directory the next step signs out. Give
+another path, or none for the default `gh-owner`.
 
 **`pap: agent-owner: <dir> lost its sign-in with the logout; run pap
 agent-owner init again`.** Signing gh's default directory out also took

@@ -57,7 +57,8 @@ case "$1 $2" in
   "auth login")
     [ -z "${FAKE_LOGIN_FAIL:-}" ] || exit 1
     # A login that exits 0 and leaves no sign-in behind.
-    [ -n "${FAKE_LOGIN_NOOP:-}" ] || : > "$dir/signed-in" ;;
+    [ -n "${FAKE_LOGIN_NOOP:-}" ] || : > "$dir/signed-in"
+    case " $* " in *" --insecure-storage "*) [ -n "${FAKE_LOGIN_NOOP:-}" ] || echo '    oauth_token: fake' > "$dir/hosts.yml" ;; esac ;;
   "auth logout")
     rm -f "$dir/signed-in"
     # A shared keyring entry: the logout takes the owner's sign-in too.
@@ -68,7 +69,7 @@ esac
 EOF
 cat > "$T/fake/claude" <<'EOF'
 #!/bin/sh
-echo "GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} KEEP=${KEEP-<unset>}" > "$FAKE_CLAUDE"
+echo "GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} GH_ENTERPRISE_TOKEN=${GH_ENTERPRISE_TOKEN-<unset>} GITHUB_ENTERPRISE_TOKEN=${GITHUB_ENTERPRISE_TOKEN-<unset>} KEEP=${KEEP-<unset>}" > "$FAKE_CLAUDE"
 for a in "$@"; do printf '[%s]\n' "$a" >> "$FAKE_CLAUDE"; done
 EOF
 chmod +x "$T/fake/uname" "$T/fake/claude" "$T/realgh/gh"
@@ -82,14 +83,15 @@ conf="$T/xdg/pap/agent.conf"
 
 # --- pap claude ----------------------------------------------------------------
 
-env GH_CONFIG_DIR="$T/xdg/gh-owner" GH_TOKEN=ghp_owner GITHUB_TOKEN=ghp_owner2 KEEP=yes \
+env GH_CONFIG_DIR="$T/xdg/gh-owner" GH_TOKEN=ghp_owner GITHUB_TOKEN=ghp_owner2 \
+  GH_ENTERPRISE_TOKEN=ghp_e GITHUB_ENTERPRISE_TOKEN=ghp_e2 KEEP=yes \
   sh "$pap" claude --resume 'two words' '' >/dev/null 2>&1; rc=$?
 [ "$rc" = 0 ] &&
-  [ "$(cat "$FAKE_CLAUDE")" = "GH_CONFIG_DIR=<unset> GH_TOKEN=<unset> GITHUB_TOKEN=<unset> KEEP=yes
+  [ "$(cat "$FAKE_CLAUDE")" = "GH_CONFIG_DIR=<unset> GH_TOKEN=<unset> GITHUB_TOKEN=<unset> GH_ENTERPRISE_TOKEN=<unset> GITHUB_ENTERPRISE_TOKEN=<unset> KEEP=yes
 [--resume]
 [two words]
 []" ]
-result $? "pap claude: GH_CONFIG_DIR, GH_TOKEN and GITHUB_TOKEN unset, the rest of the environment and every argument passed" "rc=$rc $(cat "$FAKE_CLAUDE" 2>&1)"
+result $? "pap claude: GH_CONFIG_DIR and the four token variables unset, the rest of the environment and every argument passed" "rc=$rc $(cat "$FAKE_CLAUDE" 2>&1)"
 
 # --- the shim ------------------------------------------------------------------
 
@@ -210,6 +212,30 @@ out="$(printf 'n\n' | sh "$pap" agent-owner init --dir "$T/my gh" 2>&1)"; rc=$?
 [ "$rc" = 0 ] && grep -qx "owner_gh_config_dir=$T/my gh" "$conf" && [ -f "$T/my gh/signed-in" ] &&
   printf '%s\n' "$out" | grep -qxF "  export GH_CONFIG_DIR=\"$T/my gh\""
 result $? "agent-owner init --dir: a path with a space is used, recorded and quoted" "rc=$rc $out"
+
+reset_gh
+mkdir -p "$owner" && : > "$owner/signed-in"
+init y
+[ "$rc" = 0 ] && grep -q 'args=auth login --hostname github.com --insecure-storage' "$FAKE_LOG" &&
+  grep -q oauth_token "$owner/hosts.yml" && [ -f "$owner/signed-in" ] && [ ! -f "$T/default-gh/signed-in" ]
+result $? "agent-owner init: an owner directory signed in through the shared keyring signs in again to its own file before the logout" "rc=$rc $out $(cat "$FAKE_LOG")"
+
+reset_gh
+out="$(printf 'y\n' | sh "$pap" agent-owner init --dir "$T/xdg/gh/" 2>&1)"; rc=$?
+[ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q "is gh's default directory" && [ ! -s "$FAKE_LOG" ]
+result $? "agent-owner init: gh's default directory as --dir is refused" "rc=$rc $out"
+
+# macOS without XDG_CONFIG_HOME: the owner directory sits beside pap's
+# config, under ~/Library/Application Support, space and all.
+reset_gh
+mkdir -p "$T/mac"
+printf '#!/bin/sh\necho Darwin\n' > "$T/mac/uname"; chmod +x "$T/mac/uname"
+out="$(printf 'n\n' | env -u XDG_CONFIG_HOME PATH="$T/mac:$PATH" FAKE_OWNER="$HOME/Library/Application Support/gh-owner" sh "$pap" agent-owner init 2>&1)"; rc=$?
+mac_dir="$HOME/Library/Application Support/gh-owner"
+[ "$rc" = 0 ] && [ -f "$mac_dir/signed-in" ] &&
+  grep -qx "owner_gh_config_dir=$mac_dir" "$HOME/Library/Application Support/pap/agent.conf" &&
+  printf '%s\n' "$out" | grep -qxF "  export GH_CONFIG_DIR=\"$mac_dir\""
+result $? "agent-owner init on macOS: ~/Library/Application Support/gh-owner, recorded in pap's macOS config" "rc=$rc $out"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }

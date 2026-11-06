@@ -141,7 +141,8 @@
 #         line for your shell, and the home.nix form when the shell's rc
 #         file is home-manager's; never edits an rc file. Refused in an
 #         agent session.
-# claude  Runs claude with GH_CONFIG_DIR, GH_TOKEN and GITHUB_TOKEN unset,
+# claude  Runs claude with GH_CONFIG_DIR and the GH_TOKEN, GITHUB_TOKEN,
+#         GH_ENTERPRISE_TOKEN and GITHUB_ENTERPRISE_TOKEN variables unset,
 #         every argument passed through, so an agent shell has no stored
 #         GitHub account and only the gh shim's pap-agent token works
 #         (rule 23.4). Start every Claude Code session with it.
@@ -1280,9 +1281,9 @@ o_default() {
 }
 # o_gh <dir> <gh args...>: gh as the owner, from <dir>. CLAUDECODE is unset
 # so the shim passes through to the real gh instead of refusing.
-o_gh() { ( d="$1"; shift; unset GH_TOKEN GITHUB_TOKEN CLAUDECODE; GH_CONFIG_DIR="$d"; export GH_CONFIG_DIR; gh "$@" ); }
+o_gh() { ( d="$1"; shift; unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE; GH_CONFIG_DIR="$d"; export GH_CONFIG_DIR; gh "$@" ); }
 # d_gh <gh args...>: gh from its default directory, with no token in the way.
-d_gh() { ( unset GH_TOKEN GITHUB_TOKEN CLAUDECODE GH_CONFIG_DIR; gh "$@" ); }
+d_gh() { ( unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE GH_CONFIG_DIR; gh "$@" ); }
 # o_quote <path>: the path in double quotes for a shell line.
 o_quote() { printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"$`]/\\&/g')"; }
 
@@ -1302,10 +1303,18 @@ cmd_agent_owner() {
   [ -n "$dir" ] || dir="$(conf_get owner_gh_config_dir)"
   [ -n "$dir" ] || dir="$(o_default)"
   case "$dir" in /*) ;; *) die "agent-owner: --dir must be an absolute path" ;; esac
+  # gh's own default directory (it ignores macOS's Library) would be signed
+  # out by step 2.
+  [ "${dir%/}" != "${XDG_CONFIG_HOME:-$HOME/.config}/gh" ] ||
+    die "agent-owner: $dir is gh's default directory; the owner's must be another"
   mkdir -p "$dir" && chmod 700 "$dir" || die "agent-owner: cannot create $dir"
 
   # 1. The owner's sign-in, in its own directory.
-  if o_gh "$dir" auth status --hostname github.com >/dev/null 2>&1; then
+  # A sign-in in the keyring is shared with gh's default directory (one
+  # entry per host and account), so step 2 would delete it: only one in the
+  # directory's own hosts.yml counts as there.
+  if o_gh "$dir" auth status --hostname github.com >/dev/null 2>&1 &&
+    grep -q 'oauth_token:' "$dir/hosts.yml" 2>/dev/null; then
     say "agent-owner: $dir is already signed in to github.com."
   else
     say "agent-owner: signing in to github.com in $dir (gh auth login)."
@@ -1352,7 +1361,7 @@ cmd_agent_owner() {
 }
 
 cmd_claude() {
-  unset GH_CONFIG_DIR GH_TOKEN GITHUB_TOKEN
+  unset GH_CONFIG_DIR GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
   exec claude "$@"
 }
 

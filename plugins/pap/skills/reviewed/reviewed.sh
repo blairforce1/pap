@@ -41,6 +41,8 @@ fi
 # init` recorded in pap's user config (agent.conf), with GH_TOKEN unset so
 # the agent app's token cannot stand in, and CLAUDECODE unset so the gh shim
 # passes through instead of refusing the set GH_CONFIG_DIR.
+# The config's place and format are bin/pap's a_config and conf_get; keep
+# the two in step.
 if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
   conf="$HOME/Library/Application Support/pap/agent.conf"
 else
@@ -50,7 +52,7 @@ owner_gh=""
 [ ! -f "$conf" ] || owner_gh="$(awk 'index($0, "owner_gh_config_dir=") == 1 { v = substr($0, 21) } END { print v }' "$conf")"
 [ -n "$owner_gh" ] && [ -d "$owner_gh" ] ||
   refuse "no owner gh directory is recorded in $conf, so this cannot act as you. In your own terminal run pap agent-owner init (docs/account-setup.md), then invoke this again."
-as_owner() { (unset GH_TOKEN GITHUB_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
+as_owner() { (unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
 gh() { as_owner command gh "$@"; }
 
 repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" || fail "gh could not read the repository here."

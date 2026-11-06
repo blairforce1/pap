@@ -46,12 +46,19 @@
 #         env, command or exec) or with a `PATH=` assignment is refused
 #         (rule 23.1): it skips the shim. `command gh` and `env gh` find
 #         the shim on PATH and pass. In every repository, adopting or not,
-#         GH_CONFIG_DIR assigned anywhere in the command (a prefix, env,
-#         export, declare) or named bare after export, declare, typeset,
-#         readonly or local is refused (rule 23.4); unset and env -u pass.
-#         Neither follows bash -c, eval, scripts, a name built from a
-#         variable, or another language's subprocess, and a heredoc line
-#         that assigns it is refused like a command.
+#         GH_CONFIG_DIR assigned with = or += in assignment position (a
+#         prefix, after env, after export, declare, typeset, readonly or
+#         local, or named bare after those) is refused (rule 23.4); unset,
+#         env -u and a mention elsewhere (grep GH_CONFIG_DIR=) pass. Every
+#         Bash call is refused while GH_CONFIG_DIR is set in the session's
+#         own environment (Claude Code started as plain claude).
+#         reviewed.sh and accept.sh, which act as the owner, are not
+#         refused: a person's /pap:reviewed runs its script through the Bash
+#         tool too, and the hook cannot tell the two apart.
+#         None follows bash -c, eval, scripts, a name built from a
+#         variable, set -a with read, or another language's subprocess;
+#         HOME or XDG_CONFIG_HOME pointed at a copy of the owner's
+#         directory passes; a heredoc line that assigns it is refused.
 #
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
@@ -80,6 +87,14 @@
 # label nor the merge can be traced to who did it once it is through.
 
 set -u
+
+# Rule 23.4: a session whose environment has GH_CONFIG_DIR was started from
+# the owner's terminal as plain claude, so every agent shell holds the
+# owner's sign-in. Refuse every Bash call until it is restarted.
+if [ -n "${GH_CONFIG_DIR:-}" ]; then
+  printf 'guard-route: GH_CONFIG_DIR is set in this Claude Code session, so its shells hold your gh sign-in; quit and start it with pap claude (rule 23.4)\n' >&2
+  exit 2
+fi
 
 if ! command -v jq >/dev/null 2>&1; then
   # Without jq the command cannot be parsed. Complain only in a session whose
@@ -230,12 +245,18 @@ targets="$(jq -r '
   | reduce .[] as $seg ({dir: $cwd, lefthook: null, out: []};
       . as $st
       | ($seg | gsub("^\\s+|\\s+$"; "")) as $s
-      # Decision 0023, rule 23.4: GH_CONFIG_DIR assigned anywhere (a prefix,
-      # env, export, declare), or named bare after export and its kin.
+      # Decision 0023, rule 23.4: GH_CONFIG_DIR assigned (= or +=) in
+      # assignment position: the leading words (prefix assignments, env and
+      # its flags, the name after -u), or any word after export and its kin.
+      # A word elsewhere, as in a grep pattern, passes.
       | ([$s | scan(arg) | .[0] | unquote]) as $w
-      | (if ($w | any(test("^GH_CONFIG_DIR=")))
+      | ([foreach $w[] as $x ({go: true, prev: "", out: null};
+            if .go and (($x | test("^(env|-[^=]*|[A-Za-z_][A-Za-z0-9_]*\\+?=.*)$")) or (.prev | IN("-u", "--unset")))
+            then {go: true, prev: $x, out: $x} else {go: false, prev: $x, out: null} end;
+            .out // empty)]) as $lead
+      | (if ($lead | any(test("^GH_CONFIG_DIR\\+?=")))
             or ((($w[0] // "") | IN("export", "declare", "typeset", "readonly", "local"))
-                and ($w | any(. == "GH_CONFIG_DIR")))
+                and ($w[1:] | any(test("^GH_CONFIG_DIR(\\+?=|$)"))))
          then .out += ["ghconfig\t\($st.dir)\tGH_CONFIG_DIR"] else . end)
       # Rule 23.1: gh run by a path, or with PATH changed, skips the shim.
       | ([$w[] | select(test("^(env|command|exec|nohup|time|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $h
