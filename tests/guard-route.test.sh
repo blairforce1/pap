@@ -30,6 +30,10 @@ done
 # /private/var), and git and pwd report the resolved path.
 T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
+# The machine's git config is not this suite's: a global insteadOf
+# rewrite, for one, turns the SSH remotes below into HTTPS ones.
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL="$T/gitconfig"
+: > "$GIT_CONFIG_GLOBAL"
 
 mkrepo() {
   git init -q -b main "$1"
@@ -307,6 +311,11 @@ check 0 "$T/S" 'git push'
 git -C "$T/S" config --unset branch.change/x.pushRemote
 mkrepo "$T/US" && git -C "$T/US" remote add origin git@github.com:example-owner/example-repo.git
 check 0 "$T/US" 'git push origin main'
+# With the insteadOf rewrite pap agent-setup offers, an SSH origin pushes
+# over HTTPS, so the push passes.
+git config --global url.https://github.com/.insteadOf git@github.com:
+check 0 "$T/S" 'git push -u origin change/x'
+: > "$GIT_CONFIG_GLOBAL"
 # The refusal names the fix.
 n=$((n + 1))
 msg="$(jq -nc --arg d "$T/S" '{tool_name: "Bash", cwd: $d, tool_input: {command: "git push"}}' | "$router" 2>&1 >/dev/null)"
