@@ -133,7 +133,9 @@
 #         GITHUB_TOKEN, GH_ENTERPRISE_TOKEN and GITHUB_ENTERPRISE_TOKEN
 #         unset; every argument passes through. An agent shell so has no
 #         stored GitHub account, and only the gh shim's pap-agent token
-#         works (rule 23.4). Start every Claude Code session with it.
+#         works (rule 23.4). It puts this pap's own scripts/shim first
+#         on PATH, since Claude Code's non-interactive shells never get
+#         mise's [env]. Start every Claude Code session with it.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -621,6 +623,16 @@ d_owner() {
     item ok "this shell" "an agent shell started by pap claude"
   else
     item drift "this shell" "an agent shell not started by pap claude (GH_CONFIG_DIR is ${GH_CONFIG_DIR:-unset}); quit and run pap claude"
+  fi
+  if [ -n "${CLAUDECODE:-}" ]; then
+    # The shim is first on PATH only because pap claude put it there.
+    g="$(command -v gh)"
+    l2=""
+    { read -r _ && read -r l2; } < "$g" 2>/dev/null || true
+    case "$l2" in
+      "# pap-gh-shim:"*) item ok "gh is the shim" "$g" ;;
+      *) item drift "gh is the shim" "gh is $g, past the pap-agent shim; quit and run pap claude" ;;
+    esac
   fi
 }
 
@@ -1281,7 +1293,11 @@ cmd_claude() {
   mkdir -p "$d" && chmod 700 "$d" || die "claude: cannot create $d"
   unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
   GH_CONFIG_DIR="$d"
-  export GH_CONFIG_DIR
+  # The gh shim first on PATH, from this pap's own tree: Claude Code's Bash
+  # tool runs commands non-interactively, so mise's [env] never reaches them.
+  [ -x "$root/scripts/shim/gh" ] || die "claude: no gh shim at $root/scripts/shim/gh"
+  PATH="$root/scripts/shim:$PATH"
+  export GH_CONFIG_DIR PATH
   exec claude "$@"
 }
 
