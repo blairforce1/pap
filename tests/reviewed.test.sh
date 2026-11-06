@@ -67,12 +67,11 @@ chmod +x "$T/stub/gh"
 export FAKE_LOG="$T/gh.log" FAKE_LABELS="$T/labels.txt" FAKE_ENV="$T/gh.env"
 PATH="$T/stub:$PATH"
 export PATH
-# Rule 23.4: the owner's gh directory, recorded where pap agent-owner init
-# puts it; and the environment of an agent shell, which the script must
+# Rule 23.4: the owner's gh directory, gh's default under XDG_CONFIG_HOME;
+# and the environment of an agent shell, which the script must
 # not pass on to gh.
 export XDG_CONFIG_HOME="$T/xdg"
-mkdir -p "$T/xdg/pap" "$T/owner gh"
-printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/owner gh" > "$T/xdg/pap/agent.conf"
+mkdir -p "$T/xdg/gh"
 export CLAUDECODE=1 GH_TOKEN=ghs_agent_token GITHUB_TOKEN=ghs_agent_token2
 
 HEAD=3a7b521f07c2c0c74f197989ceb5fe64c34a8660
@@ -156,26 +155,20 @@ result $? "an empty second argument is no SHA" "exit $rc; $out"
 fixture OPEN 'class:infra,risk:high'
 run 7
 [ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(wc -l < "$FAKE_ENV" | tr -d ' ')" -ge 4 ] &&
-  [ "$(sort -u "$FAKE_ENV")" = "GH_CONFIG_DIR=$T/owner gh GH_TOKEN=<unset> GITHUB_TOKEN=<unset> CLAUDECODE=<unset>" ]
+  [ "$(sort -u "$FAKE_ENV")" = "GH_CONFIG_DIR=$T/xdg/gh GH_TOKEN=<unset> GITHUB_TOKEN=<unset> CLAUDECODE=<unset>" ]
 result $? "every gh call has GH_CONFIG_DIR the owner's, GH_TOKEN, GITHUB_TOKEN and CLAUDECODE unset" "exit $rc; $(cat "$FAKE_ENV")"
 fixture OPEN 'class:infra,risk:high'
-mv "$T/xdg/pap/agent.conf" "$T/agent.conf.away"
+mv "$T/xdg/gh" "$T/gh.away"
 run 7
-[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: no owner gh directory is recorded.*pap agent-owner init' && [ ! -s "$FAKE_LOG" ]
-result $? "no owner directory recorded: refused naming pap agent-owner init, gh not called" "exit $rc; $out"
-printf 'owner_gh_config_dir=%s\n' "$T/gone" > "$T/xdg/pap/agent.conf"
-run 7
-[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: no owner gh directory' && [ ! -s "$FAKE_LOG" ]
-result $? "a recorded owner directory that is gone: refused, gh not called" "exit $rc; $out"
-mv "$T/agent.conf.away" "$T/xdg/pap/agent.conf"
-# macOS without XDG_CONFIG_HOME: pap's config is under ~/Library/Application Support.
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: gh has no default directory at .*gh auth login' && [ ! -s "$FAKE_LOG" ]
+result $? "no gh default directory: refused naming gh auth login, gh not called" "exit $rc; $out"
+mv "$T/gh.away" "$T/xdg/gh"
+# Without XDG_CONFIG_HOME, gh's default is ~/.config/gh, on macOS too.
 fixture OPEN 'class:infra,risk:high'
-mkdir -p "$T/mac" "$T/home/Library/Application Support/pap" "$T/home/mac gh"
-printf '#!/bin/sh\necho Darwin\n' > "$T/mac/uname"; chmod +x "$T/mac/uname"
-printf 'owner_gh_config_dir=%s\n' "$T/home/mac gh" > "$T/home/Library/Application Support/pap/agent.conf"
-out="$(env -u XDG_CONFIG_HOME HOME="$T/home" PATH="$T/mac:$PATH" sh "$script" 7 2>&1)"; rc=$?
-[ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(sort -u "$FAKE_ENV" | cut -d' ' -f1-2)" = "GH_CONFIG_DIR=$T/home/mac gh" ]
-result $? "macOS: the owner directory is read from ~/Library/Application Support/pap/agent.conf" "exit $rc; $out; $(cat "$FAKE_ENV")"
+mkdir -p "$T/home/.config/gh"
+out="$(env -u XDG_CONFIG_HOME HOME="$T/home" sh "$script" 7 2>&1)"; rc=$?
+[ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(sort -u "$FAKE_ENV" | cut -d' ' -f1)" = "GH_CONFIG_DIR=$T/home/.config/gh" ]
+result $? "without XDG_CONFIG_HOME the owner directory is ~/.config/gh" "exit $rc; $out; $(cat "$FAKE_ENV")"
 
 # Failures: gh itself, or a label that did not land.
 fixture OPEN 'class:infra,risk:high'

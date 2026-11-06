@@ -80,10 +80,9 @@ run the same Renovate self-hosted under a GitHub App you own.
 
 Every `pap repo` command, `pap revisits` and the skills that open pull
 requests go through `gh`. Sign in as an account that administers the
-repositories, on every machine that runs them, with `pap agent-owner
-init` rather than a bare `gh auth login`: it keeps the sign-in in a
-directory of its own, out of every agent's reach ([your own
-sign-in](#your-own-sign-in)).
+repositories (`gh auth login`, keeping its default keyring storage), on
+every machine that runs them, and start Claude Code with `pap claude`
+([your own sign-in](#your-own-sign-in-and-pap-claude)).
 
 ## The `pap-agent` app
 
@@ -222,64 +221,21 @@ no key, so there the shim steps aside and the container keeps your sign-in,
 by decision 0023. [Troubleshooting](troubleshooting.md#the-gh-shim-and-pap-agent)
 has each message the shim prints.
 
-## Your own sign-in
+## Your own sign-in and `pap claude`
 
-An agent shell must not find your `gh` sign-in (decision 0023, rule
-23.4), so it lives in a `GH_CONFIG_DIR` of its own that only your
-terminal exports. Move it once, on every machine that runs agents, from
-your own terminal (not from inside Claude Code, which refuses it):
+Your `gh` sign-in stays where `gh auth login` puts it, gh's default
+directory with the token in the keyring; nothing moves. What changes is
+how you start Claude Code: **always with `pap claude`** (any `claude`
+arguments pass through; `alias claude='pap claude'` saves remembering). It
+sets `GH_CONFIG_DIR` to an empty agent directory and unsets the GitHub
+token variables, so an agent shell finds no stored account and only the
+shim's `pap-agent` token works (rule 23.4). In an adopting repository the
+shim refuses every `gh` in a session started any other way.
 
-```sh
-pap agent-owner init
-```
-
-It creates `~/.config/gh-owner` (`$XDG_CONFIG_HOME/gh-owner` if set; on
-macOS `~/Library/Application Support/gh-owner` unless it is), mode 700,
-or the absolute path given with `--dir`, and records the path, which is
-not a secret, as `owner_gh_config_dir` in pap's `agent.conf`. Then:
-
-1. It runs `gh auth login --insecure-storage` there. The token goes in
-   that directory's `hosts.yml`, not the keyring: gh keeps one keyring
-   entry per host and account whichever directory signed in, so the
-   next step would delete a keyring sign-in along with the old one.
-2. It confirms the directory is signed in and reads your login back. If
-   either fails it stops, and nothing else changes.
-3. Only then, if gh's default directory is still signed in to
-   github.com, it asks (y/N) to sign it out with `gh auth logout`, and
-   confirms your directory still works after.
-4. It prints the line for your interactive shell's startup file, and the
-   `home.sessionVariables` form for `home.nix` when that file is
-   home-manager's. pap never edits it:
-
-   ```sh
-   export GH_CONFIG_DIR="$HOME/.config/gh-owner"
-   ```
-
-Open a new terminal, and from now on **start Claude Code with `pap
-claude`** (any `claude` arguments pass through). It runs `claude` with
-`GH_CONFIG_DIR` and every GitHub token variable unset, so an agent shell
-has no stored account and only the shim's `pap-agent` token works. Started
-as plain `claude` from your terminal, a session inherits the variable, and
-the guard hook refuses every Bash call in it, as the shim refuses every
-`gh`, until you restart it with `pap claude`. A shell alias, `alias claude='pap claude'`, saves remembering.
-
-`/pap:reviewed` and `/pap:accept` are the one way back: their scripts run
-`gh` from the recorded directory with the tokens unset, and accept's push
-asks its credential of `gh` the same way, so the label, branch, push and
-pull request show you. Only you can
-invoke them (`disable-model-invocation`), and without a recorded directory
-they say how to set it up and stop. `pap doctor`'s "owner sign-in" section
-checks the directory (recorded, there, signed in; never from an agent
-shell), that gh's default directory holds no github.com sign-in, and
-`GH_CONFIG_DIR` in the shell it runs in: set in your terminal, unset in an
-agent's.
-
-What this does not stop: an agent runs as your user, so a command that
-reads `hosts.yml` in your directory by path is not refused (the keyring
-would be no better: any process of yours can read it), and nor is an
-agent running the two skills' scripts by path, which then act as you:
-your own `/pap:reviewed` reaches the hook as the same call. The guard
-hook refuses a command that sets `GH_CONFIG_DIR`, but not one hidden in
-`bash -c`, `eval` or a script, nor `HOME` pointed at a copy of your
-directory. Rule 23.4 lists every known gap. The owner directory is a
-boundary for `gh`, not a sandbox.
+Then run `pap doctor`. Its "sign-ins" section checks your sign-in and that
+its token is in the keyring (sign in again without `--insecure-storage` if
+it warns), the agent directory, and whether the shell it runs in is an
+agent shell started by `pap claude`. `/pap:reviewed` and `/pap:accept`
+act as you from gh's default directory; only you can invoke them.
+[Agent identity and its security](agent-identity-security.md) says what
+this protects and what it does not.

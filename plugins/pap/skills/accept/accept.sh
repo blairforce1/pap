@@ -30,8 +30,8 @@
 # A refusal prints "refused:" and exits 0, so a skill invocation renders it;
 # a git or gh failure exits 1. Ids are checked before any use.
 # Every gh call, and the credential the push asks for, run as the owner
-# from the recorded owner gh directory (rule 23.4); with none recorded it refuses, naming
-# pap agent-owner init. The fetch goes as whoever the shim says.
+# from gh's default directory (rule 23.4). The fetch goes as whoever the
+# shim says.
 set -u
 
 usage='usage: /pap:accept [--repo <path>] <NNNN> [NNNN ...]'
@@ -79,21 +79,15 @@ done
 set -- $(printf '%s\n' "$@" | sort -u)
 
 # Rule 23.4: this script is the one door back to the owner's sign-in. Every
-# gh call below runs as the owner, from the gh directory `pap agent-owner
-# init` recorded in pap's user config (agent.conf), with GH_TOKEN unset so
-# the agent app's token cannot stand in, and CLAUDECODE unset so the gh shim
-# passes through instead of refusing the set GH_CONFIG_DIR.
-# The config's place and format are bin/pap's a_config and conf_get; keep
-# the two in step.
-if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
-  conf="$HOME/Library/Application Support/pap/agent.conf"
-else
-  conf="${XDG_CONFIG_HOME:-$HOME/.config}/pap/agent.conf"
-fi
-owner_gh=""
-[ ! -f "$conf" ] || owner_gh="$(awk 'index($0, "owner_gh_config_dir=") == 1 { v = substr($0, 21) } END { print v }' "$conf")"
-[ -n "$owner_gh" ] && [ -d "$owner_gh" ] ||
-  refuse "no owner gh directory is recorded in $conf, so this cannot act as you. In your own terminal run pap agent-owner init (docs/account-setup.md), then invoke this again."
+# gh call below runs as the owner, from gh's own default directory, where
+# the owner signed in (gh resolves it, without GH_CONFIG_DIR, as
+# $XDG_CONFIG_HOME/gh, else ~/.config/gh, macOS included), with the token
+# variables unset so the agent app's token cannot stand in, and CLAUDECODE
+# unset so the gh shim passes through instead of refusing a GH_CONFIG_DIR
+# that is not the agent's.
+owner_gh="${XDG_CONFIG_HOME:-$HOME/.config}/gh"
+[ -d "$owner_gh" ] ||
+  refuse "gh has no default directory at $owner_gh, so this cannot act as you. Sign in from your own terminal with gh auth login, then invoke this again."
 as_owner() { (unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
 gh() { as_owner command gh "$@"; }
 

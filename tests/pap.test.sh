@@ -83,10 +83,12 @@ export MISE_DATA_DIR="$T/misedata"
 export XDG_CONFIG_HOME="$T/xdg" XDG_RUNTIME_DIR="$T/run" FAKE_KEYRING="$T/keyring" FAKE_GH="$T/fakegh"
 export PAP_GITHUB_API=http://github.invalid GIT_CONFIG_GLOBAL="$T/gitconfig"
 unset REMOTE_CONTAINERS CLAUDECODE GH_CONFIG_DIR GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
-mkdir -p "$T/xdg/pap" "$T/run" "$T/fakegh" "$T/owner-gh"
-# Rule 23.4: the owner's gh directory, signed in (a marker the stub gh reads).
-printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/owner-gh" > "$T/xdg/pap/agent.conf"
-: > "$T/owner-gh/signed-in"
+mkdir -p "$T/xdg/pap" "$T/run" "$T/fakegh" "$T/xdg/gh" "$T/xdg/gh-agent"
+# Rule 23.4: the owner signed in in gh's default directory, token in the
+# keyring (hosts.yml names the user only); the agent's directory empty.
+printf 'client_id=Iv1.example\n' > "$T/xdg/pap/agent.conf"
+printf 'github.com:\n    user: example-owner\n' > "$T/xdg/gh/hosts.yml"
+chmod 700 "$T/xdg/gh-agent"
 printf 'not a real key\n' > "$FAKE_KEYRING"
 : > "$GIT_CONFIG_GLOBAL"
 PATH="$T/stub:$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'mise/shims' | paste -sd: -)"
@@ -301,12 +303,11 @@ cat > "$T/tools/gh" <<'EOF'
 echo "gh $*" >> "$STUB_LOG"
 case "$*" in
   "auth status") exit "${STUB_GH_AUTH:-0}" ;;
-  # github.com in GH_CONFIG_DIR's directory: signed in when it holds the
-  # marker; gh's default directory signed in only with STUB_GH_DEFAULT=0.
+  # gh's default directory: signed in unless STUB_GH_DEFAULT=1. Any other
+  # directory: not signed in.
   "auth status --hostname github.com")
-    if [ -n "${GH_CONFIG_DIR:-}" ]; then [ -f "$GH_CONFIG_DIR/signed-in" ]; exit $?; fi
-    [ -z "${GH_TOKEN:-}" ] || exit 0
-    exit "${STUB_GH_DEFAULT:-1}" ;;
+    [ -z "${GH_CONFIG_DIR:-}" ] || exit 1
+    exit "${STUB_GH_DEFAULT:-0}" ;;
 esac
 EOF
 cat > "$T/tools/claude" <<'EOF'
@@ -344,7 +345,7 @@ for f in sudo apt-get apt dnf brew; do
 done
 chmod +x "$T"/tools/* "$T"/linux/* "$T"/mac/* "$T"/apt/* "$T"/dnf/* "$T"/forbid/*
 ln -s "$(command -v openssl)" "$T/tools/openssl"
-for c in sh git cut grep awk sed cat head tr dirname basename env date id mkdir chmod mv ls rm mktemp tail; do
+for c in sh git cut grep awk sed cat head tr dirname basename env date id mkdir chmod mv ls rm mktemp tail stat; do
   ln -s "$(command -v "$c")" "$T/sys/$c"
   [ "$c" = git ] || ln -s "$(command -v "$c")" "$T/sysnogit/$c"
 done
@@ -400,47 +401,47 @@ out="$(doctor MISE_SHELL=bash)"; rc=$?
   printf '%s\n' "$out" | grep -q 'ok       pre-commit hook installed'
 result $? "doctor, drifted: a foreign hook and an active version off its pin; exits 1" "$out"
 
-# --- doctor: the owner's sign-in (rule 23.4) ----------------------------------
+# --- doctor: the sign-ins (rule 23.4) ------------------------------------------
 
 printf '#!/bin/sh\n# lefthook\n' > "$hooks/pre-push"
 ls_json true 2.1.14
 has() { printf '%s\n' "$out" | grep -qF "$1"; }
-out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/owner-gh")"; rc=$?
-[ "$rc" = 0 ] && has "ok       owner's gh directory signed in  ($T/owner-gh)" &&
-  has "ok       gh's default directory holds no sign-in" &&
-  has "ok       GH_CONFIG_DIR set in your terminal  ($T/owner-gh)"
-result $? "doctor, owner's terminal: owner directory signed in, default directory clean, GH_CONFIG_DIR set; exits 0" "$out"
-out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/owner-gh" STUB_GH_DEFAULT=0)"; rc=$?
-[ "$rc" = 0 ] && has "warn     gh's default directory holds no sign-in  (it is signed in to github.com, where an agent shell finds it: env -u GH_CONFIG_DIR gh auth logout --hostname github.com)"
-result $? "doctor: the default directory signed in is a warning naming the logout command" "$out"
+ad="$T/xdg/gh-agent"
 out="$(doctor MISE_SHELL=bash)"; rc=$?
-[ "$rc" = 0 ] && has "warn     GH_CONFIG_DIR set in your terminal  (unset, so gh here has no sign-in: export GH_CONFIG_DIR=\"$T/owner-gh\")"
-result $? "doctor, a terminal without GH_CONFIG_DIR: a warning with the export line" "$out"
-mkdir -p "$T/other-gh"
-out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/other-gh")"; rc=$?
-[ "$rc" = 1 ] && has "drift    GH_CONFIG_DIR set in your terminal  (it is $T/other-gh, not the recorded $T/owner-gh)"
-result $? "doctor: GH_CONFIG_DIR not the recorded directory is drift" "$out"
-out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$T/owner-gh")"; rc=$?
-[ "$rc" = 1 ] && has "drift    GH_CONFIG_DIR unset in this agent shell  (it is set, so gh would use a stored sign-in and the shim refuses; restart Claude Code with pap claude)" &&
-  has "skipped  owner's gh directory signed in  ($T/owner-gh; checked only from your own terminal, never from an agent shell)"
-result $? "doctor, an agent shell with GH_CONFIG_DIR: refused as drift; the owner directory is not read" "$out"
-out="$(doctor MISE_SHELL=bash CLAUDECODE=1)"
-has "ok       GH_CONFIG_DIR unset in this agent shell"
-result $? "doctor, an agent shell started by pap claude: GH_CONFIG_DIR unset is ok" "$out"
-rm "$T/owner-gh/signed-in"
-out="$(doctor MISE_SHELL=bash GH_CONFIG_DIR="$T/owner-gh")"; rc=$?
-[ "$rc" = 1 ] && has "missing  owner's gh directory signed in  ($T/owner-gh has no github.com sign-in; pap agent-owner init)"
-result $? "doctor: an owner directory with no sign-in is missing" "$out"
-: > "$T/owner-gh/signed-in"
-printf 'client_id=Iv1.example\n' > "$T/xdg/pap/agent.conf"
+[ "$rc" = 0 ] && has "ok       your gh sign-in in $T/xdg/gh" &&
+  has "ok       your gh token in the keyring  (none in $T/xdg/gh/hosts.yml)" &&
+  has "ok       agent gh directory $ad  (mode 700, no sign-in)" &&
+  has "ok       this shell  (your terminal; gh uses its default directory)"
+result $? "doctor, your terminal: signed in, token in the keyring, agent directory empty and 700; exits 0" "$out"
+out="$(doctor MISE_SHELL=bash STUB_GH_DEFAULT=1)"; rc=$?
+[ "$rc" = 1 ] && has "missing  your gh sign-in in $T/xdg/gh  (in your own terminal: gh auth login)"
+result $? "doctor: gh's default directory not signed in is missing" "$out"
+printf 'github.com:\n    oauth_token: fake\n    user: example-owner\n' > "$T/xdg/gh/hosts.yml"
 out="$(doctor MISE_SHELL=bash)"; rc=$?
-[ "$rc" = 1 ] && has "missing  owner's gh directory recorded  (in your own terminal: pap agent-owner init; see docs/account-setup.md)"
-result $? "doctor: no owner directory recorded is missing, naming pap agent-owner init" "$out"
-printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/gone-gh" > "$T/xdg/pap/agent.conf"
+[ "$rc" = 0 ] && has "warn     your gh token in the keyring  (it is in plain text in $T/xdg/gh/hosts.yml: gh auth logout --hostname github.com, then gh auth login without --insecure-storage)"
+result $? "doctor: a plain-text token in hosts.yml is a warning naming the fix" "$out"
+printf 'github.com:\n    user: example-owner\n' > "$T/xdg/gh/hosts.yml"
+chmod 755 "$ad"
 out="$(doctor MISE_SHELL=bash)"; rc=$?
-[ "$rc" = 1 ] && has "missing  owner's gh directory exists  ($T/gone-gh is gone; in your own terminal: pap agent-owner init)"
-result $? "doctor: a recorded owner directory that is gone is missing" "$out"
-printf 'client_id=Iv1.example\nowner_gh_config_dir=%s\n' "$T/owner-gh" > "$T/xdg/pap/agent.conf"
+[ "$rc" = 1 ] && has "drift    agent gh directory $ad  (mode 755, not 700: chmod 700 '$ad')"
+result $? "doctor: an agent directory not 700 is drift" "$out"
+chmod 700 "$ad"
+printf 'github.com:\n    user: example-owner\n' > "$ad/hosts.yml"
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 1 ] && has "drift    agent gh directory $ad  (it holds a github.com sign-in, which it never should: rm '$ad/hosts.yml')"
+result $? "doctor: an agent directory holding a sign-in is drift" "$out"
+rm "$ad/hosts.yml"; rmdir "$ad"
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 1 ] && has "missing  agent gh directory $ad  (start Claude Code with pap claude, which creates it)"
+result $? "doctor: no agent directory is missing, naming pap claude" "$out"
+mkdir "$ad"; chmod 700 "$ad"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$ad")"
+has "ok       this shell  (an agent shell started by pap claude)" &&
+  has "skipped  your gh sign-in in $T/xdg/gh  (checked only from your own terminal, never from an agent shell)"
+result $? "doctor, an agent shell from pap claude: ok, and your sign-in is not read" "$out"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1)"; rc=$?
+[ "$rc" = 1 ] && has "drift    this shell  (an agent shell not started by pap claude (GH_CONFIG_DIR is unset); quit and run pap claude)"
+result $? "doctor, an agent shell not started by pap claude is drift" "$out"
 
 # --- doctor: the tools, and their install hints ------------------------------
 

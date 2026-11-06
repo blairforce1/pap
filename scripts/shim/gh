@@ -10,9 +10,11 @@
 # through `gh auth git-credential`, so they come here too.
 #
 # When minting fails it names the reason and exits 1: it never runs gh with
-# a stored sign-in instead. Everywhere else it runs the real gh unchanged,
-# except that with CLAUDECODE and GH_CONFIG_DIR both set it refuses in any
-# repository (rule 23.4).
+# a stored sign-in instead. Everywhere else it runs the real gh unchanged.
+# In an agent session in an adopting repository it first refuses unless
+# GH_CONFIG_DIR is exactly the agent's gh directory that pap claude sets,
+# which holds no sign-in (rule 23.4): a session started as plain claude
+# would reach the owner's sign-in in gh's default directory.
 # In a dev container (/.dockerenv or REMOTE_CONTAINERS) with no key it steps
 # aside by decision 0023 point 5: the container keeps the human's sign-in.
 #
@@ -20,15 +22,6 @@
 # carries the pap-gh-shim marker on line 2), so it never runs itself.
 
 set -u
-
-# Rule 23.4: an agent shell carries no owner sign-in. GH_CONFIG_DIR set here
-# means Claude Code was started from the owner's terminal with it exported,
-# so gh would find the owner's stored account. Refuse, in every repository,
-# before gh is even looked for.
-if [ -n "${CLAUDECODE:-}" ] && [ -n "${GH_CONFIG_DIR:-}" ]; then
-  printf 'gh (pap shim): GH_CONFIG_DIR is set in this agent shell, so gh would act with a stored sign-in; quit Claude Code and start it with pap claude (rule 23.4)\n' >&2
-  exit 1
-fi
 
 real=""
 IFS_was="$IFS"
@@ -72,6 +65,21 @@ if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
   # Exit 1 is "no key"; a key without a client id still mints, and fails.
   "$pap" agent-key status >/dev/null 2>&1
   [ $? != 1 ] || exec "$real" "$@"
+fi
+
+# Rule 23.4: only the agent's own gh directory, as pap claude sets it.
+if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
+  agentdir="$HOME/Library/Application Support/gh-agent"
+else
+  agentdir="${XDG_CONFIG_HOME:-$HOME/.config}/gh-agent"
+fi
+if [ "${GH_CONFIG_DIR:-}" != "$agentdir" ]; then
+  printf 'gh (pap shim): this Claude Code session was not started with pap claude (GH_CONFIG_DIR is %s, not %s), so gh could reach your own sign-in; quit and run pap claude (rule 23.4)\n' "${GH_CONFIG_DIR:-unset}" "$agentdir" >&2
+  exit 1
+fi
+if grep -q 'github\.com' "$agentdir/hosts.yml" 2>/dev/null; then
+  printf 'gh (pap shim): %s/hosts.yml holds a github.com sign-in, which the agent directory never should; remove that file (rule 23.4)\n' "$agentdir" >&2
+  exit 1
 fi
 
 # The token is agent-token's stdout; its stderr, the reason on failure, goes

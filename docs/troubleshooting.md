@@ -207,81 +207,59 @@ The refusal prints the exact command.
 
 ## Your own sign-in and `pap claude`
 
-Rule 23.4 keeps your `gh` sign-in in a directory of its own, which only
-your terminal exports as `GH_CONFIG_DIR` ([account
-setup](account-setup.md#your-own-sign-in)).
+Rule 23.4 keeps your `gh` sign-in out of agent shells: Claude Code is
+started with `pap claude`, which points `GH_CONFIG_DIR` at an empty agent
+directory. [Agent identity and its security](agent-identity-security.md)
+has the whole picture.
 
-**`gh (pap shim): GH_CONFIG_DIR is set in this agent shell, so gh would
-act with a stored sign-in; quit Claude Code and start it with pap claude
-(rule 23.4)`.** Claude Code was started as plain `claude` from a terminal
-that exports `GH_CONFIG_DIR`, so every agent shell inherited your
-sign-in. The shim refuses every `gh` call, and git's pushes with it,
-until the session is restarted: quit it and run `pap claude`, with the
-same arguments (`pap claude --resume` resumes).
+**`gh (pap shim): this Claude Code session was not started with pap claude
+(GH_CONFIG_DIR is <x>, not <agent dir>), so gh could reach your own
+sign-in; quit and run pap claude (rule 23.4)`.** Quit the session and start
+it with `pap claude`, with the same arguments (`pap claude --resume`
+resumes).
 
-**The guard hook refuses every command: `GH_CONFIG_DIR is set in this
-Claude Code session, so its shells hold your gh sign-in; quit and start it
-with pap claude (rule 23.4)`.** Same cause as the shim's message above:
-the session inherited your terminal's `GH_CONFIG_DIR`. Restart it with
-`pap claude`.
+**`gh (pap shim): <agent dir>/hosts.yml holds a github.com sign-in`.**
+Something signed in inside the agent directory, which must stay empty.
+Remove that `hosts.yml` from your own terminal.
 
 **The guard hook refuses `GH_CONFIG_DIR set in an agent's command`.** An
-agent's command assigned or exported `GH_CONFIG_DIR`, the way to reach
-your sign-in (`=` or `+=`, as a prefix, after `env` or after `export`
-and its kin). It is refused in every repository. Nothing an agent does
-needs it; if the command was yours to run, run it in your own terminal.
-A mention elsewhere, such as `grep GH_CONFIG_DIR= docs`, passes; a
+agent's command set, exported or unset `GH_CONFIG_DIR`, or ran `env -i`,
+any of which moves gh off the agent directory. Nothing an agent does needs
+it. A mention elsewhere, such as `grep GH_CONFIG_DIR= docs`, passes; a
 heredoc line that assigns it is read as a command and refused.
+
+**The guard hook refuses `a read of gh's keyring entry or token`.** An
+agent's command looked up gh's keyring entry (service `gh:github.com`)
+with `secret-tool` or `security`, dumped the keychain, or ran `gh auth
+token` or `gh auth status -t`. An agent never needs your token; it acts
+as `pap-agent` through the shim.
+
+**The guard hook refuses `reviewed.sh` or `accept.sh` `run from an agent's
+command`.** Those scripts act as you. Invoke `/pap:reviewed` or
+`/pap:accept` yourself; the skill runs its script directly, out of the
+hook's sight.
 
 **The guard hook refuses `gh run as <path>, past the pap gh shim`.** In
 an adopting repository an agent ran `gh` by a path (`/usr/bin/gh`,
-`./gh`) or with `PATH=` set, which skips the shim and its `pap-agent`
-token. Run `gh` by name. `command gh` and `env gh` pass: they find the
-shim on `PATH`.
+`./gh`) or with `PATH=` set, which skips the shim. Run `gh` by name.
+`command gh` and `env gh` pass: they find the shim on `PATH`.
 
-**`refused: no owner gh directory is recorded in <path>, so this cannot
-act as you`.** `/pap:reviewed` or `/pap:accept` found no
-`owner_gh_config_dir` in pap's `agent.conf`, or the directory it names is
-gone. Run `pap agent-owner init` in your own terminal, then invoke the
-skill again.
+**`refused: gh has no default directory at <path>, so this cannot act as
+you`.** `/pap:reviewed` or `/pap:accept` found no gh directory to act
+from. Sign in from your own terminal with `gh auth login`.
 
-**`pap: agent-owner: run this in your own terminal, not in an agent
-session (rule 23.4)`.** It was run with Claude Code's `CLAUDECODE` set,
-from an agent's shell or a `!` command. Run it in a terminal of your own.
+**`pap doctor` items under "sign-ins (rule 23.4)":**
 
-**`pap: agent-owner: <dir> is not signed in to github.com; nothing else
-was changed`**, or **`gh auth login did not finish`**. The login in the
-owner directory did not leave a sign-in, so nothing was recorded and
-gh's default directory was not touched. Run it again; `gh auth status`
-with `GH_CONFIG_DIR` set to the directory shows what gh sees.
-
-**`pap: agent-owner: <dir> is gh's default directory; the owner's must
-be another`.** `--dir` named the directory the next step signs out. Give
-another path, or none for the default `gh-owner`.
-
-**`pap: agent-owner: <dir> lost its sign-in with the logout; run pap
-agent-owner init again`.** Signing gh's default directory out also took
-the owner directory's sign-in, which happens when that one is in the
-keyring rather than its own `hosts.yml`. Run `pap agent-owner init`
-again: it signs in afresh with file storage, and the default directory is
-already signed out.
-
-**`pap doctor` items under "owner sign-in (rule 23.4)":**
-
-- `missing owner's gh directory recorded`, `exists` or `signed in`: run
-  `pap agent-owner init` in your own terminal. From an agent shell the
-  sign-in is `skipped`, never read.
-- `warn gh's default directory holds no sign-in`: gh's default directory
-  is still signed in to github.com, where any agent shell finds it. Sign
-  it out from your terminal with the printed `env -u GH_CONFIG_DIR gh auth
-  logout --hostname github.com`.
-- `warn GH_CONFIG_DIR set in your terminal`: your terminal does not export
-  it, so `gh` there has no sign-in. Add the printed `export` line to your
-  shell's startup file (or `home.sessionVariables` in `home.nix`) and open
-  a new terminal. `drift` means it names another directory than the
-  recorded one.
-- `drift GH_CONFIG_DIR unset in this agent shell`: the session was not
-  started with `pap claude`; restart it so.
+- `missing your gh sign-in`: run `gh auth login` in your own terminal.
+  From an agent shell it is `skipped`, never read.
+- `warn your gh token in the keyring`: the token is in plain text in
+  gh's `hosts.yml`. Run `gh auth logout --hostname github.com`, then `gh
+  auth login` without `--insecure-storage`.
+- `missing`, `drift` on `agent gh directory`: start Claude Code with `pap
+  claude`, which creates it at mode 700; `chmod 700` it, or remove a
+  `hosts.yml` in it, as printed.
+- `drift this shell`: an agent shell not started by `pap claude`; quit
+  and restart the session with it.
 
 ## The `pap` command
 
