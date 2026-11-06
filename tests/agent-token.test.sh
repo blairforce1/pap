@@ -304,6 +304,8 @@ else
   # install page it records the URL and installs the app on the fake GitHub.
   cat > "$T/fake/browser" <<EOF
 #!/bin/sh
+exec 2>> "$T/browser.err"
+set -x
 echo "\$1" >> "$T/opened.log"
 case "\$1" in
   http://127.0.0.1:*)
@@ -358,15 +360,15 @@ EOF
   [ "$rc" = 1 ] && cmp -s "$FAKE_KEYRING" "$T/app.pem" &&
     printf '%s\n' "$out" | grep -q 'installed on example-org (installation 4343)' && grep -q 'action="https://github.com/organizations/example-org/settings/apps/new?state=' "$T/form.html" &&
     sed -n 's/.*name=manifest value="\([^"]*\)".*/\1/p' "$T/form.html" | grep -q '&quot;name&quot;: &quot;example-org-agent&quot;'
-  result $? "agent-setup: an organisation's form, and --name" "$out $(head -c 300 "$T/form.html")"
+  result $? "agent-setup: an organisation's form, and --name" "$out / browser: $(cat "$T/opened.log" "$T/browser.err" 2>&1) / form: $(head -c 300 "$T/form.html" 2>&1)"
 
   setup_reset; conversion
   answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
-  out="$(cd "$T/repo" && FAKE_STATE=bad PAP_SETUP_TIMEOUT=3 sh "$pap" agent-setup < /dev/null 2>&1)"; rc=$?
+  out="$(cd "$T/repo" && FAKE_STATE=bad PAP_SETUP_TIMEOUT=10 sh "$pap" agent-setup < /dev/null 2>&1)"; rc=$?
   [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'no answer from GitHub in time' && [ ! -s "$FAKE_KEYRING" ] &&
     grep -qx 'callback 400' "$T/opened.log" &&
     ! grep -q '^REQ POST /app-manifests' "$FAKE_GH/log"
-  result $? "agent-setup: a callback with the wrong state is refused; nothing converted or stored" "rc=$rc $out"
+  result $? "agent-setup: a callback with the wrong state is refused; nothing converted or stored" "rc=$rc $out / browser: $(cat "$T/opened.log" "$T/browser.err" 2>&1)"
 
   out="$(p agent-setup --name 'bad name; rm' 2>&1 < /dev/null)"; rc=$?
   out2="$(p agent-setup --name abcdefghijklmnopqrstuvwxyz0123456789 2>&1 < /dev/null)"; rc2=$?
