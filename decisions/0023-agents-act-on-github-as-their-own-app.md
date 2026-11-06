@@ -1,6 +1,6 @@
 # 0023. Agents act on GitHub as their own GitHub App
 
-- **Status:** proposed
+- **Status:** accepted (blairforce1, 2026-11-06)
 - **Date:** 2026-11-06
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none; amends [0022](0022-no-branch-takes-a-force-push.md)
