@@ -42,6 +42,16 @@
 #   0023  every `git push` runs the same push-args check, which also
 #         refuses a push to an SSH remote (rule 23.1): an agent pushes over
 #         HTTPS as the pap-agent app.
+#         gh run by a path (`/usr/bin/gh`, `./gh`, `~/bin/gh`, also after
+#         env, command or exec) or with a `PATH=` assignment is refused
+#         (rule 23.1): it skips the shim. `command gh` and `env gh` find
+#         the shim on PATH and pass. In every repository, adopting or not,
+#         GH_CONFIG_DIR assigned anywhere in the command (a prefix, env,
+#         export, declare) or named bare after export, declare, typeset,
+#         readonly or local is refused (rule 23.4); unset and env -u pass.
+#         Neither follows bash -c, eval, scripts, a name built from a
+#         variable, or another language's subprocess, and a heredoc line
+#         that assigns it is refused like a command.
 #
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
@@ -220,6 +230,17 @@ targets="$(jq -r '
   | reduce .[] as $seg ({dir: $cwd, lefthook: null, out: []};
       . as $st
       | ($seg | gsub("^\\s+|\\s+$"; "")) as $s
+      # Decision 0023, rule 23.4: GH_CONFIG_DIR assigned anywhere (a prefix,
+      # env, export, declare), or named bare after export and its kin.
+      | ([$s | scan(arg) | .[0] | unquote]) as $w
+      | (if ($w | any(test("^GH_CONFIG_DIR=")))
+            or ((($w[0] // "") | IN("export", "declare", "typeset", "readonly", "local"))
+                and ($w | any(. == "GH_CONFIG_DIR")))
+         then .out += ["ghconfig\t\($st.dir)\tGH_CONFIG_DIR"] else . end)
+      # Rule 23.1: gh run by a path, or with PATH changed, skips the shim.
+      | ([$w[] | select(test("^(env|command|exec|nohup|time|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $h
+      | (if (($h // "") | test("/gh$")) or ($h == "gh" and ($w | any(test("^PATH="))))
+         then .out += ["ghpath\t\($st.dir)\t\($h)"] else . end)
       | if ($s | test("^cd(\\s|$)")) then
           .dir = ((($s | capture("^cd\\s+(?<a>" + arg + ")")? | .a) // "~") | resolve($st.dir))
         else
@@ -279,6 +300,13 @@ labelled() {
 }
 
 while IFS="$tab" read -r kind target reason file; do
+  if [ "$kind" = ghconfig ]; then
+    # In every repository: the owner's sign-in is out of every agent shell.
+    printf 'guard-route: refusing %s set in an agent'"'"'s command in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 23.4: an agent shell carries no owner sign-in; only /pap:reviewed and /pap:accept reach the owner'"'"'s gh directory.\n' >&2
+    status=2
+    continue
+  fi
   root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || continue
   guard="$root/scripts/guard-branch.sh"
   [ -x "$guard" ] || continue
@@ -317,6 +345,11 @@ while IFS="$tab" read -r kind target reason file; do
       [ "$kind" = label ] || labelled "$file" || continue
       printf 'guard-route: refusing the owner-reviewed label (%s) in %s\n' "$reason" "$root" >&2
       printf 'guard-route: decision 0016: the owner adds owner-reviewed after review; an agent never does (rule 16.2).\n' >&2
+      status=2
+      ;;
+    ghpath)
+      printf 'guard-route: refusing gh run as %s, past the pap gh shim, in %s\n' "$reason" "$root" >&2
+      printf 'guard-route: rule 23.1: run gh by name with PATH as it is, so the shim gives it the pap-agent token.\n' >&2
       status=2
       ;;
     merge)

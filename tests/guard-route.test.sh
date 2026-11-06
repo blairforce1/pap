@@ -137,6 +137,40 @@ check 2 "$T/G2" 'git config --local core.HooksPath .no-hooks'
 check 0 "$T/G2" 'git commit -m "skip --no-verify next time"'
 check 0 "$T/G2" "git commit -m 'why LEFTHOOK=0 is refused'"
 check 0 "$T/G2" 'LEFTHOOK_VERBOSE=1 git commit -m x'
+
+# Rule 23.4: GH_CONFIG_DIR set in an agent's command, in every repository.
+for cwd in "$T/G2" "$T/U"; do
+  check 2 "$cwd" 'GH_CONFIG_DIR=/home/x/.config/gh-owner gh pr list'
+  check 2 "$cwd" 'export GH_CONFIG_DIR=/home/x/.config/gh-owner'
+  check 2 "$cwd" 'export GH_CONFIG_DIR'
+  check 2 "$cwd" "export 'GH_CONFIG_DIR=/x' && gh pr list"
+  check 2 "$cwd" 'env GH_CONFIG_DIR=/x gh pr list'
+  check 2 "$cwd" 'declare -x GH_CONFIG_DIR=/x; gh api user'
+  check 2 "$cwd" 'cd /tmp && GH_CONFIG_DIR=/x git push'
+done
+check 0 "$T/G2" 'unset GH_CONFIG_DIR && gh pr list'
+check 0 "$T/G2" 'env -u GH_CONFIG_DIR gh pr list'
+# shellcheck disable=SC2016 # the command is the hook's input, unexpanded
+check 0 "$T/G2" 'echo "$GH_CONFIG_DIR"'
+check 0 "$T/G2" 'GH_CONFIG_DIRS=x gh pr list'
+
+# Rule 23.1: gh by a path or with PATH changed skips the shim, in an
+# adopting repository; command gh and env gh find the shim and pass.
+check 2 "$T/G2" '/usr/bin/gh pr list'
+check 2 "$T/G2" "\"$HOME/.local/share/mise/installs/gh/2.0.0/bin/gh\" pr list"
+# shellcheck disable=SC2088 # the command is the hook's input, unexpanded
+check 2 "$T/G2" '~/bin/gh api user'
+check 2 "$T/G2" './gh pr list'
+check 2 "$T/G2" 'command /usr/bin/gh pr list'
+check 2 "$T/G2" 'env /usr/bin/gh pr list'
+check 2 "$T/G2" 'PATH=/usr/bin gh pr list'
+check 2 "$T/G2" 'env PATH=/usr/bin gh pr list'
+check 2 "$T/G2" 'git status && /usr/bin/gh pr list'
+check 0 "$T/G2" 'gh pr list'
+check 0 "$T/G2" 'command gh pr list'
+check 0 "$T/G2" 'env gh pr list'
+check 0 "$T/G2" 'cat scripts/shim/gh'
+check 0 "$T/U"  '/usr/bin/gh pr list'
 check 0 "$T/G2" 'git push -n origin change/x'
 check 0 "$T/G2" 'git commit -m n'
 check 0 "$T/G2" 'git commit -uno -m x'
