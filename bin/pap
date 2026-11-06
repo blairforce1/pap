@@ -1090,15 +1090,16 @@ cmd_agent_setup() {
     esac
     jq --arg n "$name" '.name = $n' "$root/scripts/pap-agent-manifest.json" > "$work/manifest.json"
     state="$(openssl rand -hex 16)"
-    python3 -c "$a_listener" "$state" "$action" "$work/manifest.json" "${PAP_SETUP_TIMEOUT:-900}" > "$work/listen" &
+    python3 -c "$a_listener" "$state" "$action" "$work/manifest.json" "${PAP_SETUP_TIMEOUT:-900}" > "$work/listen" 2> "$work/listen.err" &
     lpid=$!
     # The listener goes with pap, however pap ends.
     trap 'kill "$lpid" 2>/dev/null; cleanup' EXIT
     trap 'kill "$lpid" 2>/dev/null; cleanup; exit 130' INT TERM
     i=0
-    while [ ! -s "$work/listen" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+    # python3 can take seconds to start on a cold machine.
+    while [ ! -s "$work/listen" ] && [ "$i" -lt 300 ] && kill -0 "$lpid" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
     port="$(sed -n 1p "$work/listen")"
-    [ -n "$port" ] || { kill "$lpid" 2>/dev/null; die "agent-setup: could not listen on a loopback port"; }
+    [ -n "$port" ] || { kill "$lpid" 2>/dev/null; die "agent-setup: could not listen on a loopback port${work:+: $(tail -n 1 "$work/listen.err" 2>/dev/null)}"; }
     say "agent-setup: registering $name for $owner. In the browser, check the name and press Create GitHub App."
     a_open "http://127.0.0.1:$port/"
     lrc=0; wait "$lpid" || lrc=$?

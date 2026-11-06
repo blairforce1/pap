@@ -27,6 +27,9 @@ T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 # git looks for no repository above $T.
 export GIT_CEILING_DIRECTORIES="$T"
+# The machine's system git config (macOS runners set an osxkeychain
+# helper) is not this suite's to read.
+export GIT_CONFIG_NOSYSTEM=1
 
 # The pap under test: a plain copy, neither a release nor a git checkout, so
 # the checkout's own tags (a release tag on main) cannot change what it does.

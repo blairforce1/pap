@@ -29,6 +29,9 @@ done
 T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 export GIT_CEILING_DIRECTORIES="$T"
+# The machine's system git config (macOS runners set an osxkeychain
+# helper) is not this suite's to read.
+export GIT_CONFIG_NOSYSTEM=1
 
 n=0
 failed=0
@@ -197,7 +200,7 @@ result $? "agent-token: refreshes a token with under five minutes left" "tok=$to
 fresh() { rm -rf "$T/run" && mkdir "$T/run"; }
 fresh
 out="$(cd "$T/repo" && FAKE_GH_DOWN=1 sh "$pap" agent-token 2>&1)"; rc=$?
-[ "$rc" = 1 ] && [ "$(printf '%s\n' "$out" | wc -l)" = 1 ] && printf '%s\n' "$out" | grep -q 'GitHub unreachable'
+[ "$rc" = 1 ] && [ "$(printf '%s\n' "$out" | wc -l)" -eq 1 ] && printf '%s\n' "$out" | grep -q 'GitHub unreachable'
 result $? "agent-token: GitHub unreachable, one line, exits 1" "$out"
 
 fresh
@@ -282,7 +285,7 @@ cp "$shim" "$T/copy1/gh"; cp "$shim" "$T/copy2/gh"
 to=""; command -v timeout >/dev/null 2>&1 && to="$(command -v timeout) 10"
 # shellcheck disable=SC2086 # $to is empty or two words on purpose
 out="$(cd "$T/repo" && env PATH="$T/copy1:$T/copy2:$T/repo/scripts/shim:$PATH" $to gh pr list 2>&1)"; rc=$?
-[ "$rc" = 0 ] && [ "$(wc -l < "$T/gh.log")" = 1 ]
+[ "$rc" = 0 ] && [ "$(wc -l < "$T/gh.log")" -eq 1 ]
 result $? "shim: copies of the shim on PATH are skipped; the real gh runs once" "rc=$rc $out"
 
 mkdir "$T/empty"
@@ -374,7 +377,7 @@ EOF
   answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
   (cd "$T/repo" && PAP_BROWSER=true exec sh "$pap" agent-setup < /dev/null > "$T/stopped.out" 2>&1) &
   spid=$!
-  i=0; until grep -q '127.0.0.1' "$T/stopped.out" 2>/dev/null || [ "$i" -ge 50 ]; do sleep 0.1; i=$((i + 1)); done
+  i=0; until grep -q '127.0.0.1' "$T/stopped.out" 2>/dev/null || [ "$i" -ge 300 ]; do sleep 0.1; i=$((i + 1)); done
   kill "$spid" 2>/dev/null; wait "$spid" 2>/dev/null
   sleep 1
   port="$(sed -n 's#.*http://127.0.0.1:\([0-9]*\)/.*#\1#p' "$T/stopped.out")"
