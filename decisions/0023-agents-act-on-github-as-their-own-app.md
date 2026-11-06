@@ -98,7 +98,8 @@ Every GitHub claim below is checked against these pages on 2026-11-06.
   <https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/deciding-when-to-build-a-github-app#choosing-between-a-github-app-or-a-personal-access-token>
 - [S11] Ruleset `bypass_actors`: `actor_type` one of `Integration`,
   `OrganizationAdmin`, `RepositoryRole`, `Team`, `DeployKey`, `User`;
-  `actor_id` required for all but the first two of those; `bypass_mode`
+  `actor_id` "required for Integration, RepositoryRole, Team, and User",
+  ignored for `OrganizationAdmin`, null for `DeployKey`; `bypass_mode`
   `always`, `pull_request` or `exempt`; `OrganizationAdmin` not for
   personal repositories.
   <https://docs.github.com/en/rest/repos/rules?apiVersion=2022-11-28#create-a-repository-ruleset>
@@ -127,11 +128,12 @@ Every GitHub claim below is checked against these pages on 2026-11-06.
   free machine account, "only be used for running a machine".
   <https://docs.github.com/en/site-policy/github-terms/github-terms-of-service#3-account-requirements>
 - [S19] Machine users: a personal account no human uses; only an
-  organisation can restrict one to read-only; for deployment GitHub
-  recommends an app instead.
+  organisation can restrict one to read-only. The same page's deploy-key
+  section recommends an app for deployment instead.
   <https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#machine-users>
 - [S20] Mandatory 2FA selects any account that acts as a contributor;
-  bots and service accounts are not exempt.
+  an organisation's unattended accounts, "such as bots and service
+  accounts", are not exempt.
   <https://docs.github.com/en/authentication/securing-your-account-with-two-factor-authentication-2fa/about-mandatory-two-factor-authentication>
 - [S21] Fine-grained personal access tokens may have no expiry; "for
   long-lived integrations, you should use a GitHub App".
@@ -384,6 +386,18 @@ its job as the early refusal, and the log says who did what.
   whose only writer is the owner that is the owner; a repository with
   other collaborators decides whether the login must also be a
   `CODEOWNERS` owner (open question 4).
+- Limit: the shim is routing, not a boundary. The owner's sign-in stays
+  in the same machine's keyring, so an agent that runs `gh` by its full
+  path, strips `CLAUDECODE` from the environment or sets `PAP_AS_HUMAN`
+  inside a script acts as the owner, and the bypass, the gate and the
+  merge are its again. The hook refuses the forms it can read and not
+  `bash -c`, `eval` or a script, as 0005 and 0022 say of it. What GitHub
+  binds is the identity on the request; the machine is still the
+  owner's, with the SSH key that signs every commit on it. The record is
+  written for the agent that 0022's incident describes, one that does what
+  nothing told it not to, and makes the owner's identity a deliberate
+  step it would have to take on purpose. Open question 8 asks whether the
+  owner wants more than that.
 - Limit: the shim keys on `CLAUDECODE`. Another agent harness without that
   variable pushes as the owner; `pap doctor` cannot see it.
 - Measurement: `labeled` events and pull-request authors per repository,
@@ -411,6 +425,11 @@ its job as the early refusal, and the log says who did what.
    the owner has opted in (a marker file, as `.github/risk.yml` is)?
 7. The devcontainer: mount the key, or keep containers on the human's
    sign-in and out of scope?
+8. Is routing enough (the Limit above), or should the owner's `gh`
+   sign-in live where an agent's shell does not reach it, for example in
+   a `GH_CONFIG_DIR` the owner's interactive shell sets and `claude` is
+   started without? That makes `/pap:reviewed` and `/pap:accept` ask for
+   it on each use, and is a change to the owner's day, not the agent's.
 
 ## Where it is taught or enforced
 
