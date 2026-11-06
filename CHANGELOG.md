@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.13.0] - 2026-11-06
+
 #### Added
 
 - `pap doctor` checks git, `gh` and its sign-in, `jq`, the `claude` CLI,
