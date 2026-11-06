@@ -1,0 +1,84 @@
+#!/bin/sh
+# pap-gh-shim: the base layer's gh, first on PATH through
+# .config/mise/conf.d/base.toml (decision 0023, rule 23.1).
+#
+# In an agent session (CLAUDECODE set, which Claude Code sets in every Bash
+# call and a person's terminal never has) inside a repository that adopts
+# PAP (an executable scripts/guard-branch.sh, the hook's own test), it sets
+# GH_TOKEN to a pap-agent installation token from `pap agent-token` and runs
+# the real gh, so the call shows as pap-agent[bot]. git pushes over HTTPS go
+# through `gh auth git-credential`, so they come here too.
+#
+# When minting fails it names the reason and exits 1: it never runs gh with
+# a stored sign-in instead. Everywhere else it runs the real gh unchanged.
+# In a dev container (/.dockerenv or REMOTE_CONTAINERS) with no key it steps
+# aside by decision 0023 point 5: the container keeps the human's sign-in.
+#
+# The real gh is the first gh on PATH that is not a copy of this shim (each
+# carries the pap-gh-shim marker on line 2), so it never runs itself.
+
+set -u
+
+real=""
+IFS_was="$IFS"
+IFS=:
+for d in $PATH; do
+  [ -n "$d" ] && [ -x "$d/gh" ] && [ ! -d "$d/gh" ] || continue
+  # Builtins only: a missing external tool must not hide the marker, or the
+  # shim would exec itself for ever.
+  l2=""
+  { read -r _ && read -r l2; } < "$d/gh" 2>/dev/null || true
+  case "$l2" in "# pap-gh-shim:"*) continue ;; esac
+  real="$d/gh"
+  break
+done
+IFS="$IFS_was"
+if [ -z "$real" ]; then
+  printf 'gh (pap shim): no gh on PATH besides this shim; run mise install\n' >&2
+  exit 127
+fi
+
+agent=false
+if [ -n "${CLAUDECODE:-}" ] && top="$(git rev-parse --show-toplevel 2>/dev/null)" &&
+  [ -x "$top/scripts/guard-branch.sh" ]; then
+  agent=true
+fi
+[ "$agent" = true ] || exec "$real" "$@"
+
+# pap itself: this checkout's bin/pap when the shim is pap's own, else the
+# pap on PATH (the base layer pins it through mise).
+here="$(cd "$(dirname "$0")" && pwd -P)"
+if [ -x "$here/../../bin/pap" ] && [ -d "$here/../../templates/base" ]; then
+  pap="$here/../../bin/pap"
+elif command -v pap >/dev/null 2>&1; then
+  pap=pap
+else
+  printf 'gh (pap shim): pap is not on PATH, so no pap-agent token; run mise install. Not falling back to a stored sign-in (rule 23.1)\n' >&2
+  exit 1
+fi
+
+if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
+  # Exit 1 is "no key"; a key without a client id still mints, and fails.
+  "$pap" agent-key status >/dev/null 2>&1
+  [ $? != 1 ] || exec "$real" "$@"
+fi
+
+# The token is agent-token's stdout; its stderr, the reason on failure, goes
+# to a file of its own so no warning on stderr can end up in GH_TOKEN.
+err="$(mktemp)" || { printf 'gh (pap shim): cannot make a temporary file. Not falling back to a stored sign-in (rule 23.1)\n' >&2; exit 1; }
+out="$("$pap" agent-token 2>"$err")"
+rc=$?
+reason="$(sed -n '$p' "$err" | sed 's/^pap: agent-token: //; s/^pap: //')"
+rm -f "$err"
+case "$out" in
+  "" | *[!A-Za-z0-9_.-]*) [ "$rc" != 0 ] || { rc=1; reason="pap agent-token printed something that is not a token"; } ;;
+esac
+if [ "$rc" != 0 ]; then
+  # 64 is pap's usage exit: a pap from before agent-token.
+  [ "$rc" != 64 ] || reason="this pap has no agent-token; run mise install to get the pinned pap"
+  printf 'gh (pap shim): %s. Not falling back to a stored sign-in (rule 23.1)\n' "$reason" >&2
+  exit 1
+fi
+GH_TOKEN="$out"
+export GH_TOKEN
+exec "$real" "$@"

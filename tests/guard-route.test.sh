@@ -30,6 +30,10 @@ done
 # /private/var), and git and pwd report the resolved path.
 T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
+# The machine's git config is not this suite's: a global insteadOf
+# rewrite, for one, turns the SSH remotes below into HTTPS ones.
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL="$T/gitconfig"
+: > "$GIT_CONFIG_GLOBAL"
 
 mkrepo() {
   git init -q -b main "$1"
@@ -281,6 +285,47 @@ mkrepo "$T/O" && mkdir -p "$T/O/scripts" && git -C "$T/O" switch -q -c change/x
 sed 's/^  push-args)$/  push-args-not-here)/' "$guard" > "$T/O/scripts/guard-branch.sh"
 chmod +x "$T/O/scripts/guard-branch.sh"
 check 0 "$T/O" 'git push --force'
+
+# Rule 23.1, decision 0023: an agent's push to an SSH remote is refused,
+# named or by default, and the HTTPS fix is named. S is on change/x with
+# an SSH origin and an HTTPS remote beside it; U is not guarded.
+mkrepo "$T/S" && adopt "$T/S" && git -C "$T/S" switch -q -c change/x
+git -C "$T/S" remote add origin git@github.com:example-owner/example-repo.git
+git -C "$T/S" remote add https https://github.com/example-owner/example-repo.git
+git -C "$T/S" remote add scheme ssh://git@github.com/example-owner/example-repo.git
+check 2 "$T/S" 'git push'
+check 2 "$T/S" 'git push -u origin change/x'
+check 2 "$T/S" 'git push scheme change/x'
+check 2 "$T/S" 'git push git@github.com:example-owner/example-repo.git change/x'
+check 2 "$T/U" "git -C $T/S push origin change/x"
+git -C "$T/S" config branch.change/x.pushRemote origin
+check 2 "$T/S" 'git push'
+git -C "$T/S" config --unset branch.change/x.pushRemote
+# Near misses: an HTTPS remote, an HTTPS URL, a local path, an unguarded
+# repository with an SSH origin.
+check 0 "$T/S" 'git push https change/x'
+check 0 "$T/S" 'git push https://github.com/example-owner/example-repo.git change/x'
+check 0 "$T/S" "git push $T/elsewhere.git change/x"
+git -C "$T/S" config branch.change/x.pushRemote https
+check 0 "$T/S" 'git push'
+git -C "$T/S" config --unset branch.change/x.pushRemote
+mkrepo "$T/US" && git -C "$T/US" remote add origin git@github.com:example-owner/example-repo.git
+check 0 "$T/US" 'git push origin main'
+# With the insteadOf rewrite pap agent-setup offers, an SSH origin pushes
+# over HTTPS, so the push passes.
+git config --global url.https://github.com/.insteadOf git@github.com:
+check 0 "$T/S" 'git push -u origin change/x'
+: > "$GIT_CONFIG_GLOBAL"
+# The refusal names the fix.
+n=$((n + 1))
+msg="$(jq -nc --arg d "$T/S" '{tool_name: "Bash", cwd: $d, tool_input: {command: "git push"}}' | "$router" 2>&1 >/dev/null)"
+if printf '%s\n' "$msg" | grep -qF 'git remote set-url origin https://github.com/example-owner/example-repo.git'; then
+  printf 'ok %d - SSH push refusal names the set-url fix\n' "$n"
+else
+  printf 'not ok %d - SSH push refusal names the set-url fix\n' "$n"
+  printf '%s\n' "$msg" | sed 's/^/# /'
+  failed=$((failed + 1))
+fi
 
 # Without jq the router cannot parse; it complains only where the session's
 # own repository is guarded, and never blocks.

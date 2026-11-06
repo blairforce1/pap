@@ -430,6 +430,20 @@ answers are the points above.
 - Follow-up: dated notes on 0016 and 0022 when this record is accepted;
   rules 23.1 to 23.4 are enforced by nothing until the slices ship, and
   each names its check.
+  Note (2026-11-06): the first slice shipped `pap agent-setup`, which
+  registers the app from a manifest under the name `<owner>-pap-agent`
+  (here `blairforce1-pap-agent`), not `pap-agent`: each adopter registers
+  an app of its own, and app names are global on GitHub. Where this record
+  says `pap-agent` and `pap-agent[bot]`, read that name. The slice's live
+  check, on a throwaway pull request in pap, confirmed the two points it
+  was to try. (i) With Pull requests write and no Issues permission, the
+  app added and removed a label and added and deleted a comment; Issues
+  write stays off. (ii) A commit authored and SSH-signed by the owner and
+  pushed with the app's token shows verified (`valid`); the pusher is not
+  part of the commit. Every act there showed the app,
+  `blairforce1-pap-agent[bot]` with type Bot: the branch's push, the pull
+  request's author, the `labeled` and `unlabeled` events, the comment and
+  the close. This record's status is unchanged.
 
 ## Where it is taught or enforced
 

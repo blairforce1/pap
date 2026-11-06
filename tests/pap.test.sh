@@ -27,6 +27,9 @@ T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 # git looks for no repository above $T.
 export GIT_CEILING_DIRECTORIES="$T"
+# The machine's system git config (macOS runners set an osxkeychain
+# helper) is not this suite's to read.
+export GIT_CONFIG_NOSYSTEM=1
 
 # The pap under test: a plain copy, neither a release nor a git checkout, so
 # the checkout's own tags (a release tag on main) cannot change what it does.
@@ -74,6 +77,16 @@ EOF
 chmod +x "$T/stub/mise"
 export STUB_LOG="$T/mise.log" STUB_LS="$T/ls.json" PAP_SOURCE="$T/src"
 export MISE_DATA_DIR="$T/misedata"
+# Decision 0023's agent app, as doctor sees it: a key in a fake keyring, a
+# client id in a config under $T, GitHub at an address only the fake curl
+# answers, and no global git config of the machine's.
+export XDG_CONFIG_HOME="$T/xdg" XDG_RUNTIME_DIR="$T/run" FAKE_KEYRING="$T/keyring" FAKE_GH="$T/fakegh"
+export PAP_GITHUB_API=http://github.invalid GIT_CONFIG_GLOBAL="$T/gitconfig"
+unset REMOTE_CONTAINERS 2>/dev/null || true
+mkdir -p "$T/xdg/pap" "$T/run" "$T/fakegh"
+printf 'client_id=Iv1.example\n' > "$T/xdg/pap/agent.conf"
+printf 'not a real key\n' > "$FAKE_KEYRING"
+: > "$GIT_CONFIG_GLOBAL"
 PATH="$T/stub:$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'mise/shims' | paste -sd: -)"
 export PATH
 
@@ -86,7 +99,8 @@ out="$(run init --version 0.1.0 base dotnet go)"; rc=$?
 result "$rc" "init: exits 0 on an empty repository" "$out"
 [ -f "$T/app/.editorconfig" ] && [ -f "$T/app/global.json" ] && [ -f "$T/app/.golangci.yml" ]
 result $? "init: every layer's files written"
-[ ! -e "$T/app/README.md" ] && [ -f "$T/app/scripts/guard-branch.sh" ] && [ ! -L "$T/app/scripts/guard-branch.sh" ]
+[ ! -e "$T/app/README.md" ] && [ -f "$T/app/scripts/guard-branch.sh" ] && [ ! -L "$T/app/scripts/guard-branch.sh" ] &&
+  [ -x "$T/app/scripts/shim/gh" ] && [ ! -L "$T/app/scripts/shim/gh" ]
 result $? "init: layer READMEs left out, symlinks dereferenced"
 grep -qx 'version = "0.1.0"' "$T/app/.config/pap.toml" &&
   grep -qx 'layers = \["base", "dotnet", "go"\]' "$T/app/.config/pap.toml"
@@ -296,6 +310,18 @@ case "$*" in
 esac
 EOF
 printf '#!/bin/sh\nexit 0\n' > "$T/tools/jq"
+# The keyrings: secret-tool reads the fake keyring; security answers its
+# base64, as pap stores it on macOS. openssl is the machine's (it decodes
+# that base64 and touches nothing else); curl is never reached here.
+cat > "$T/tools/secret-tool" <<'EOF'
+#!/bin/sh
+[ "$1" = lookup ] && [ -s "$FAKE_KEYRING" ] && cat "$FAKE_KEYRING"
+EOF
+cat > "$T/tools/security" <<'EOF'
+#!/bin/sh
+[ -s "$FAKE_KEYRING" ] && openssl base64 -A < "$FAKE_KEYRING"
+EOF
+printf '#!/bin/sh\nexit 7\n' > "$T/tools/curl"
 printf '#!/bin/sh\nexit 0\n' > "$T/tools/flock"
 printf '#!/bin/sh\necho Linux\n' > "$T/linux/uname"
 printf '#!/bin/sh\necho Darwin\n' > "$T/mac/uname"
@@ -307,7 +333,8 @@ for f in sudo apt-get apt dnf brew; do
   printf '#!/bin/sh\necho "FORBIDDEN %s $*" >> "$STUB_LOG"\n' "$f" > "$T/forbid/$f"
 done
 chmod +x "$T"/tools/* "$T"/linux/* "$T"/mac/* "$T"/apt/* "$T"/dnf/* "$T"/forbid/*
-for c in sh git cut grep awk sed cat head tr dirname basename env; do
+ln -s "$(command -v openssl)" "$T/tools/openssl"
+for c in sh git cut grep awk sed cat head tr dirname basename env date id mkdir chmod mv ls rm mktemp tail; do
   ln -s "$(command -v "$c")" "$T/sys/$c"
   [ "$c" = git ] || ln -s "$(command -v "$c")" "$T/sysnogit/$c"
 done
@@ -386,9 +413,9 @@ missing() {
   result $? "$label" "$out"
 }
 mkdir "$T/nogh" "$T/nojq" "$T/noclaude" "$T/noflock"
-for t in gh jq claude flock; do
+for t in gh jq claude flock secret-tool security openssl curl; do
   for d in nogh nojq noclaude noflock; do
-    [ "$d" = "no$t" ] || cp "$T/tools/$t" "$T/$d/"
+    [ "$d" = "no$t" ] || cp -P "$T/tools/$t" "$T/$d/"
   done
 done
 
@@ -432,6 +459,95 @@ missing "doctor: git missing, with the apt command; the repository checks skippe
 printf '%s\n' "$out" | grep -qF 'skipped  git hooks and settings  (no git)' &&
   printf '%s\n' "$out" | grep -qF 'skipped  pinned tools  (no git'
 result $? "doctor: git missing skips the hooks and the pins" "$out"
+
+# --- doctor: the agent app (decision 0023) -----------------------------------
+
+# $T/agent: the real jq and a fake curl that is GitHub, ahead of the stubs.
+mkdir "$T/agent"
+ln -s "$(command -v jq)" "$T/agent/jq"
+cat > "$T/agent/curl" <<'EOF'
+#!/bin/sh
+cat >/dev/null
+out="" url=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out="$2"; shift 2 ;;
+    -X | -w | -H | --connect-timeout | --max-time | --config) shift 2 ;;
+    -*) shift ;;
+    *) url="$1"; shift ;;
+  esac
+done
+f="$FAKE_GH/$(printf '%s' "${url#http://github.invalid/}" | tr '/' '_')"
+if [ -f "$f" ]; then head -n 1 "$f" | tr -d '\n'; tail -n +2 "$f" > "$out"
+else printf 404; echo '{"message":"Not Found"}' > "$out"; fi
+EOF
+chmod +x "$T/agent/curl"
+apath="$T/stub:$T/agent:$T/tools:$T/linux:$T/sys"
+was_origin="$(git -C "$T/app" remote get-url origin)"
+openssl genrsa -out "$FAKE_KEYRING" 2048 2>/dev/null
+
+out="$(doctor MISE_SHELL=bash)"; rc=$?
+[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qF 'ok       key in the keyring  (secret-tool)' &&
+  printf '%s\n' "$out" | grep -qF 'skipped  origin, credential helper, installation  (origin is not on GitHub)'
+result $? "doctor, agent app: key and client id ok, a non-GitHub origin skips the rest" "$out"
+
+git -C "$T/app" remote set-url origin git@github.com:example-owner/app.git
+printf '200\n{"id":4242}\n' > "$FAKE_GH/users_example-owner_installation"
+printf '201\n{"token":"ghs_fake","expires_at":"%s"}\n' "$(jq -nr 'now + 3600 | floor | todate')" \
+  > "$FAKE_GH/app_installations_4242_access_tokens"
+git config --file "$GIT_CONFIG_GLOBAL" credential.https://github.com.helper '!/opt/gh/bin/gh auth git-credential'
+out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
+[ "$rc" = 1 ] &&
+  printf '%s\n' "$out" | grep -qF 'missing  origin is HTTPS  (git remote set-url origin https://github.com/example-owner/app.git)' &&
+  printf '%s\n' "$out" | grep -qF "drift    gh is git's credential helper for github.com  (it calls !/opt/gh/bin/gh by path, past the shim" &&
+  printf '%s\n' "$out" | grep -qF 'ok       pap-agent installed on example-owner  (a token mints)'
+result $? "doctor, agent app: an SSH origin with the set-url fix, a helper by path, the installation" "$out"
+out="$(fixdoctor MISE_SHELL=bash PATH="$apath")"
+[ "$(git -C "$T/app" remote get-url origin)" = git@github.com:example-owner/app.git ] &&
+  ! grep -qi insteadof "$GIT_CONFIG_GLOBAL" &&
+  printf '%s\n' "$out" | grep -qF 'warn     SSH GitHub URLs read as HTTPS  (git config --global --add url."https://github.com/".insteadOf git@github.com:'
+result $? "doctor --fix: never changes the remote nor writes the insteadOf rewrite; reports it with the commands" "$out"
+
+git -C "$T/app" remote set-url origin https://github.com/example-owner/app.git
+git config --file "$GIT_CONFIG_GLOBAL" credential.https://github.com.helper '!gh auth git-credential'
+out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
+[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qF 'ok       origin is HTTPS' &&
+  printf '%s\n' "$out" | grep -qF "ok       gh is git's credential helper for github.com"
+result $? "doctor, agent app: HTTPS origin and gh by name as the helper; exits 0" "$out"
+git config --file "$GIT_CONFIG_GLOBAL" --add credential.helper store
+out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
+[ "$rc" = 1 ] && printf '%s\n' "$out" | grep -qF "drift    gh is git's credential helper for github.com  (other helpers are asked too"
+result $? "doctor, agent app: another helper beside gh is drift, a stored credential could answer first" "$out"
+# A general helper first, then github.com's reset and gh, as gh auth
+# setup-git writes them. A helper after gh would still be asked when the
+# shim refuses, so order matters.
+cat > "$GIT_CONFIG_GLOBAL" <<'EOF'
+[credential]
+  helper = store
+[credential "https://github.com"]
+  helper =
+  helper = !gh auth git-credential
+EOF
+out="$(doctor MISE_SHELL=bash PATH="$apath")"
+printf '%s\n' "$out" | grep -qF "ok       gh is git's credential helper for github.com"
+result $? "doctor, agent app: an empty helper before gh clears the others, as gh auth setup-git writes it" "$out"
+
+rm -rf "$T/run" && mkdir "$T/run"
+git -C "$T/app" remote set-url origin https://github.com/other-owner/app.git
+missing "doctor, agent app: no installation for the owner names it" \
+  'missing  pap-agent installed on other-owner  (pap-agent is not installed on other-owner' PATH="$apath"
+
+: > "$FAKE_KEYRING"
+missing "doctor, agent app: a missing key names the import" \
+  'missing  key in the keyring  (pap agent-key import <pem> --client-id <id>' PATH="$apath"
+out="$(doctor MISE_SHELL=bash PATH="$apath" REMOTE_CONTAINERS=true)"
+printf '%s\n' "$out" | grep -qF 'skipped  key in the keyring  (dev container: the gh shim steps aside and gh keeps your sign-in, by decision 0023)'
+result $? "doctor, agent app: a dev container with no key says the shim steps aside" "$out"
+
+# Back as the cases below expect it.
+git -C "$T/app" remote set-url origin "$was_origin"
+printf 'not a real key\n' > "$FAKE_KEYRING"
+: > "$GIT_CONFIG_GLOBAL"
 
 # --- doctor --fix --------------------------------------------------------------
 

@@ -10,6 +10,9 @@
 #        pap revisits
 #        pap coverage
 #        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
+#        pap agent-key import <pem> [--client-id <id>] | status
+#        pap agent-token [--owner <login>]
+#        pap agent-setup [--owner <login>] [--name <app-name>]
 #        pap version
 #
 # init    Applies base plus the named layers (dotnet, go, risk) to the repository at
@@ -34,7 +37,12 @@
 #         pap and spec-review plugins, flock (a warning only), this
 #         configuration trusted, the git hooks installed,
 #         blame.ignoreRevsFile set, and every pinned tool installed at its
-#         pin. Each item is ok, missing, drift, warn or skipped, and a
+#         pin. In a repository that adopts PAP, decision 0023's agent app:
+#         openssl and curl, the key in the keyring, the client id, an
+#         HTTPS origin (an SSH one is reported with the set-url fix and
+#         never changed), gh by name as git's credential helper for
+#         github.com, and a token minting for origin's owner; in a dev
+#         container with no key the shim steps aside, by decision. Each item is ok, missing, drift, warn or skipped, and a
 #         failing one names the command that fixes it on this platform
 #         (Linux with apt or dnf, macOS with Homebrew; WSL is Linux); exits
 #         1 unless every item is ok, warn or skipped. Also counts local
@@ -75,6 +83,43 @@
 #         or not-down; it prints confirmed, refuted, inconclusive, held,
 #         broken or cannot run. Always exits 0 after its arguments parse:
 #         it reports and never writes a record.
+#
+# agent-key
+#         Decision 0023: the pap-agent GitHub App's private key. import
+#         stores the PEM file's key in the OS keyring (secret-tool on Linux,
+#         the login keychain through `security` on macOS) and the app's
+#         client id in pap's user config, prints nothing secret, and tells
+#         you to delete the file. status says whether the key is there and
+#         what the config holds; it exits 0 when key and client id are there,
+#         1 with no key, 2 with a key and no client id.
+#         The config is not secret: $XDG_CONFIG_HOME/pap/agent.conf
+#         (default ~/.config) on Linux, and on macOS when XDG_CONFIG_HOME
+#         is set; otherwise ~/Library/Application Support/pap/agent.conf. It holds client_id=<id> and one
+#         installation.<owner>=<id> line per owner, filled on first use.
+# agent-token
+#         Decision 0023: prints an installation token of pap-agent for the
+#         repository owner (--owner, else the owner in origin's GitHub URL).
+#         Signs a JWT (RS256, iss the client id, ten minutes) with openssl,
+#         the machine's, which the base layer does not pin, and exchanges it
+#         through curl. Caches token and expiry at mode 0600 in
+#         $XDG_RUNTIME_DIR/pap-agent-<uid>/ (macOS: $TMPDIR, per user) and
+#         reuses it while more than five minutes remain. Never prints the
+#         key or the JWT. Fails with one line naming the reason: no key, no
+#         client id, no installation for the owner, GitHub unreachable or
+#         refusing. PAP_GITHUB_API overrides https://api.github.com.
+# agent-setup
+#         Decision 0023's one-time setup, by GitHub's manifest flow
+#         (docs/account-setup.md): registers the app (default name
+#         <owner>-pap-agent) from scripts/pap-agent-manifest.json through a
+#         browser form served on a loopback port, takes the redirect's code
+#         (state checked), converts it and puts the key straight into the
+#         keyring, never on disk or the screen. Then opens the install page
+#         and confirms the installation with the app's JWT, offers (y/N) to
+#         switch an SSH origin to HTTPS and (y/N) to add the global
+#         url.https://github.com/.insteadOf rewrite of GitHub's SSH URLs,
+#         and prints doctor's agent-app
+#         items. With a key already here it skips registration. Needs
+#         python3 for the hand-off; PAP_BROWSER names the browser command.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -127,7 +172,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,13p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,16p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -436,6 +481,92 @@ how() {
   printf '%s' "$4"
 }
 
+# d_agent: doctor's agent-app items (decision 0023), for doctor and
+# agent-setup. Needs d_os, has_git and top.
+d_agent() {
+  # Decision 0023: what the gh shim needs to act as pap-agent. Only in a
+  # repository that adopts PAP, which is where the shim acts.
+  if [ "$has_git" = false ] || [ ! -x "$top/scripts/guard-branch.sh" ]; then
+    item skipped "agent app" "this repository does not adopt PAP"
+  else
+    a_cf="$(a_config)"
+    in_box=false
+    if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then in_box=true; fi
+    a_tools=true
+    for c in openssl curl; do
+      if command -v "$c" >/dev/null 2>&1; then
+        item ok "$c on PATH" "the machine's; the base layer does not pin it"
+      else
+        a_tools=false
+        item missing "$c on PATH" "$(how "$c" "$c" "$c" "https://github.com/$c/$c")"
+      fi
+    done
+    kr="$(a_keyring)"
+    a_key=false
+    if has_key; then
+      a_key=true
+      item ok "key in the keyring" "$kr"
+    elif [ "$in_box" = true ]; then
+      item skipped "key in the keyring" "dev container: the gh shim steps aside and gh keeps your sign-in, by decision 0023"
+    elif ! command -v "$kr" >/dev/null 2>&1; then
+      a_tools=false
+      item missing "$kr on PATH" "$(how libsecret-tools libsecret "" https://wiki.gnome.org/Projects/Libsecret)"
+    else
+      item missing "key in the keyring" "pap agent-key import <pem> --client-id <id>; see docs/account-setup.md"
+    fi
+    cid="$(conf_get client_id)"
+    if [ -n "$cid" ]; then
+      item ok "client id in pap's config" "$a_cf"
+    elif [ "$in_box" = false ] || [ "$a_key" = true ]; then
+      item missing "client id in pap's config" "pap agent-key import <pem> --client-id <id>"
+    fi
+    # The global rewrite of SSH GitHub URLs to HTTPS: offered by
+    # agent-setup, reported here, never written by doctor.
+    if a_rewritten; then
+      item ok "SSH GitHub URLs read as HTTPS" "url.https://github.com/.insteadOf"
+    else
+      item warn "SSH GitHub URLs read as HTTPS" "$(a_rewrite_cmds | awk '{ printf "%s%s", (NR > 1 ? "; " : ""), $0 }')"
+    fi
+    url="$(git remote get-url origin 2>/dev/null || true)"
+    if ! slug="$(gh_slug "$url")"; then
+      item skipped "origin, credential helper, installation" "origin is not on GitHub"
+    else
+      owner="${slug%%/*}"
+      case "$url" in
+        https://*) item ok "origin is HTTPS" ;;
+        # Reported, never changed: doctor --fix leaves remotes alone.
+        *) item missing "origin is HTTPS" "git remote set-url origin https://github.com/$slug.git" ;;
+      esac
+      # The helpers git asks for github.com, in order: every credential.helper
+      # and credential.https://github.com.helper value across the config
+      # files, an empty value clearing those before it. Only gh, by name,
+      # may be left: an earlier helper with a stored credential would answer
+      # before the shim is asked.
+      helper="$(git config --get-regexp '^credential\.(https://github\.com/?\.)?helper$' 2>/dev/null |
+        awk '{ sub(/^[^ ]* ?/, ""); if ($0 == "") n = 0; else h[++n] = $0 }
+             END { for (i = 1; i <= n; i++) printf "%s%s", (i > 1 ? "\n" : ""), h[i] }' || true)"
+      reset="git config --global --replace-all credential.https://github.com.helper '' && git config --global --add credential.https://github.com.helper '!gh auth git-credential'"
+      case "$helper" in
+        '!gh auth git-credential') item ok "gh is git's credential helper for github.com" ;;
+        *"
+"*) item drift "gh is git's credential helper for github.com" "other helpers are asked too, so a stored credential can answer first: $reset" ;;
+        *'gh auth git-credential') item drift "gh is git's credential helper for github.com" "it calls ${helper%% auth git-credential} by path, past the shim: $reset" ;;
+        *) item missing "gh is git's credential helper for github.com" "$reset" ;;
+      esac
+      if [ "$a_key" = true ] && [ -n "$cid" ] && [ "$a_tools" = true ]; then
+        workdir
+        if err="$( (cmd_agent_token --owner "$owner") 2>&1 >/dev/null)"; then
+          item ok "pap-agent installed on $owner" "a token mints"
+        else
+          item missing "pap-agent installed on $owner" "${err#pap: agent-token: }"
+        fi
+      elif [ "$in_box" = false ]; then
+        item skipped "pap-agent installed on $owner" "needs the key, the client id, openssl and curl"
+      fi
+    fi
+  fi
+}
+
 cmd_doctor() {
   fix=false
   [ "${1:-}" != --fix ] || { fix=true; shift; }
@@ -593,6 +724,9 @@ EOF
     [ "$pinned" -gt 0 ] || item skipped "pinned tools" "nothing pinned here"
   fi
 
+  say "" "agent app (decision 0023)"
+  d_agent
+
   say ""
   if [ "$d_bad" -eq 0 ]; then
     say "This machine is ready."
@@ -600,6 +734,468 @@ EOF
     say "$d_bad item(s) need attention."
     exit 1
   fi
+}
+
+# agent ----------------------------------------------------------------------
+# Decision 0023: the pap-agent GitHub App. Nothing here prints the key or a
+# JWT; only agent-token prints a token, and only on stdout.
+
+a_api="${PAP_GITHUB_API:-https://api.github.com}"
+a_service=pap-agent
+a_account=private-key
+
+a_mac() { [ "$(uname -s 2>/dev/null)" = Darwin ]; }
+a_config() {
+  if a_mac && [ -z "${XDG_CONFIG_HOME:-}" ]; then printf '%s/Library/Application Support/pap/agent.conf' "$HOME"
+  else printf '%s/pap/agent.conf' "${XDG_CONFIG_HOME:-$HOME/.config}"; fi
+}
+a_keyring() { if a_mac; then echo security; else echo secret-tool; fi; }
+a_cachedir() { base="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"; printf '%s/pap-agent-%s' "${base%/}" "$(id -u)"; }
+
+conf_get() { # conf_get <key>: the last value of <key>, or nothing
+  [ -f "$a_cf" ] || return 0
+  awk -v k="$1" 'index($0, k "=") == 1 { v = substr($0, length(k) + 2) } END { if (v != "") print v }' "$a_cf"
+}
+conf_set() { # conf_set <key> <value>
+  mkdir -p "$(dirname "$a_cf")"
+  { [ ! -f "$a_cf" ] || awk -v k="$1" 'index($0, k "=") != 1' "$a_cf"; printf '%s=%s\n' "$1" "$2"; } > "$a_cf.tmp"
+  mv "$a_cf.tmp" "$a_cf"
+}
+conf_unset() { # conf_unset <key>
+  [ -f "$a_cf" ] || return 0
+  awk -v k="$1" 'index($0, k "=") != 1' "$a_cf" > "$a_cf.tmp" && mv "$a_cf.tmp" "$a_cf"
+}
+
+# key_lookup: prints the PEM on stdout, for a pipe; exits 1 with none.
+key_lookup() {
+  command -v "$(a_keyring)" >/dev/null 2>&1 || return 1
+  if a_mac; then
+    b64="$(security find-generic-password -s "$a_service" -a "$a_account" -w 2>/dev/null)" || return 1
+    [ -n "$b64" ] || return 1
+    printf '%s\n' "$b64" | openssl base64 -d -A
+  else
+    secret-tool lookup service "$a_service" key "$a_account" 2>/dev/null
+  fi
+}
+has_key() { [ -n "$(key_lookup 2>/dev/null | head -c 64)" ]; }
+
+# key_store < <pem>: the key goes in on stdin, never on a command line.
+key_store() {
+  if a_mac; then
+    # security -i reads its command from stdin, so the value is never in
+    # argv; base64 keeps the PEM on one line.
+    b64="$(openssl base64 -A)"
+    printf 'add-generic-password -U -s %s -a %s -l "pap-agent private key" -w %s\n' \
+      "$a_service" "$a_account" "$b64" | security -i >/dev/null
+  else
+    secret-tool store --label='pap-agent private key' service "$a_service" key "$a_account"
+  fi
+}
+
+# gh_slug <url>: owner/repo for a GitHub remote URL, HTTPS or SSH.
+gh_slug() {
+  case "$1" in
+    https://github.com/*) s="${1#https://github.com/}" ;;
+    git@github.com:*) s="${1#git@github.com:}" ;;
+    ssh://git@github.com/*) s="${1#ssh://git@github.com/}" ;;
+    *) return 1 ;;
+  esac
+  s="${s%/}"; s="${s%.git}"
+  case "$s" in */*/* | /* | */) return 1 ;; */*) printf '%s\n' "$s" ;; *) return 1 ;; esac
+}
+origin_slug() { gh_slug "$(git remote get-url origin 2>/dev/null || true)"; }
+valid_owner() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9-]{0,38}$'; }
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+
+# a_jwt <client id>: the app's JWT on stdout. iat a minute back for clock
+# drift, exp ten minutes after iat, so under ten minutes from now ([S3]).
+a_jwt() {
+  now="$(date +%s)"; iat=$((now - 60)); exp=$((iat + 600))
+  h="$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)"
+  p="$(printf '{"iat":%s,"exp":%s,"iss":"%s"}' "$iat" "$exp" "$1" | b64url)"
+  workdir
+  printf '%s.%s' "$h" "$p" > "$work/jwt-input"
+  # The key reaches openssl on stdin; the signed input, not secret, in a file.
+  sig="$(key_lookup | openssl dgst -sha256 -sign /dev/stdin "$work/jwt-input" | b64url)"
+  [ -n "$sig" ] || return 1
+  printf '%s.%s.%s\n' "$h" "$p" "$sig"
+}
+
+# a_call <method> <path> <jwt>: sets a_code and leaves the body in
+# $work/resp. The JWT goes to curl on stdin, never in argv. Dies when
+# GitHub cannot be reached.
+a_call() {
+  workdir
+  if ! a_code="$(printf 'header = "Authorization: Bearer %s"\n' "$3" |
+    curl -sS -X "$1" -o "$work/resp" -w '%{http_code}' --config - \
+      -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+      --connect-timeout 10 --max-time 30 "$a_api$2" 2>/dev/null)"; then
+    die "agent-token: GitHub unreachable at $a_api; check the network and try again"
+  fi
+}
+a_refused() { # a_refused <what>: dies naming GitHub's status and message
+  msg="$(jq -r '.message? // empty' "$work/resp" 2>/dev/null || true)"
+  die "agent-token: GitHub refused $1 (HTTP $a_code${msg:+: $msg})"
+}
+
+# a_installation <owner> <jwt>: the installation id for <owner>, from the
+# config or, the first time, from GitHub, then kept in the config.
+a_installation() {
+  id="$(conf_get "installation.$1")"
+  if [ -z "$id" ]; then
+    for kind in users orgs; do
+      a_call GET "/$kind/$1/installation" "$2"
+      [ "$a_code" = 404 ] || break
+    done
+    [ "$a_code" != 404 ] || die "agent-token: pap-agent is not installed on $1; install it there with this repository selected"
+    [ "$a_code" = 200 ] || a_refused "the installation lookup for $1"
+    id="$(jq -r '.id // empty' "$work/resp")"
+    [ -n "$id" ] || die "agent-token: GitHub's installation answer for $1 had no id"
+    conf_set "installation.$1" "$id"
+  fi
+  printf '%s\n' "$id"
+}
+
+a_prereqs() { # the commands agent-token needs, each a one-line error
+  for c in openssl curl jq "$(a_keyring)"; do
+    command -v "$c" >/dev/null 2>&1 || die "agent-token: $c is not on PATH; pap doctor names the install command"
+  done
+}
+
+cmd_agent_key() {
+  a_cf="$(a_config)"
+  sub="${1:-}"; [ $# -eq 0 ] || shift
+  case "$sub" in
+    import)
+      pem="" cid=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --client-id) [ $# -ge 2 ] || usage; cid="$2"; shift 2 ;;
+          -*) usage ;;
+          *) [ -z "$pem" ] || usage; pem="$1"; shift ;;
+        esac
+      done
+      [ -n "$pem" ] || usage
+      [ -f "$pem" ] || die "agent-key: no file $pem"
+      for c in openssl "$(a_keyring)"; do
+        command -v "$c" >/dev/null 2>&1 || die "agent-key: $c is not on PATH; pap doctor names the install command"
+      done
+      openssl pkey -in "$pem" -noout 2>/dev/null || die "agent-key: $pem is not a private key openssl can read"
+      [ -n "$cid" ] || cid="$(conf_get client_id)"
+      [ -n "$cid" ] || die "agent-key: no client id yet; pass --client-id <id>, from the app's settings page"
+      printf '%s' "$cid" | grep -Eq '^[A-Za-z0-9._-]+$' || die "agent-key: '$cid' does not look like a client id"
+      key_store < "$pem" || die "agent-key: the keyring ($(a_keyring)) did not store the key"
+      has_key || die "agent-key: the keyring ($(a_keyring)) stored nothing readable"
+      conf_set client_id "$cid"
+      # Tokens minted with the key before this one go.
+      rm -f "$(a_cachedir)"/token-*
+      say "agent-key: the pap-agent private key is in the keyring ($(a_keyring))." \
+        "agent-key: client id $cid is in $a_cf." \
+        "Now delete $pem; the keyring holds the only copy this machine needs." ;;
+    status)
+      [ $# -eq 0 ] || usage
+      ok=0
+      if has_key; then say "key        in the keyring ($(a_keyring))"
+      else say "key        missing (pap agent-key import <pem> --client-id <id>)"; ok=1; fi
+      cid="$(conf_get client_id)"
+      if [ -n "$cid" ]; then say "client id  $cid"; else say "client id  missing"; [ "$ok" = 1 ] || ok=2; fi
+      say "config     $a_cf"
+      if [ -f "$a_cf" ]; then
+        awk 'index($0, "installation.") == 1 { sub(/^installation\./, ""); sub(/=/, " "); print "installed  " $0 }' "$a_cf"
+      fi
+      return "$ok" ;;
+    *) usage ;;
+  esac
+}
+
+cmd_agent_token() {
+  a_cf="$(a_config)"
+  owner=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --owner) [ $# -ge 2 ] || usage; owner="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  if [ -z "$owner" ]; then
+    slug="$(origin_slug)" || die "agent-token: no --owner, and origin is not a GitHub remote"
+    owner="${slug%%/*}"
+  fi
+  valid_owner "$owner" || die "agent-token: '$owner' is not a GitHub login"
+
+  # The cache: one file per owner, "<expiry epoch> <token>", mode 0600 in a
+  # 0700 directory of this user's.
+  dir="$(a_cachedir)"
+  if [ ! -d "$dir" ]; then (umask 077 && mkdir -p "$dir") || die "agent-token: cannot create $dir"; fi
+  # shellcheck disable=SC2012 # one known directory, only its owner column
+  [ ! -L "$dir" ] && [ "$(ls -ldn "$dir" | awk '{ print $3 }')" = "$(id -u)" ] || die "agent-token: $dir is not this user's own directory; remove it"
+  chmod 700 "$dir"
+  cache="$dir/token-$owner"
+  now="$(date +%s)"
+  c_exp="" c_tok=""
+  [ ! -f "$cache" ] || [ -L "$cache" ] || read -r c_exp c_tok < "$cache" || true
+  case "$c_exp" in "" | *[!0-9]*) c_exp=0 ;; esac
+  if [ -n "$c_tok" ] && [ "$((c_exp - now))" -gt 300 ]; then
+    say "$c_tok"
+    return 0
+  fi
+
+  a_prereqs
+  # Made here, so the subshells below share it and the EXIT trap removes it.
+  workdir
+  has_key || die "agent-token: no pap-agent key in the keyring; run pap agent-key import <pem> --client-id <id>"
+  cid="$(conf_get client_id)"
+  [ -n "$cid" ] || die "agent-token: no client id in $a_cf; run pap agent-key import <pem> --client-id <id>"
+  jwt="$(a_jwt "$cid")" || die "agent-token: openssl could not sign with the key in the keyring; re-import it"
+  inst="$(a_installation "$owner" "$jwt")" || exit 1
+  a_call POST "/app/installations/$inst/access_tokens" "$jwt"
+  if [ "$a_code" = 404 ]; then
+    # The cached installation is gone (uninstalled, or reinstalled under a
+    # new id): look it up once more.
+    conf_unset "installation.$owner"
+    inst="$(a_installation "$owner" "$jwt")" || exit 1
+    a_call POST "/app/installations/$inst/access_tokens" "$jwt"
+  fi
+  [ "$a_code" = 201 ] || a_refused "an installation token for $owner"
+  tok="$(jq -r '.token // empty' "$work/resp")"
+  t_exp="$(jq -r '.expires_at // empty | fromdateiso8601' "$work/resp" 2>/dev/null || true)"
+  [ -n "$tok" ] && [ -n "$t_exp" ] || die "agent-token: GitHub's token answer had no token or expiry"
+  rm -f "$work/resp"
+  (umask 077 && printf '%s %s\n' "$t_exp" "$tok" > "$cache.tmp.$$") || die "agent-token: cannot write $cache"
+  chmod 600 "$cache.tmp.$$" && mv -f "$cache.tmp.$$" "$cache"
+  say "$tok"
+}
+
+# The browser hand-off of agent-setup: a one-shot server on a loopback port.
+# GET / answers a form that posts the manifest to GitHub at once; GET
+# /callback takes GitHub's redirect, checks state and prints the code. The
+# first line out is the port. Gives up after PAP_SETUP_TIMEOUT seconds.
+a_listener='
+import html, json, os, socketserver, sys, threading, urllib.parse
+from http.server import BaseHTTPRequestHandler, HTTPServer
+state, action, manifest_file = sys.argv[1:4]
+# The deadline is a watchdog: a blocking accept, no select timeout to rely on.
+w = threading.Timer(int(sys.argv[4]), lambda: os._exit(1))
+w.daemon = True
+w.start()
+# HTTPServer.server_bind looks up the host name of 127.0.0.1, which can
+# stall for seconds on macOS; this server needs no name.
+class Loopback(HTTPServer):
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+manifest = json.load(open(manifest_file))
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def reply(self, code, text):
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(text.encode())
+    def do_GET(self):
+        u = urllib.parse.urlparse(self.path)
+        q = urllib.parse.parse_qs(u.query)
+        if u.path == "/":
+            m = dict(manifest, redirect_url="http://127.0.0.1:%d/callback" % port)
+            self.reply(200, "<!doctype html><title>pap agent-setup</title><form id=f method=post action=\"%s?state=%s\"><input type=hidden name=manifest value=\"%s\"><noscript><button>Register on GitHub</button></noscript></form><script>document.getElementById(\"f\").submit()</script>" % (html.escape(action), state, html.escape(json.dumps(m), quote=True)))
+        elif u.path == "/callback" and q.get("state") == [state] and q.get("code"):
+            self.reply(200, "<!doctype html><title>pap agent-setup</title><p>pap: registered. Return to the terminal.")
+            print(q["code"][0], flush=True)
+            server.done = True
+        else:
+            self.reply(400, "<!doctype html><p>pap: not the callback this setup is waiting for.")
+server = Loopback(("127.0.0.1", 0), H)
+server.done = False
+port = server.server_address[1]
+print(port, flush=True)
+while not server.done:
+    server.handle_request()
+sys.stdout.flush()
+os._exit(0)
+'
+
+a_open() { # a_open <url>: the browser, or the URL to open by hand
+  say "agent-setup: open $1"
+  if [ -n "${PAP_BROWSER:-}" ]; then "$PAP_BROWSER" "$1" >/dev/null 2>&1 &
+  elif a_mac; then open "$1" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1 || true; fi
+}
+# The two insteadOf values that make git read GitHub's SSH URLs as HTTPS.
+a_rewrites='git@github.com:
+ssh://git@github.com/'
+a_rewritten() {
+  have="$(git config --global --get-all url.https://github.com/.insteadOf 2>/dev/null || true)"
+  for v in $a_rewrites; do printf '%s\n' "$have" | grep -qxF "$v" || return 1; done
+}
+# a_managed_config: the global git config could not be written (a
+# read-only file, such as home-manager's link into /nix/store). Say so and
+# print what to add where it is managed; never fails.
+a_managed_config() {
+  f="${GIT_CONFIG_GLOBAL:-}"
+  if [ -z "$f" ]; then
+    f="$HOME/.gitconfig"
+    [ -e "$f" ] || f="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+  fi
+  t="$(readlink "$f" 2>/dev/null || true)"
+  say "agent-setup: the global git config ($f${t:+ -> $t}) is not writable here; it is managed elsewhere. Add this to its source:" \
+    '[url "https://github.com/"]' '    insteadOf = git@github.com:' '    insteadOf = ssh://git@github.com/'
+  case "$f $t" in
+    */nix/store/*)
+      say "agent-setup: it looks like home-manager; in its git module:" \
+        '  programs.git.settings.url."https://github.com/".insteadOf = [ "git@github.com:" "ssh://git@github.com/" ];' ;;
+  esac
+}
+a_rewrite_cmds() {
+  say "git config --global --add url.\"https://github.com/\".insteadOf git@github.com:" \
+    "git config --global --add url.\"https://github.com/\".insteadOf ssh://git@github.com/"
+}
+ask() { # ask <question>: one answer line from stdin; eof=true at its end
+  printf '%s ' "$1"
+  answer="" eof=false
+  read -r answer || eof=true
+}
+
+cmd_agent_setup() {
+  a_cf="$(a_config)"
+  owner="" name=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --owner) [ $# -ge 2 ] || usage; owner="$2"; shift 2 ;;
+      --name) [ $# -ge 2 ] || usage; name="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  if [ -z "$owner" ]; then
+    slug="$(origin_slug)" || die "agent-setup: no --owner, and origin is not a GitHub remote"
+    owner="${slug%%/*}"
+  fi
+  valid_owner "$owner" || die "agent-setup: '$owner' is not a GitHub login"
+  [ -n "$name" ] || name="$owner-pap-agent"
+  # GitHub's limit on an app's name is 34 characters.
+  printf '%s' "$name" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,33}$' ||
+    die "agent-setup: '$name' is not a usable app name (letters, digits, . _ -, at most 34); pass --name"
+  for c in openssl curl jq "$(a_keyring)"; do
+    command -v "$c" >/dev/null 2>&1 || die "agent-setup: $c is not on PATH; pap doctor names the install command"
+  done
+  workdir
+
+  # 1. Registration, skipped when this machine already has the key.
+  if has_key; then
+    say "agent-setup: a key is already in the keyring; registration skipped."
+    [ -n "$(conf_get client_id)" ] ||
+      die "agent-setup: the key has no client id in $a_cf; run pap agent-key import <pem> --client-id <id>, or delete the key to register anew"
+  else
+    command -v python3 >/dev/null 2>&1 ||
+      die "agent-setup: python3 is needed for the browser hand-off; or follow the manual steps in docs/account-setup.md"
+    if ! curl -sS -o "$work/owner" -w '%{http_code}' --connect-timeout 10 --max-time 30 \
+      -H 'Accept: application/vnd.github+json' "$a_api/users/$owner" > "$work/code" 2>/dev/null; then
+      die "agent-setup: GitHub unreachable at $a_api; check the network and try again"
+    fi
+    [ "$(cat "$work/code")" = 200 ] || die "agent-setup: GitHub has no account $owner"
+    case "$(jq -r .type "$work/owner")" in
+      Organization) action="https://github.com/organizations/$owner/settings/apps/new" ;;
+      *) action="https://github.com/settings/apps/new" ;;
+    esac
+    jq --arg n "$name" '.name = $n' "$root/scripts/pap-agent-manifest.json" > "$work/manifest.json"
+    state="$(openssl rand -hex 16)"
+    python3 -c "$a_listener" "$state" "$action" "$work/manifest.json" "${PAP_SETUP_TIMEOUT:-900}" > "$work/listen" 2> "$work/listen.err" &
+    lpid=$!
+    # The listener goes with pap, however pap ends.
+    trap 'kill "$lpid" 2>/dev/null; cleanup' EXIT
+    trap 'kill "$lpid" 2>/dev/null; cleanup; exit 130' INT TERM
+    i=0
+    # python3 can take seconds to start on a cold machine.
+    while [ ! -s "$work/listen" ] && [ "$i" -lt 300 ] && kill -0 "$lpid" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
+    port="$(sed -n 1p "$work/listen")"
+    [ -n "$port" ] || { kill "$lpid" 2>/dev/null; die "agent-setup: could not listen on a loopback port${work:+: $(tail -n 1 "$work/listen.err" 2>/dev/null)}"; }
+    say "agent-setup: registering $name for $owner. In the browser, check the name and press Create GitHub App."
+    a_open "http://127.0.0.1:$port/"
+    lrc=0; wait "$lpid" || lrc=$?
+    trap cleanup EXIT
+    trap 'cleanup; exit 130' INT TERM
+    [ "$lrc" = 0 ] || die "agent-setup: no answer from GitHub in time; run pap agent-setup again"
+    code="$(sed -n 2p "$work/listen")"
+    case "$code" in "" | *[!A-Za-z0-9_-]*) die "agent-setup: GitHub's redirect carried no usable code" ;; esac
+    # The answer holds the pem and two secrets: it stays in this shell's
+    # memory and reaches the keyring on stdin, never a file or the screen.
+    if ! conv="$(curl -sS -X POST -w '\n%{http_code}' \
+      -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+      --connect-timeout 10 --max-time 30 "$a_api/app-manifests/$code/conversions" 2>/dev/null)"; then
+      die "agent-setup: GitHub unreachable at $a_api; check the network and try again"
+    fi
+    ccode="$(printf '%s\n' "$conv" | sed -n '$p')"
+    [ "$ccode" = 201 ] || die "agent-setup: GitHub refused the manifest conversion (HTTP $ccode); the code lasts an hour, run pap agent-setup again"
+    conv="$(printf '%s\n' "$conv" | sed '$d')"
+    cid="$(printf '%s' "$conv" | jq -r '.client_id // empty')"
+    aslug="$(printf '%s' "$conv" | jq -r '.slug // empty')"
+    [ -n "$cid" ] && [ -n "$aslug" ] || die "agent-setup: GitHub's answer had no client id or slug"
+    printf '%s' "$conv" | jq -j '.pem // empty' | key_store || die "agent-setup: the keyring ($(a_keyring)) did not store the key"
+    conv=""
+    has_key || die "agent-setup: the keyring ($(a_keyring)) stored nothing readable"
+    conf_set client_id "$cid"
+    conf_set slug "$aslug"
+    rm -f "$(a_cachedir)"/token-*
+    say "agent-setup: registered $aslug; its key is in the keyring ($(a_keyring)), its client id in $a_cf."
+  fi
+
+  # 2. Installation, confirmed with the app's own JWT.
+  aslug="$(conf_get slug)"
+  jwt="$(a_jwt "$(conf_get client_id)")" || die "agent-setup: openssl could not sign with the key in the keyring"
+  conf_unset "installation.$owner"
+  if inst="$( (a_installation "$owner" "$jwt") 2>"$work/ierr")"; then
+    say "agent-setup: $aslug is installed on $owner (installation $inst)."
+  else
+    if [ -n "$aslug" ]; then a_open "https://github.com/apps/$aslug/installations/new"
+    else say "agent-setup: no app slug in $a_cf (a key imported by hand); install from the app's own page."; fi
+    while :; do
+      ask "Install ${aslug:-the app} on $owner with the adopting repositories selected, then press Enter (q to skip):"
+      [ "$answer" != q ] || { say "agent-setup: installation skipped."; break; }
+      if inst="$( (a_installation "$owner" "$jwt") 2>"$work/ierr")"; then
+        say "agent-setup: $aslug is installed on $owner (installation $inst)."
+        break
+      fi
+      say "agent-setup: $(sed 's/^pap: agent-token: //' "$work/ierr")"
+      [ "$eof" = false ] || break
+    done
+  fi
+  say "agent-setup: pap adds no repositories to an installation: that needs a user token from the app, which gh's sign-in is not. Select them on the installation's page."
+
+  # 3. The clone's origin, switched only on a yes.
+  url="$(git remote get-url origin 2>/dev/null || true)"
+  if s="$(gh_slug "$url")" && [ "${url#https://}" = "$url" ]; then
+    ask "origin is $url; an agent pushes over HTTPS. Switch it to https://github.com/$s.git? [y/N]"
+    case "$answer" in
+      y | Y | yes) git remote set-url origin "https://github.com/$s.git" && say "agent-setup: origin is https://github.com/$s.git." ;;
+      *) say "agent-setup: origin left as it is." ;;
+    esac
+  fi
+
+  # 3b. The global rewrite, written only on a yes and never twice.
+  if ! a_rewritten; then
+    ask "Have git read every git@github.com: and ssh://git@github.com/ URL as HTTPS, in your global git config? [y/N]"
+    case "$answer" in
+      y | Y | yes)
+        have="$(git config --global --get-all url.https://github.com/.insteadOf 2>/dev/null || true)"
+        wrote=true
+        for v in $a_rewrites; do
+          printf '%s\n' "$have" | grep -qxF "$v" ||
+            git config --global --add url.https://github.com/.insteadOf "$v" 2>/dev/null || { wrote=false; break; }
+        done
+        if [ "$wrote" = true ]; then say "agent-setup: git now reads GitHub's SSH URLs as HTTPS."
+        else a_managed_config; fi ;;
+      *) say "agent-setup: global git config left as it is." ;;
+    esac
+  fi
+
+  # 4. What doctor makes of it.
+  d_os="$(d_platform)"
+  has_git=true
+  top="$(git rev-parse --show-toplevel 2>/dev/null)" || { has_git=false; top=""; }
+  say "" "agent app (decision 0023)"
+  d_agent
+  [ "$d_bad" -eq 0 ] || { say "$d_bad item(s) need attention."; exit 1; }
+  say "pap-agent is set up on this machine."
 }
 
 # revisits -------------------------------------------------------------------
@@ -982,6 +1578,9 @@ case "$cmd" in
   repo) exec bash "$root/scripts/repo-sync.sh" "$@" ;;
   codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
   doctor) cmd_doctor "$@" ;;
+  agent-key) cmd_agent_key "$@" ;;
+  agent-token) cmd_agent_token "$@" ;;
+  agent-setup) cmd_agent_setup "$@" ;;
   revisits) cmd_revisits "$@" || true ;;
   coverage) cmd_coverage "$@" || true ;;
   measure) cmd_measure "$@" || true ;;
