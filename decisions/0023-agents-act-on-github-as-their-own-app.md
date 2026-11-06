@@ -26,7 +26,8 @@
   of an agent's settings write and of an agent-added `owner-reviewed` ↑
   from 0 (the hook is the only refuser today) to every attempt
 - **Introduced in:** not yet released; the release that ships
-  `pap agent-token`, the credential routing and the `pr-checks` actor check
+  `pap agent-token`, `pap claude`, the credential routing and the
+  `pr-checks` actor check
 - **Revisit:** when 20 change PRs have merged after the first pull request
   pushed as the app: both effects; how often the token could not be minted
   or expired mid-command; any act that showed as the bot when it was the
@@ -166,18 +167,19 @@ is not part of the commit).
 
 ## Decision
 
-1. **One GitHub App, owned by the owner's personal account, public,
-   installed on that account and on every organisation that adopts PAP.**
-   The slug is the owner's to pick (`pap-agent` is the working name);
-   GitHub shows its acts as `<slug>[bot]`. Repository permissions, the
-   least that carry a change ([S5], [S6]): Contents read and write (push,
-   [S2]); Pull requests read and write (open, edit, review); Issues read
-   and write (labels and comments on a pull request go through the issues
-   endpoints); Workflows write, because PAP's template sync pushes files
-   under `.github/workflows/` and a token without it is refused there
-   ([S6]); Checks read and Commit statuses read (`gh pr checks`); Metadata
-   read. No Administration, no Members, no Secrets, no Actions, no
-   organisation permissions, no webhook. Installed on "only select
+1. **One GitHub App, `pap-agent`, owned by the owner's personal account,
+   public, installed on that account and on every organisation that
+   adopts PAP.** GitHub shows its acts as `pap-agent[bot]`. Repository
+   permissions, the least that carry a change ([S5], [S6]): Contents read
+   and write (push, [S2]); Pull requests read and write (open, edit,
+   review, and the labels and comments on a pull request, which the first
+   slice proves reachable with this permission alone; Issues write is
+   added only if they are not); Workflows write, because PAP's template
+   sync pushes files under `.github/workflows/` and a token without it is
+   refused there ([S6]); Checks read and Commit statuses read
+   (`gh pr checks`); Metadata read. No Issues, no Administration, no
+   Members, no Secrets, no Actions, no organisation permissions, no
+   webhook. Installed on "only select
    repositories": the adopting ones. The private key is generated once,
    imported into the machine's keyring (`pap agent-key import <pem>`, then
    the file is deleted), and lives nowhere else; the app id, client id and
@@ -187,32 +189,40 @@ is not part of the commit).
    account that owns it ([S7]) and the organisation's repositories need it
    too; public means anyone may install it from its URL, and nobody can act
    as it without the key. What it exposes is the app's name and
-   description. The alternative is in point 6.
+   description, nothing it can do.
 
-2. **Everything an agent session does on GitHub goes as the app; the two
-   human skills switch back.** `pap agent-token` reads the key from the
-   keyring, signs the JWT (RS256, `iss` the client id, ten minutes [S3])
-   with `openssl`, exchanges it for an installation token for the
-   repository's owner (one hour, [S1]), caches it with its expiry in the
-   runtime directory at mode 0600, and prints it. One `gh` shim, first on
-   the path through the base layer's mise config, carries it to both
-   consumers: when `CLAUDECODE` is set (Claude Code sets it in every Bash
-   call; a person's terminal never has it) and the repository adopts PAP
-   (the hook's test: an executable `scripts/guard-branch.sh`), it sets
-   `GH_TOKEN` from `pap agent-token` and runs the real `gh`, which then
-   ignores the stored sign-in ([S22]). git needs nothing new: pushes
-   already go through `gh auth git-credential`, which the shim is now in
-   front of, and a token from `GH_TOKEN` is sent as `x-access-token`
-   ([S23], [S2]). Outside those conditions the shim runs `gh` unchanged.
-   It never falls back to the stored sign-in when minting fails: that
-   failure is the shared-credential problem returning quietly, so it says
-   why (no key, no installation for this owner, GitHub unreachable) and
-   exits. `/pap:reviewed` and `/pap:accept` are the only code that acts as
-   the person: their scripts run `gh` with `PAP_AS_HUMAN=1`, which the shim
-   honours by running the real `gh` with no `GH_TOKEN`, so the label and
-   the acceptance's branch, commit and pull request show the owner. Both
-   skills already carry `disable-model-invocation: true`; the hook gains a
-   rule refusing an agent's `PAP_AS_HUMAN` in a command, as it refuses
+2. **Everything an agent session does on GitHub goes as the app, and the
+   owner's sign-in is outside the agent's environment.** `pap agent-token`
+   reads the key from the keyring, signs the JWT (RS256, `iss` the client
+   id, ten minutes [S3]) with `openssl`, exchanges it for an installation
+   token for the repository's owner (one hour, [S1]), caches it with its
+   expiry in the runtime directory at mode 0600, and prints it. One `gh`
+   shim, first on the path through the base layer's mise config, carries
+   it to both consumers: when `CLAUDECODE` is set (Claude Code sets it in
+   every Bash call; a person's terminal never has it) and the repository
+   adopts PAP (the hook's test: an executable `scripts/guard-branch.sh`),
+   it sets `GH_TOKEN` from `pap agent-token` and runs the real `gh`
+   ([S22]). git needs nothing new: pushes already go through
+   `gh auth git-credential`, which the shim is now in front of, and a token
+   from `GH_TOKEN` is sent as `x-access-token` ([S23], [S2]). Outside those
+   conditions the shim runs `gh` unchanged. It applies in every adopting
+   repository, with no opt-in marker, and it never falls back to a stored
+   sign-in when minting fails: it says why (no key, no installation for
+   this owner, GitHub unreachable) and exits.
+
+   The boundary is the environment, not the shim. The owner's `gh` sign-in
+   lives in a `GH_CONFIG_DIR` of the owner's own (`gh auth login` there,
+   once), which the owner's interactive shell exports and no agent shell
+   gets: `claude` is started through `pap claude`, which runs it with
+   `GH_CONFIG_DIR` unset, so in every agent shell `gh` has no stored
+   account and only the shim's token works. The shim refuses, naming the
+   launcher, when it finds `GH_CONFIG_DIR` set in an agent shell.
+   `/pap:reviewed` and `/pap:accept` are the one door back: their scripts
+   run `gh` with `GH_TOKEN` unset and `GH_CONFIG_DIR` set to the owner's
+   directory, whose path (not a secret) `pap` keeps in its user config, so
+   the label and the acceptance's branch, commit and pull request show the
+   owner. Both skills carry `disable-model-invocation: true`, and the hook
+   refuses an agent's command that sets `GH_CONFIG_DIR`, as it refuses
    `LEFTHOOK` (0005).
 
 3. **Commits stay the owner's; the push, pull request, labels and
@@ -236,10 +246,10 @@ is not part of the commit).
 4. **What GitHub then enforces.**
    - **Rulesets.** `.github/rulesets/all-branches.json` gains one bypass
      actor, the owner, mode `always`, and never an `Integration`
-     ([S11], [S12]). The narrowest actor that names only the owner is
-     used: `User` where the API accepts it on that repository, else the
-     owner's role (`RepositoryRole` admin on a personal repository,
-     `OrganizationAdmin` on an organisation's). The app pushes with an
+     ([S11], [S12]). The actor is the owner's `User` login wherever the
+     API accepts a user on that repository, and the admin role
+     (`RepositoryRole` on a personal repository, `OrganizationAdmin` on an
+     organisation's) only where it does not. The app pushes with an
      installation token, holds no role and is not listed, so
      `non_fast_forward` binds it; the owner at a terminal is let through.
      This amends 0022 points 2 and 4: rule 22.1 stands and the hook stays
@@ -252,8 +262,11 @@ is not part of the commit).
    - **The label gate.** The reusable `pr-checks` workflow reads the pull
      request's issue events ([S14]) and counts `owner-reviewed` only when
      its latest `labeled` event, after any `unlabeled`, has an actor of
-     `type: User`. A label added by a Bot actor, the agent app included,
-     is as if absent; the workflow removes it and says why. This narrows
+     `type: User` whose login is an owner in the base branch's
+     `.github/CODEOWNERS`, which the workflow already reads. A label added
+     by a Bot actor, the agent app included, or by a user who is not an
+     owner, is as if absent; the workflow removes it and says why. This
+     narrows
      0016's rule 16.1, which checks presence. The Actions token itself is
      a Bot and only ever removes the label, as today.
    - **Settings.** The app has no Administration permission, so an agent's
@@ -263,10 +276,11 @@ is not part of the commit).
      `gh api`". The hook keeps refusing first, with the rule's name.
    - **What GitHub still does not refuse.** Merging a pull request needs
      Contents write and Pull requests write, which the app has for its
-     job, so an agent's `gh pr merge` is refused by the hook alone and
-     would show as `<slug>[bot]` merged. It becomes detectable and
-     attributable, not impossible; a narrower permission set that still
-     pushes does not exist.
+     job, so GitHub does not refuse an agent's `gh pr merge`. The hook does
+     (rule 16.2), and `pr-checks`, run on the `closed` event, reports a
+     pull request whose `merged_by` is a Bot. Accepted for now: detected
+     and attributed to `pap-agent[bot]`, not prevented; a narrower
+     permission set that still pushes does not exist.
 
 5. **Phasing, cost, and what breaks.**
    - **The owner, once, about half an hour:** register the app under the
@@ -279,10 +293,14 @@ is not part of the commit).
      Registration and installation cost nothing on GitHub's side.
    - **PAP, as changes citing this record, in this order:** (a)
      `pap agent-token`, `pap agent-key`, the `gh` shim in the base layer's
-     mise path, the `pap doctor` checks; (b) `PAP_AS_HUMAN=1` in
-     `reviewed.sh` and `accept.sh`, and the hook rule refusing it from an
-     agent; (c) the actor check in `pr-checks` (a pull request in the
-     account's `.github` repository) and the risk layer's docs; (d) the
+     mise path, the `pap doctor` checks; (b) the boundary: `pap claude`,
+     the owner's `GH_CONFIG_DIR` in `pap doctor` and the account-setup
+     guide, the shim's refusal of a set `GH_CONFIG_DIR`, `reviewed.sh` and
+     `accept.sh` running as the owner through it, and the hook rule
+     refusing `GH_CONFIG_DIR` in an agent's command; (c) the actor and
+     owner check and the `closed`-event merge report in `pr-checks` (a
+     pull request in the account's `.github` repository) and the risk
+     layer's docs; (d) the
      bypass actor in `all-branches.json`, `pap repo apply` and `status`;
      (e) `docs/account-setup.md`, `make-a-change.md`,
      `troubleshooting.md`, and the dated notes on 0016 and 0022. The order
@@ -298,27 +316,28 @@ is not part of the commit).
      Workflows left off (403; grant it); `gh pr checks` without Checks
      read; a watch that outlives the token (`gh pr checks --watch` holds
      the token it started with, so a watch over an hour is restarted; the
-     shim mints fresh on every call); a devcontainer has no keyring (the
-     key is mounted read-only from the host's keyring export, or that
-     container runs the human's flow; open question 7). Rate limits are
-     5,000 calls an hour per installation ([S9]), far above a cycle's use.
+     shim mints fresh on every call). A dev container gets no key: it
+     keeps the human's sign-in, the one place an agent still acts as the
+     owner, by this decision; the shim steps aside where it finds a
+     container marker (`/.dockerenv`, `REMOTE_CONTAINERS`) and no key, and
+     `pap doctor` says so. Rate limits are 5,000 calls an hour per
+     installation ([S9]), far above a cycle's use.
    - **Rollback,** each step on its own and in this order: remove the
      bypass with the previous `all-branches.json` and `pap repo apply`
      (first, so no bypass stands while agents go back to the owner's
      sign-in); revert the `pr-checks` change; `pap sync` to the base layer
-     without the shim, or `PAP_AS_HUMAN=1` by hand; uninstall the app and
-     delete its key from the keyring.
+     without the shim and start `claude` from the owner's shell again;
+     uninstall the app and delete its key from the keyring.
 
 6. **Two accounts.** The owner's personal account and the organisation
    that adopts PAP are two installation targets. A private app installs
    only on its owning account ([S7]), so the choices are one public app
    owned by the personal account and installed on both, or two private
    apps, one registered under each ([S8]), with two keys in the keyring
-   and `pap agent-token` choosing by the remote's owner. Recommended: one
+   and `pap agent-token` choosing by the remote's owner. Decided: one
    public app. It is one key to keep and one registration to maintain,
    and "public" exposes a name and a description, not a capability. Two
-   private apps are the fallback if the owner wants nothing listed under
-   the personal account, at the cost of two of everything.
+   private apps would cost two of everything to hide a name.
 
 7. **The parked item does not ride on this app.** Team-owned `CODEOWNERS`
    through a private org-config repository needs an app with the Members
@@ -334,6 +353,12 @@ The reason that carried it: the only control that can tell an agent from
 the owner today is the agent's own hook. Give the agent a GitHub identity
 and every GitHub control gains the distinction for free, the hook keeps
 its job as the early refusal, and the log says who did what.
+
+The first draft left eight questions open (the app's name and
+visibility, Issues write, the bypass actor, the gate's owner test,
+merging, an opt-in marker, dev containers, and routing against a
+boundary). The owner answered each on 2026-11-06, as recommended; the
+answers are the points above.
 
 ## Considered options
 
@@ -360,12 +385,12 @@ its job as the early refusal, and the log says who did what.
 - **A bypass for the owner by role rather than by `User` everywhere.**
   Taken only where `User` is not accepted: a role can name more than one
   person on an organisation with a second admin.
-- **Two private apps.** Point 6; the fallback.
+- **Two private apps.** Point 6; not taken.
 
 ## Consequences
 
 - Easier: GitHub shows who did what. Pushes, pull requests, labels and
-  comments by an agent carry `<slug>[bot]`; the owner's acts carry the
+  comments by an agent carry `pap-agent[bot]`; the owner's acts carry the
   owner. The organisation's audit log has the actor on each entry ([S24]).
 - Easier: three rules gain a GitHub-side enforcer: 16.2's label (the gate
   ignores a Bot), 18.1's settings (no permission), 22.1's bypass (bound by
@@ -382,59 +407,35 @@ its job as the early refusal, and the log says who did what.
 - Harder: `pr-checks` makes one more API read per run, for the events.
 - Limit: the app's token lets an agent do what Contents and Pull requests
   write allow, merging included; the hook refuses it and the log shows it.
-- Limit: the gate checks `type: User`, not which user. In a repository
-  whose only writer is the owner that is the owner; a repository with
-  other collaborators decides whether the login must also be a
-  `CODEOWNERS` owner (open question 4).
-- Limit: the shim is routing, not a boundary. The owner's sign-in stays
-  in the same machine's keyring, so an agent that runs `gh` by its full
-  path, strips `CLAUDECODE` from the environment or sets `PAP_AS_HUMAN`
-  inside a script acts as the owner, and the bypass, the gate and the
-  merge are its again. The hook refuses the forms it can read and not
-  `bash -c`, `eval` or a script, as 0005 and 0022 say of it. What GitHub
-  binds is the identity on the request; the machine is still the
-  owner's, with the SSH key that signs every commit on it. The record is
-  written for the agent that 0022's incident describes, one that does what
-  nothing told it not to, and makes the owner's identity a deliberate
-  step it would have to take on purpose. Open question 8 asks whether the
-  owner wants more than that.
+- Harder: the owner signs `gh` in once more, into the owner's directory,
+  and starts Claude Code through `pap claude`.
+- Limit: the gate's owner list is `.github/CODEOWNERS` on the base
+  branch. A repository in risk mode without an owner there has no one who
+  can pass the gate; `pr-checks` says so, and `pap codeowners` writes the
+  file from the invariants' Owner (0014).
+- Limit: the boundary is the process environment of one OS user. Agent
+  shells carry no owner sign-in and the shim has no way to it; the
+  owner's keyring and files are on the same machine, as the SSH key that
+  signs every commit is, and a process that reads them on purpose is
+  outside what this record binds. The hook refuses the forms it can read
+  and not `bash -c`, `eval` or a script, as 0005 and 0022 say of it. The
+  record is written for the agent that 0022's incident describes, one
+  that does what nothing told it not to.
 - Limit: the shim keys on `CLAUDECODE`. Another agent harness without that
-  variable pushes as the owner; `pap doctor` cannot see it.
+  variable pushes as the owner; `pap doctor` cannot see it. A dev
+  container does so by decision (point 5).
 - Measurement: `labeled` events and pull-request authors per repository,
   read through `gh api` at the revisit; the personal security log does not
   list them ([S24]), so there is no shortcut.
 - Follow-up: dated notes on 0016 and 0022 when this record is accepted;
-  rules 23.1 to 23.3 are enforced by nothing until the slices ship, and
+  rules 23.1 to 23.4 are enforced by nothing until the slices ship, and
   each names its check.
-
-## Open questions for the Project Lead
-
-1. The app's slug and visibility: `pap-agent`, public, under the personal
-   account (point 1), or two private apps (point 6)?
-2. Issues write: keep it, so agents can label and comment on issues too,
-   or grant Pull requests write alone and let the first slice confirm that
-   labels and comments on a pull request work without it?
-3. The bypass actor: `User` for the one login where accepted, falling back
-   to the admin role; or the role everywhere, which also admits any later
-   admin?
-4. The gate: is `type: User` enough, or must the login also be an owner
-   named in `.github/CODEOWNERS`?
-5. Accept that merging by the app is detectable, not impossible (point 4,
-   last bullet)?
-6. Should the shim act in every repository that adopts PAP, or only where
-   the owner has opted in (a marker file, as `.github/risk.yml` is)?
-7. The devcontainer: mount the key, or keep containers on the human's
-   sign-in and out of scope?
-8. Is routing enough (the Limit above), or should the owner's `gh`
-   sign-in live where an agent's shell does not reach it, for example in
-   a `GH_CONFIG_DIR` the owner's interactive shell sets and `claude` is
-   started without? That makes `/pap:reviewed` and `/pap:accept` ask for
-   it on each use, and is a change to the owner's day, not the agent's.
 
 ## Where it is taught or enforced
 
 Backs [`rules.md`](../rules.md) 23.1 (an agent session acts on GitHub as
-the agent app), 23.2 (`owner-reviewed` counts only from a person) and 23.3
-(the owner bypasses the `all-branches` ruleset; the app never does).
-Amends rule 22.1's override. Enforced by nothing yet; backlog item H-016
+the agent app), 23.2 (`owner-reviewed` counts only from an owner), 23.3
+(the owner bypasses the `all-branches` ruleset; the app never does) and
+23.4 (an agent shell carries no owner sign-in). Amends rule 22.1's
+override. Enforced by nothing yet; backlog item H-016
 builds the slices in point 5, each citing this record.

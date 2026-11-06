@@ -164,7 +164,8 @@ not carry.
 - Decision 0023 (proposed): agent sessions act on GitHub as their own
   GitHub App, so GitHub can tell an agent's push, pull request, label or
   comment from the owner's; commits stay the owner's, SSH-signed, with the
-  model trailer. Rules 23.1 to 23.3 with their planned checks; it amends
+  model trailer, and the owner's `gh` sign-in lives where no agent shell
+  reaches it. Rules 23.1 to 23.4 with their planned checks; it amends
   0022's override and 0016's label gate once it ships. Nothing is built
   yet; backlog item H-016 names the slices and their order.
 

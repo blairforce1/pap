@@ -235,14 +235,14 @@ No push to any branch rewrites its history; a branch behind main merges main. Th
 In a repository that adopts PAP, every push, pull request, label and comment an agent session makes is made with the agent app's installation token, minted on demand by `pap agent-token`; the owner's stored sign-in is used by a person at a terminal, by `/pap:reviewed` and `/pap:accept`, and by nothing else.
 
 - Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md)
-- Enforced by: Nothing yet. Planned: the `gh` shim the base layer puts on the path mints the token whenever `CLAUDECODE` is set in an adopting repository and never falls back to a stored sign-in; `pap doctor` checks the key, an installation for the remote's owner, an HTTPS remote and `gh` as the credential helper; the `PreToolUse` hook refuses an agent's `PAP_AS_HUMAN` and an agent's push to an SSH remote in an adopting repository.
+- Enforced by: Nothing yet. Planned: the `gh` shim the base layer puts on the path mints the token whenever `CLAUDECODE` is set in an adopting repository and never falls back to a stored sign-in (a dev container, which gets no key, excepted by the record); `pap doctor` checks the key, an installation for the remote's owner, an HTTPS remote and `gh` as the credential helper; the `PreToolUse` hook refuses an agent's push to an SSH remote in an adopting repository. Rule 23.4 keeps the owner's sign-in out of an agent's reach.
 
-### 23.2 `owner-reviewed` counts only when a person added it
+### 23.2 `owner-reviewed` counts only when an owner added it
 
-A `risk:high` pull request passes only when the latest `labeled` event for `owner-reviewed`, after any `unlabeled`, has an actor of type `User`; a label added by a Bot actor, the agent app included, is as if absent and is removed.
+A `risk:high` pull request passes only when the latest `labeled` event for `owner-reviewed`, after any `unlabeled`, has an actor of type `User` whose login is an owner in the base branch's `.github/CODEOWNERS`; a label added by a Bot actor, the agent app included, or by any other user, is as if absent and is removed.
 
 - Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md); narrows [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)'s rule 16.1
-- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow reads the pull request's issue events and judges the gate on the actor's type, removing a Bot's label and saying why.
+- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow reads the pull request's issue events and judges the gate on the actor's type and login against the `CODEOWNERS` it already reads, removing any other label and saying why; on the `closed` event it reports a pull request whose `merged_by` is a Bot.
 
 ### 23.3 The owner bypasses the `all-branches` ruleset; the app never does
 
@@ -250,3 +250,10 @@ A `risk:high` pull request passes only when the latest `labeled` event for `owne
 
 - Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md); amends [0022](decisions/0022-no-branch-takes-a-force-push.md)'s override
 - Enforced by: Nothing yet. Planned: `pap repo apply` writes the owner as the actor (`User` where the API accepts it on that repository, else the owner's admin role) and ships only after rule 23.1's shim is on every machine that runs agents; `pap repo status` reports an `Integration` actor, or a missing owner, as drift.
+
+### 23.4 An agent shell carries no owner sign-in
+
+The owner's `gh` sign-in lives in a `GH_CONFIG_DIR` the owner's interactive shell exports; Claude Code is started with it unset, so no agent shell has a stored GitHub account, and only the scripts of `/pap:reviewed` and `/pap:accept` set it.
+
+- Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md)
+- Enforced by: Nothing yet. Planned: `pap claude` starts Claude Code with `GH_CONFIG_DIR` unset; the `gh` shim refuses, naming the launcher, when it finds the variable set in an agent shell; `pap doctor` checks that the owner's directory holds the sign-in and the default one holds none; the `PreToolUse` hook refuses an agent's command that sets `GH_CONFIG_DIR`.
