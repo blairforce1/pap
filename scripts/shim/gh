@@ -24,7 +24,11 @@ IFS_was="$IFS"
 IFS=:
 for d in $PATH; do
   [ -n "$d" ] && [ -x "$d/gh" ] && [ ! -d "$d/gh" ] || continue
-  head -n 2 "$d/gh" 2>/dev/null | grep -q '^# pap-gh-shim:' && continue
+  # Builtins only: a missing external tool must not hide the marker, or the
+  # shim would exec itself for ever.
+  l2=""
+  { read -r _ && read -r l2; } < "$d/gh" 2>/dev/null || true
+  case "$l2" in "# pap-gh-shim:"*) continue ;; esac
   real="$d/gh"
   break
 done
