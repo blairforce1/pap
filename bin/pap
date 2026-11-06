@@ -10,6 +10,8 @@
 #        pap revisits
 #        pap coverage
 #        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
+#        pap agent-key import <pem> [--client-id <id>] | status
+#        pap agent-token [--owner <login>]
 #        pap version
 #
 # init    Applies base plus the named layers (dotnet, go, risk) to the repository at
@@ -76,6 +78,29 @@
 #         broken or cannot run. Always exits 0 after its arguments parse:
 #         it reports and never writes a record.
 #
+# agent-key
+#         Decision 0023: the pap-agent GitHub App's private key. import
+#         stores the PEM file's key in the OS keyring (secret-tool on Linux,
+#         the login keychain through `security` on macOS) and the app's
+#         client id in pap's user config, prints nothing secret, and tells
+#         you to delete the file. status says whether the key is there and
+#         what the config holds; it exits 0 only when key and client id are.
+#         The config is not secret: $XDG_CONFIG_HOME/pap/agent.conf
+#         (default ~/.config) on Linux, ~/Library/Application
+#         Support/pap/agent.conf on macOS. It holds client_id=<id> and one
+#         installation.<owner>=<id> line per owner, filled on first use.
+# agent-token
+#         Decision 0023: prints an installation token of pap-agent for the
+#         repository owner (--owner, else the owner in origin's GitHub URL).
+#         Signs a JWT (RS256, iss the client id, ten minutes) with openssl,
+#         the machine's, which the base layer does not pin, and exchanges it
+#         through curl. Caches token and expiry at mode 0600 in
+#         $XDG_RUNTIME_DIR/pap-agent-<uid>/ (macOS: $TMPDIR, per user) and
+#         reuses it while more than five minutes remain. Never prints the
+#         key or the JWT. Fails with one line naming the reason: no key, no
+#         client id, no installation for the owner, GitHub unreachable or
+#         refusing. PAP_GITHUB_API overrides https://api.github.com.
+#
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
 # checked-out commit. A template version other than its own is fetched as tag
@@ -127,7 +152,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,13p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,15p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -602,6 +627,234 @@ EOF
   fi
 }
 
+# agent ----------------------------------------------------------------------
+# Decision 0023: the pap-agent GitHub App. Nothing here prints the key or a
+# JWT; only agent-token prints a token, and only on stdout.
+
+a_api="${PAP_GITHUB_API:-https://api.github.com}"
+a_service=pap-agent
+a_account=private-key
+
+a_mac() { [ "$(uname -s 2>/dev/null)" = Darwin ]; }
+a_config() {
+  if a_mac; then printf '%s/Library/Application Support/pap/agent.conf' "$HOME"
+  else printf '%s/pap/agent.conf' "${XDG_CONFIG_HOME:-$HOME/.config}"; fi
+}
+a_keyring() { if a_mac; then echo security; else echo secret-tool; fi; }
+
+conf_get() { # conf_get <key>: the last value of <key>, or nothing
+  [ -f "$a_cf" ] || return 0
+  awk -v k="$1" 'index($0, k "=") == 1 { v = substr($0, length(k) + 2) } END { if (v != "") print v }' "$a_cf"
+}
+conf_set() { # conf_set <key> <value>
+  mkdir -p "$(dirname "$a_cf")"
+  { [ ! -f "$a_cf" ] || awk -v k="$1" 'index($0, k "=") != 1' "$a_cf"; printf '%s=%s\n' "$1" "$2"; } > "$a_cf.tmp"
+  mv "$a_cf.tmp" "$a_cf"
+}
+conf_unset() { # conf_unset <key>
+  [ -f "$a_cf" ] || return 0
+  awk -v k="$1" 'index($0, k "=") != 1' "$a_cf" > "$a_cf.tmp" && mv "$a_cf.tmp" "$a_cf"
+}
+
+# key_lookup: prints the PEM on stdout, for a pipe; exits 1 with none.
+key_lookup() {
+  command -v "$(a_keyring)" >/dev/null 2>&1 || return 1
+  if a_mac; then
+    b64="$(security find-generic-password -s "$a_service" -a "$a_account" -w 2>/dev/null)" || return 1
+    [ -n "$b64" ] || return 1
+    printf '%s\n' "$b64" | openssl base64 -d -A
+  else
+    secret-tool lookup service "$a_service" key "$a_account" 2>/dev/null
+  fi
+}
+has_key() { [ -n "$(key_lookup 2>/dev/null | head -c 64)" ]; }
+
+# key_store < <pem>: the key goes in on stdin, never on a command line.
+key_store() {
+  if a_mac; then
+    # security -i reads its command from stdin, so the value is never in
+    # argv; base64 keeps the PEM on one line.
+    b64="$(openssl base64 -A)"
+    printf 'add-generic-password -U -s %s -a %s -l "pap-agent private key" -w %s\n' \
+      "$a_service" "$a_account" "$b64" | security -i >/dev/null
+  else
+    secret-tool store --label='pap-agent private key' service "$a_service" key "$a_account"
+  fi
+}
+
+# gh_slug <url>: owner/repo for a GitHub remote URL, HTTPS or SSH.
+gh_slug() {
+  case "$1" in
+    https://github.com/*) s="${1#https://github.com/}" ;;
+    git@github.com:*) s="${1#git@github.com:}" ;;
+    ssh://git@github.com/*) s="${1#ssh://git@github.com/}" ;;
+    *) return 1 ;;
+  esac
+  s="${s%/}"; s="${s%.git}"
+  case "$s" in */*/* | /* | */) return 1 ;; */*) printf '%s\n' "$s" ;; *) return 1 ;; esac
+}
+origin_slug() { gh_slug "$(git remote get-url origin 2>/dev/null || true)"; }
+valid_owner() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9-]{0,38}$'; }
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+
+# a_jwt <client id>: the app's JWT on stdout. iat a minute back for clock
+# drift, exp ten minutes after iat, so under ten minutes from now ([S3]).
+a_jwt() {
+  now="$(date +%s)"; iat=$((now - 60)); exp=$((iat + 600))
+  h="$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)"
+  p="$(printf '{"iat":%s,"exp":%s,"iss":"%s"}' "$iat" "$exp" "$1" | b64url)"
+  workdir
+  printf '%s.%s' "$h" "$p" > "$work/jwt-input"
+  # The key reaches openssl on stdin; the signed input, not secret, in a file.
+  sig="$(key_lookup | openssl dgst -sha256 -sign /dev/stdin "$work/jwt-input" | b64url)"
+  [ -n "$sig" ] || return 1
+  printf '%s.%s.%s\n' "$h" "$p" "$sig"
+}
+
+# a_call <method> <path> <jwt>: sets a_code and leaves the body in
+# $work/resp. The JWT goes to curl on stdin, never in argv. Dies when
+# GitHub cannot be reached.
+a_call() {
+  workdir
+  if ! a_code="$(printf 'header = "Authorization: Bearer %s"\n' "$3" |
+    curl -sS -X "$1" -o "$work/resp" -w '%{http_code}' --config - \
+      -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+      --connect-timeout 10 --max-time 30 "$a_api$2" 2>/dev/null)"; then
+    die "agent-token: GitHub unreachable at $a_api; check the network and try again"
+  fi
+}
+a_refused() { # a_refused <what>: dies naming GitHub's status and message
+  msg="$(jq -r '.message? // empty' "$work/resp" 2>/dev/null || true)"
+  die "agent-token: GitHub refused $1 (HTTP $a_code${msg:+: $msg})"
+}
+
+# a_installation <owner> <jwt>: the installation id for <owner>, from the
+# config or, the first time, from GitHub, then kept in the config.
+a_installation() {
+  id="$(conf_get "installation.$1")"
+  if [ -z "$id" ]; then
+    for kind in users orgs; do
+      a_call GET "/$kind/$1/installation" "$2"
+      [ "$a_code" = 404 ] || break
+    done
+    [ "$a_code" != 404 ] || die "agent-token: pap-agent is not installed on $1; install it there with this repository selected"
+    [ "$a_code" = 200 ] || a_refused "the installation lookup for $1"
+    id="$(jq -r '.id // empty' "$work/resp")"
+    [ -n "$id" ] || die "agent-token: GitHub's installation answer for $1 had no id"
+    conf_set "installation.$1" "$id"
+  fi
+  printf '%s\n' "$id"
+}
+
+a_prereqs() { # the commands agent-token needs, each a one-line error
+  for c in openssl curl jq "$(a_keyring)"; do
+    command -v "$c" >/dev/null 2>&1 || die "agent-token: $c is not on PATH; pap doctor names the install command"
+  done
+}
+
+cmd_agent_key() {
+  a_cf="$(a_config)"
+  sub="${1:-}"; [ $# -eq 0 ] || shift
+  case "$sub" in
+    import)
+      pem="" cid=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --client-id) [ $# -ge 2 ] || usage; cid="$2"; shift 2 ;;
+          -*) usage ;;
+          *) [ -z "$pem" ] || usage; pem="$1"; shift ;;
+        esac
+      done
+      [ -n "$pem" ] || usage
+      [ -f "$pem" ] || die "agent-key: no file $pem"
+      for c in openssl "$(a_keyring)"; do
+        command -v "$c" >/dev/null 2>&1 || die "agent-key: $c is not on PATH; pap doctor names the install command"
+      done
+      openssl pkey -in "$pem" -noout 2>/dev/null || die "agent-key: $pem is not a private key openssl can read"
+      [ -n "$cid" ] || cid="$(conf_get client_id)"
+      [ -n "$cid" ] || die "agent-key: no client id yet; pass --client-id <id>, from the app's settings page"
+      printf '%s' "$cid" | grep -Eq '^[A-Za-z0-9._-]+$' || die "agent-key: '$cid' does not look like a client id"
+      key_store < "$pem" || die "agent-key: the keyring ($(a_keyring)) did not store the key"
+      has_key || die "agent-key: the keyring ($(a_keyring)) stored nothing readable"
+      conf_set client_id "$cid"
+      say "agent-key: the pap-agent private key is in the keyring ($(a_keyring))." \
+        "agent-key: client id $cid is in $a_cf." \
+        "Now delete $pem; the keyring holds the only copy this machine needs." ;;
+    status)
+      [ $# -eq 0 ] || usage
+      ok=0
+      if has_key; then say "key        in the keyring ($(a_keyring))"
+      else say "key        missing (pap agent-key import <pem> --client-id <id>)"; ok=1; fi
+      cid="$(conf_get client_id)"
+      if [ -n "$cid" ]; then say "client id  $cid"; else say "client id  missing"; ok=1; fi
+      say "config     $a_cf"
+      if [ -f "$a_cf" ]; then
+        awk 'index($0, "installation.") == 1 { sub(/^installation\./, ""); sub(/=/, " "); print "installed  " $0 }' "$a_cf"
+      fi
+      return "$ok" ;;
+    *) usage ;;
+  esac
+}
+
+cmd_agent_token() {
+  a_cf="$(a_config)"
+  owner=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --owner) [ $# -ge 2 ] || usage; owner="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  if [ -z "$owner" ]; then
+    slug="$(origin_slug)" || die "agent-token: no --owner, and origin is not a GitHub remote"
+    owner="${slug%%/*}"
+  fi
+  valid_owner "$owner" || die "agent-token: '$owner' is not a GitHub login"
+
+  # The cache: one file per owner, "<expiry epoch> <token>", mode 0600 in a
+  # 0700 directory of this user's.
+  base="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+  dir="${base%/}/pap-agent-$(id -u)"
+  if [ ! -d "$dir" ]; then (umask 077 && mkdir -p "$dir") || die "agent-token: cannot create $dir"; fi
+  # shellcheck disable=SC2012 # one known directory, only its owner column
+  [ ! -L "$dir" ] && [ "$(ls -ldn "$dir" | awk '{ print $3 }')" = "$(id -u)" ] || die "agent-token: $dir is not this user's own directory; remove it"
+  chmod 700 "$dir"
+  cache="$dir/token-$owner"
+  now="$(date +%s)"
+  c_exp="" c_tok=""
+  [ ! -f "$cache" ] || [ -L "$cache" ] || read -r c_exp c_tok < "$cache" || true
+  case "$c_exp" in "" | *[!0-9]*) c_exp=0 ;; esac
+  if [ -n "$c_tok" ] && [ "$((c_exp - now))" -gt 300 ]; then
+    say "$c_tok"
+    return 0
+  fi
+
+  a_prereqs
+  # Made here, so the subshells below share it and the EXIT trap removes it.
+  workdir
+  has_key || die "agent-token: no pap-agent key in the keyring; run pap agent-key import <pem> --client-id <id>"
+  cid="$(conf_get client_id)"
+  [ -n "$cid" ] || die "agent-token: no client id in $a_cf; run pap agent-key import <pem> --client-id <id>"
+  jwt="$(a_jwt "$cid")" || die "agent-token: openssl could not sign with the key in the keyring; re-import it"
+  inst="$(a_installation "$owner" "$jwt")" || exit 1
+  a_call POST "/app/installations/$inst/access_tokens" "$jwt"
+  if [ "$a_code" = 404 ]; then
+    # The cached installation is gone (uninstalled, or reinstalled under a
+    # new id): look it up once more.
+    conf_unset "installation.$owner"
+    inst="$(a_installation "$owner" "$jwt")" || exit 1
+    a_call POST "/app/installations/$inst/access_tokens" "$jwt"
+  fi
+  [ "$a_code" = 201 ] || a_refused "an installation token for $owner"
+  tok="$(jq -r '.token // empty' "$work/resp")"
+  t_exp="$(jq -r '.expires_at // empty | fromdateiso8601' "$work/resp" 2>/dev/null || true)"
+  [ -n "$tok" ] && [ -n "$t_exp" ] || die "agent-token: GitHub's token answer had no token or expiry"
+  (umask 077 && printf '%s %s\n' "$t_exp" "$tok" > "$cache.tmp.$$") || die "agent-token: cannot write $cache"
+  chmod 600 "$cache.tmp.$$" && mv -f "$cache.tmp.$$" "$cache"
+  say "$tok"
+}
+
 # revisits -------------------------------------------------------------------
 
 # field <file> <name>: the value of a record header line, "- **Name:** value".
@@ -982,6 +1235,8 @@ case "$cmd" in
   repo) exec bash "$root/scripts/repo-sync.sh" "$@" ;;
   codeowners) exec sh "$root/scripts/gen-codeowners.sh" "$@" ;;
   doctor) cmd_doctor "$@" ;;
+  agent-key) cmd_agent_key "$@" ;;
+  agent-token) cmd_agent_token "$@" ;;
   revisits) cmd_revisits "$@" || true ;;
   coverage) cmd_coverage "$@" || true ;;
   measure) cmd_measure "$@" || true ;;
