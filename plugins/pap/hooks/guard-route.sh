@@ -45,7 +45,11 @@
 #         gh run by a path (`/usr/bin/gh`, `./gh`, `~/bin/gh`, also after
 #         env, command or exec) or with a `PATH=` assignment is refused
 #         (rule 23.1): it skips the shim. `command gh` and `env gh` find
-#         the shim on PATH and pass. In every repository, adopting or not,
+#         the shim on PATH and pass. In an adopting repository, gh by name
+#         and git push, fetch, pull, clone, ls-remote or remote update to a
+#         GitHub HTTPS remote are refused unless the session was started by
+#         pap claude (rule 23.4; see session_ok). In every repository,
+#         adopting or not,
 #         GH_CONFIG_DIR changed in assignment position (= or += as a prefix
 #         or after env, export, declare, typeset, readonly or local; unset,
 #         env -u, env -i) is refused (rule 23.4): pap claude sets it to the
