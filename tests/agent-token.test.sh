@@ -307,7 +307,7 @@ case "\$1" in
     "$real_curl" -s "\$1" > "$T/form.html"
     st="\$(sed -n 's/.*?state=\([0-9a-f]*\)".*/\1/p' "$T/form.html")"
     [ "\${FAKE_STATE:-}" != bad ] || st=0000
-    "$real_curl" -s "\${1}callback?code=fakecode&state=\$st" >/dev/null ;;
+    "$real_curl" -s -o /dev/null -w 'callback %{http_code}\n' "\${1}callback?code=fakecode&state=\$st" >> "$T/opened.log" ;;
   https://github.com/apps/*/installations/new)
     printf '200\n{"id":5151}\n' > "$FAKE_GH/GET__users_\${FAKE_OWNER:-example-owner}_installation" ;;
 esac
@@ -338,7 +338,7 @@ EOF
   result $? "agent-setup: the converted key is in the keyring, client id and slug in the config, installation confirmed" "rc=$rc $out"
   ! printf '%s\n' "$out" | grep -qE 'PRIVATE KEY|client-secret-xyz|webhook-secret-xyz' &&
     ! grep -rqlE 'PRIVATE KEY|client-secret-xyz' "$T/tmp" "$T/run" "$T/xdg" "$T/home" 2>/dev/null &&
-    ! grep -E '^ARGV' "$FAKE_GH/log" | grep -q 'fakecode.*Bearer'
+    ! grep -E '^ARGV' "$FAKE_GH/log" | grep -qE 'PRIVATE KEY|client-secret-xyz|webhook-secret-xyz'
   result $? "agent-setup: the pem and secrets are never printed nor written outside the keyring" "$out"
 
   was="$(grep -c '^REQ POST /app-manifests' "$FAKE_GH/log")"
@@ -350,8 +350,10 @@ EOF
   setup_reset; conversion
   answer GET__users_example-org 200 '{"login":"example-org","type":"Organization"}'
   answer GET__users_example-org_installation 200 '{"id":4343}'
-  out="$(printf 'n\n' | p agent-setup --owner example-org --name example-org-agent 2>&1)"
-  grep -q 'action="https://github.com/organizations/example-org/settings/apps/new?state=' "$T/form.html" &&
+  answer POST__app_installations_4343_access_tokens 201 "{\"token\":\"ghs_fake_org\",\"expires_at\":\"$(future 3600)\"}"
+  out="$(printf 'n\n' | p agent-setup --owner example-org --name example-org-agent 2>&1)"; rc=$?
+  [ "$rc" = 1 ] && cmp -s "$FAKE_KEYRING" "$T/app.pem" &&
+    printf '%s\n' "$out" | grep -q 'installed on example-org (installation 4343)' && grep -q 'action="https://github.com/organizations/example-org/settings/apps/new?state=' "$T/form.html" &&
     sed -n 's/.*name=manifest value="\([^"]*\)".*/\1/p' "$T/form.html" | grep -q '&quot;name&quot;: &quot;example-org-agent&quot;'
   result $? "agent-setup: an organisation's form, and --name" "$out $(head -c 300 "$T/form.html")"
 
@@ -359,8 +361,25 @@ EOF
   answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
   out="$(cd "$T/repo" && FAKE_STATE=bad PAP_SETUP_TIMEOUT=3 sh "$pap" agent-setup < /dev/null 2>&1)"; rc=$?
   [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'no answer from GitHub in time' && [ ! -s "$FAKE_KEYRING" ] &&
+    grep -qx 'callback 400' "$T/opened.log" &&
     ! grep -q '^REQ POST /app-manifests' "$FAKE_GH/log"
   result $? "agent-setup: a callback with the wrong state is refused; nothing converted or stored" "rc=$rc $out"
+
+  out="$(p agent-setup --name 'bad name; rm' 2>&1 < /dev/null)"; rc=$?
+  out2="$(p agent-setup --name abcdefghijklmnopqrstuvwxyz0123456789 2>&1 < /dev/null)"; rc2=$?
+  [ "$rc" = 1 ] && [ "$rc2" = 1 ] && printf '%s\n%s\n' "$out" "$out2" | grep -c 'not a usable app name' | grep -qx 2
+  result $? "agent-setup: refuses an app name GitHub would not take" "$out / $out2"
+  # A listener left behind when pap is stopped mid-wait would hold the port.
+  setup_reset; conversion
+  answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
+  (cd "$T/repo" && PAP_BROWSER=true exec sh "$pap" agent-setup < /dev/null > "$T/stopped.out" 2>&1) &
+  spid=$!
+  i=0; until grep -q '127.0.0.1' "$T/stopped.out" 2>/dev/null || [ "$i" -ge 50 ]; do sleep 0.1; i=$((i + 1)); done
+  kill "$spid" 2>/dev/null; wait "$spid" 2>/dev/null
+  sleep 1
+  port="$(sed -n 's#.*http://127.0.0.1:\([0-9]*\)/.*#\1#p' "$T/stopped.out")"
+  [ -n "$port" ] && ! "$real_curl" -s -m 2 -o /dev/null "http://127.0.0.1:$port/"
+  result $? "agent-setup: stopping pap mid-wait stops its listener" "port=$port $(cat "$T/stopped.out")"
 
   # The install page: the app is installed only once the browser has been
   # there; the answers wait for it.

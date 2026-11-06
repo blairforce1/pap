@@ -1045,14 +1045,19 @@ cmd_agent_setup() {
   fi
   valid_owner "$owner" || die "agent-setup: '$owner' is not a GitHub login"
   [ -n "$name" ] || name="$owner-pap-agent"
+  # GitHub's limit on an app's name is 34 characters.
+  printf '%s' "$name" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,33}$' ||
+    die "agent-setup: '$name' is not a usable app name (letters, digits, . _ -, at most 34); pass --name"
   for c in openssl curl jq "$(a_keyring)"; do
     command -v "$c" >/dev/null 2>&1 || die "agent-setup: $c is not on PATH; pap doctor names the install command"
   done
   workdir
 
   # 1. Registration, skipped when this machine already has the key.
-  if has_key && [ -n "$(conf_get client_id)" ]; then
-    say "agent-setup: a key and client id are already here ($a_cf); registration skipped."
+  if has_key; then
+    say "agent-setup: a key is already in the keyring; registration skipped."
+    [ -n "$(conf_get client_id)" ] ||
+      die "agent-setup: the key has no client id in $a_cf; run pap agent-key import <pem> --client-id <id>, or delete the key to register anew"
   else
     command -v python3 >/dev/null 2>&1 ||
       die "agent-setup: python3 is needed for the browser hand-off; or follow the manual steps in docs/account-setup.md"
@@ -1069,18 +1074,24 @@ cmd_agent_setup() {
     state="$(openssl rand -hex 16)"
     python3 -c "$a_listener" "$state" "$action" "$work/manifest.json" "${PAP_SETUP_TIMEOUT:-900}" > "$work/listen" &
     lpid=$!
+    # The listener goes with pap, however pap ends.
+    trap 'kill "$lpid" 2>/dev/null; cleanup' EXIT
+    trap 'kill "$lpid" 2>/dev/null; cleanup; exit 130' INT TERM
     i=0
     while [ ! -s "$work/listen" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
     port="$(sed -n 1p "$work/listen")"
     [ -n "$port" ] || { kill "$lpid" 2>/dev/null; die "agent-setup: could not listen on a loopback port"; }
     say "agent-setup: registering $name for $owner. In the browser, check the name and press Create GitHub App."
     a_open "http://127.0.0.1:$port/"
-    wait "$lpid" || die "agent-setup: no answer from GitHub in time; run pap agent-setup again"
+    lrc=0; wait "$lpid" || lrc=$?
+    trap cleanup EXIT
+    trap 'cleanup; exit 130' INT TERM
+    [ "$lrc" = 0 ] || die "agent-setup: no answer from GitHub in time; run pap agent-setup again"
     code="$(sed -n 2p "$work/listen")"
     case "$code" in "" | *[!A-Za-z0-9_-]*) die "agent-setup: GitHub's redirect carried no usable code" ;; esac
     # The answer holds the pem and two secrets: it stays in this shell's
     # memory and reaches the keyring on stdin, never a file or the screen.
-    if ! conv="$(printf '' | curl -sS -X POST -w '\n%{http_code}' --config - \
+    if ! conv="$(curl -sS -X POST -w '\n%{http_code}' \
       -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
       --connect-timeout 10 --max-time 30 "$a_api/app-manifests/$code/conversions" 2>/dev/null)"; then
       die "agent-setup: GitHub unreachable at $a_api; check the network and try again"
@@ -1102,15 +1113,15 @@ cmd_agent_setup() {
 
   # 2. Installation, confirmed with the app's own JWT.
   aslug="$(conf_get slug)"
-  [ -n "$aslug" ] || aslug="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
   jwt="$(a_jwt "$(conf_get client_id)")" || die "agent-setup: openssl could not sign with the key in the keyring"
   conf_unset "installation.$owner"
   if inst="$( (a_installation "$owner" "$jwt") 2>"$work/ierr")"; then
     say "agent-setup: $aslug is installed on $owner (installation $inst)."
   else
-    a_open "https://github.com/apps/$aslug/installations/new"
+    if [ -n "$aslug" ]; then a_open "https://github.com/apps/$aslug/installations/new"
+    else say "agent-setup: no app slug in $a_cf (a key imported by hand); install from the app's own page."; fi
     while :; do
-      ask "Install $aslug on $owner with the adopting repositories selected, then press Enter (q to skip):"
+      ask "Install ${aslug:-the app} on $owner with the adopting repositories selected, then press Enter (q to skip):"
       [ "$answer" != q ] || { say "agent-setup: installation skipped."; break; }
       if inst="$( (a_installation "$owner" "$jwt") 2>"$work/ierr")"; then
         say "agent-setup: $aslug is installed on $owner (installation $inst)."
