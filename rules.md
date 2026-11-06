@@ -227,5 +227,26 @@ The `spec.md` of a feature, infra or security-sensitive change has an Operations
 
 No push to any branch rewrites its history; a branch behind main merges main. The human overrides on purpose by disabling the `all-branches` ruleset, pushing, and running `pap repo apply`.
 
-- Decision: [0022](decisions/0022-no-branch-takes-a-force-push.md)
+- Decision: [0022](decisions/0022-no-branch-takes-a-force-push.md); the override amended by [0023](decisions/0023-agents-act-on-github-as-their-own-app.md) (proposed): once agents push as the agent app, the owner's bypass of rule 23.3 replaces disabling the ruleset
 - Enforced by: Repository ruleset [`.github/rulesets/all-branches.json`](.github/rulesets/all-branches.json) (`non_fast_forward` on `~ALL`, no bypass actors, Renovate's and Dependabot's branches excluded), applied by `pap repo apply`; `pap repo status` reports it disabled or changed as drift ([`scripts/repo-sync.sh`](scripts/repo-sync.sh)). Claude Code `PreToolUse` hook [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) running [`scripts/guard-branch.sh`](scripts/guard-branch.sh) `push-args`, which refuses an agent's `git push` with `--force`, `-f`, `--force-with-lease`, `--force-if-includes`, `--mirror` or a `+<refspec>`. It does not follow `bash -c`, `eval`, scripts or a push refspec in git config, and on `renovate/` and `dependabot/` branches it is the only enforcer; nothing refuses an agent disabling the ruleset through `gh api`.
+
+### 23.1 An agent session acts on GitHub as the agent app
+
+In a repository that adopts PAP, every push, pull request, label and comment an agent session makes is made with the agent app's installation token, minted on demand by `pap agent-token`; the owner's stored sign-in is used by a person at a terminal, by `/pap:reviewed` and `/pap:accept`, and by nothing else.
+
+- Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md)
+- Enforced by: Nothing yet. Planned: the `gh` shim the base layer puts on the path mints the token whenever `CLAUDECODE` is set in an adopting repository and never falls back to a stored sign-in; `pap doctor` checks the key, an installation for the remote's owner, an HTTPS remote and `gh` as the credential helper; the `PreToolUse` hook refuses an agent's `PAP_AS_HUMAN` and an agent's push to an SSH remote in an adopting repository.
+
+### 23.2 `owner-reviewed` counts only when a person added it
+
+A `risk:high` pull request passes only when the latest `labeled` event for `owner-reviewed`, after any `unlabeled`, has an actor of type `User`; a label added by a Bot actor, the agent app included, is as if absent and is removed.
+
+- Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md); narrows [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)'s rule 16.1
+- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow reads the pull request's issue events and judges the gate on the actor's type, removing a Bot's label and saying why.
+
+### 23.3 The owner bypasses the `all-branches` ruleset; the app never does
+
+`.github/rulesets/all-branches.json` lists the owner, and no `Integration`, as its one bypass actor, mode `always`; `main.json` lists none.
+
+- Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md); amends [0022](decisions/0022-no-branch-takes-a-force-push.md)'s override
+- Enforced by: Nothing yet. Planned: `pap repo apply` writes the owner as the actor (`User` where the API accepts it on that repository, else the owner's admin role) and ships only after rule 23.1's shim is on every machine that runs agents; `pap repo status` reports an `Integration` actor, or a missing owner, as drift.

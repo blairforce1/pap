@@ -49,6 +49,10 @@ Before the trial: decision 0002's stop, which `CLAUDE.md` states as one pull req
 Related: process 5.9, 5.11, 6.2; decision 0021 (the spec's Operations section is its input, and its operational scenarios are what it binds); H-005 (`/findings`); H-013's method, a role is added only when its measurement wins. Class: feature
 Pilot on a real product's first deployment, not on pap, which deploys nothing. Automatic action on a live system, even a reversible and pre-authorised one, needs its own decision record before the watcher acts; until then it proposes and the human runs the undo (process 5.9).
 
+**H-016** We believe giving agent sessions their own GitHub identity, a GitHub App whose installation token `pap agent-token` mints on demand, will produce GitHub controls that bind the agent and not the owner, measured by GitHub acts of an agent attributed to the owner (pull-request authors and `labeled` events, at 0) and by GitHub-side refusals of an agent's settings write and of an agent-added `owner-reviewed` (decision 0023, proposed).
+Related: decisions 0005, 0016, 0018, 0022; rules 23.1 to 23.3. Class: infra
+Built in slices, in this order (decision 0023, point 5): `pap agent-token`, `pap agent-key`, the `gh` shim in the base layer and the `pap doctor` checks; `PAP_AS_HUMAN=1` in `/pap:reviewed` and `/pap:accept` with the hook rule refusing it from an agent; the actor check in the reusable `pr-checks`; the owner's bypass actor in `all-branches.json` through `pap repo apply` and `status`, which ships last; the docs and the dated notes on 0016 and 0022. The owner's one-time setup (register, install, import the key) precedes the first slice's use.
+
 ## Unranked
 
 **H-006** We believe joining Claude Code's telemetry to the change id will produce inner-loop measures per change, measured by the share of changes with token and rework-share data.
