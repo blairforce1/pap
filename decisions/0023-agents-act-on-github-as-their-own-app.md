@@ -27,9 +27,9 @@
   from 0 (the hook is the only refuser today) to every attempt
 - **Introduced in:** not yet released; the release that ships
   `pap agent-token`, the credential routing and the `pr-checks` actor check
-- **Revisit:** after 20 change PRs from the first pull request pushed as
-  the app: both effects; how often the token could not be minted or
-  expired mid-command; any act that showed as the bot when it was the
+- **Revisit:** when 20 change PRs have merged after the first pull request
+  pushed as the app: both effects; how often the token could not be minted
+  or expired mid-command; any act that showed as the bot when it was the
   owner's, or the reverse
 
 ## Context
