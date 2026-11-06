@@ -54,7 +54,9 @@
 #         service gh:github.com (secret-tool lookup or search naming it,
 #         security find-generic-password or find-internet-password naming
 #         it, security dump-keychain) or gh printing its token (gh auth
-#         token, gh auth status -t), and running reviewed.sh or accept.sh,
+#         token, gh auth status -t), a command naming the agent directory
+#         (gh-agent, or $GH_CONFIG_DIR expanded) or signing gh in (gh auth
+#         login, switch, refresh), and running reviewed.sh or accept.sh,
 #         the owner's skill scripts, by name or path (also after sh, bash,
 #         env or source): a skill's own preprocessing never reaches this
 #         hook, so only an agent's call is refused.
@@ -266,6 +268,12 @@ targets="$(jq -r '
             or ($h == "security" and ($w | any(. == "dump-keychain")))
             or ($h == "gh" and ($j | test("(^|\\s)gh\\s+auth\\s+(token(\\s|$)|status\\s.*(-t|--show-token)(\\s|$))")))
          then .out += ["keyring\t\($st.dir)\t\($h)"] else . end)
+      # Rule 23.4: the agent directory stays empty. A hosts.yml naming the
+      # owner would make gh fetch the owner token from the keyring, and a
+      # gh auth login there would sign it in. No agent needs to name it.
+      | (if ($j | test("gh-agent|\\$\\{?GH_CONFIG_DIR"))
+            or ($h == "gh" and ($j | test("(^|\\s)gh\\s+auth\\s+(login|switch|refresh)(\\s|$)")))
+         then .out += ["agentdir\t\($st.dir)\t\($h)"] else . end)
       # Rule 23.4: the two skill scripts that act as the owner. The skill
       # runs them by its own preprocessing, which no PreToolUse hook sees.
       | ([$w[] | select(test("^(env|command|exec|nohup|time|sh|bash|dash|zsh|source|\\.|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $x
@@ -333,6 +341,12 @@ while IFS="$tab" read -r kind target reason file; do
   if [ "$kind" = keyring ]; then
     printf 'guard-route: refusing a read of gh'"'"'s keyring entry or token (%s) in %s\n' "$reason" "$target" >&2
     printf 'guard-route: rule 23.4: the owner'"'"'s gh token stays out of agent shells; an agent acts as pap-agent through the gh shim.\n' >&2
+    status=2
+    continue
+  fi
+  if [ "$kind" = agentdir ]; then
+    printf 'guard-route: refusing a command that names the agent gh directory or signs gh in (%s) in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 23.4: the agent gh directory stays empty; an agent acts as pap-agent through the gh shim.\n' >&2
     status=2
     continue
   fi

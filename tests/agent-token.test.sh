@@ -257,10 +257,10 @@ for v in '' "$T/xdg/gh"; do
     printf '%s\n' "$out" | grep -q "^gh (pap shim): this Claude Code session was not started with pap claude (GH_CONFIG_DIR is ${v:-unset}, not $T/xdg/gh-agent).*quit and run pap claude (rule 23.4)$"
   result $? "shim: GH_CONFIG_DIR ${v:-unset}, not the agent directory: refused naming pap claude, gh never runs" "rc=$rc $out $(cat "$T/gh.log")"
 done
-printf 'github.com:\n    user: example-owner\n' > "$T/xdg/gh-agent/hosts.yml"
+printf 'ghe.example.com:\n    user: example-owner\n' > "$T/xdg/gh-agent/hosts.yml"
 out="$(gh_run "$T/repo" CLAUDECODE=1)"; rc=$?
-[ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] && printf '%s\n' "$out" | grep -q 'hosts.yml holds a github.com sign-in'
-result $? "shim: an agent directory holding a github.com sign-in is refused, gh never runs" "rc=$rc $out"
+[ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] && printf '%s\n' "$out" | grep -q 'hosts.yml holds a sign-in'
+result $? "shim: an agent directory holding any sign-in, a GHE host included, is refused, gh never runs" "rc=$rc $out"
 rm "$T/xdg/gh-agent/hosts.yml"
 out="$(gh_run "$T/plain" CLAUDECODE=1 GH_CONFIG_DIR=)"
 grep -qx 'GH_TOKEN=<unset> args=pr list' "$T/gh.log"

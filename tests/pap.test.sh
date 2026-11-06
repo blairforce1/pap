@@ -428,7 +428,7 @@ result $? "doctor: an agent directory not 700 is drift" "$out"
 chmod 700 "$ad"
 printf 'github.com:\n    user: example-owner\n' > "$ad/hosts.yml"
 out="$(doctor MISE_SHELL=bash)"; rc=$?
-[ "$rc" = 1 ] && has "drift    agent gh directory $ad  (it holds a github.com sign-in, which it never should: rm '$ad/hosts.yml')"
+[ "$rc" = 1 ] && has "drift    agent gh directory $ad  (it holds a sign-in, which it never should: rm '$ad/hosts.yml')"
 result $? "doctor: an agent directory holding a sign-in is drift" "$out"
 rm "$ad/hosts.yml"; rmdir "$ad"
 out="$(doctor MISE_SHELL=bash)"; rc=$?

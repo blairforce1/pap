@@ -153,7 +153,7 @@ check 2 "$T/G2" 'unset GH_CONFIG_DIR && gh pr list'
 check 2 "$T/U"  'env -u GH_CONFIG_DIR gh pr list'
 check 2 "$T/U"  'env -i gh pr list'
 # shellcheck disable=SC2016 # the command is the hook's input, unexpanded
-check 0 "$T/G2" 'echo "$GH_CONFIG_DIR"'
+check 2 "$T/G2" 'echo "$GH_CONFIG_DIR"'
 check 0 "$T/G2" 'GH_CONFIG_DIRS=x gh pr list'
 check 2 "$T/G2" 'GH_CONFIG_DIR+=/x gh pr list'
 check 2 "$T/U"  'export GH_CONFIG_DIR+=/x'
@@ -168,6 +168,16 @@ check 2 "$T/G2" 'gh auth token'
 check 2 "$T/U"  'gh auth token --hostname github.com'
 check 2 "$T/U"  'gh auth status --show-token'
 check 0 "$T/U"  'gh auth status'
+# The agent directory stays empty: no write, link or copy into it, no
+# sign-in through gh.
+check 2 "$T/U"  "printf 'github.com:\\n  user: x\\n' > ~/.config/gh-agent/hosts.yml"
+check 2 "$T/U"  'ln -s ../gh/hosts.yml ~/.config/gh-agent/hosts.yml'
+# shellcheck disable=SC2016 # the command is the hook's input, unexpanded
+check 2 "$T/U"  'cp ~/.config/gh/hosts.yml "$GH_CONFIG_DIR/"'
+check 2 "$T/U"  'gh auth login --web'
+check 2 "$T/U"  'cd /tmp && gh auth switch'
+check 2 "$T/U"  'gh auth refresh -s repo'
+check 0 "$T/U"  'gh auth setup-git'
 check 0 "$T/U"  'secret-tool lookup service pap-agent account private-key'
 check 0 "$T/U"  'security find-generic-password -s pap-agent'
 check 0 "$T/U"  'grep -rn GH_CONFIG_DIR= docs'

@@ -610,8 +610,8 @@ d_owner() {
     item missing "agent gh directory $ad" "start Claude Code with pap claude, which creates it"
   elif [ "$(a_mode "$ad")" != 700 ]; then
     item drift "agent gh directory $ad" "mode $(a_mode "$ad"), not 700: chmod 700 '$ad'"
-  elif [ -f "$ad/hosts.yml" ] && grep -q 'github\.com' "$ad/hosts.yml"; then
-    item drift "agent gh directory $ad" "it holds a github.com sign-in, which it never should: rm '$ad/hosts.yml'"
+  elif [ -s "$ad/hosts.yml" ]; then
+    item drift "agent gh directory $ad" "it holds a sign-in, which it never should: rm '$ad/hosts.yml'"
   else
     item ok "agent gh directory $ad" "mode 700, no sign-in"
   fi

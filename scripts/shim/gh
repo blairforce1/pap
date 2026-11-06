@@ -77,8 +77,8 @@ if [ "${GH_CONFIG_DIR:-}" != "$agentdir" ]; then
   printf 'gh (pap shim): this Claude Code session was not started with pap claude (GH_CONFIG_DIR is %s, not %s), so gh could reach your own sign-in; quit and run pap claude (rule 23.4)\n' "${GH_CONFIG_DIR:-unset}" "$agentdir" >&2
   exit 1
 fi
-if grep -q 'github\.com' "$agentdir/hosts.yml" 2>/dev/null; then
-  printf 'gh (pap shim): %s/hosts.yml holds a github.com sign-in, which the agent directory never should; remove that file (rule 23.4)\n' "$agentdir" >&2
+if [ -s "$agentdir/hosts.yml" ]; then
+  printf 'gh (pap shim): %s/hosts.yml holds a sign-in, which the agent directory never should; remove that file (rule 23.4)\n' "$agentdir" >&2
   exit 1
 fi
 
