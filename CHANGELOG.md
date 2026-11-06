@@ -161,6 +161,18 @@ not carry.
 
 #### Added
 
+- Decision 0023's second slice (rule 23.4): `pap claude` starts Claude
+  Code with `GH_CONFIG_DIR` set to an empty agent directory and the GitHub
+  token variables unset, so agent shells find no stored account; your own
+  sign-in stays in gh's default directory and the keyring. The `gh` shim
+  refuses an agent session not started that way in an adopting
+  repository; the guard hook refuses an agent's command that changes
+  `GH_CONFIG_DIR`, reads gh's keyring entry or token, runs `reviewed.sh`
+  or `accept.sh`, or (in an adopting repository) runs `gh` by path or with
+  `PATH=`; `/pap:reviewed` and `/pap:accept` act as you from gh's default
+  directory; `pap doctor` checks the sign-ins. New
+  `docs/agent-identity-security.md`: what the agent can do, what is
+  protected, and every known escape.
 - Decision 0023's first slice (rule 23.1): `pap agent-key import` and
   `status` keep the `pap-agent` app's private key in the OS keyring;
   `pap agent-token` mints and caches an installation token for the

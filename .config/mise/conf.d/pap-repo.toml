@@ -14,7 +14,7 @@ run = '''
 failed=""
 for t in guard-route gen-codeowners assemble change-worktree renovate-copy pap \
   repo-sync tidy revisits coverage measure release heavy-build session-end agent-token \
-  reviewed accept; do
+  reviewed accept agent-boundary; do
   sh "tests/$t.test.sh" || failed="$failed $t"
 done
 [ -z "$failed" ] || { echo "test:pap: failed:$failed"; exit 1; }

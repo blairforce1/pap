@@ -45,8 +45,10 @@ mkdir "$T/stub"
 cat > "$T/stub/gh" << 'EOF'
 #!/bin/sh
 echo "gh $*" >> "$FAKE_LOG"
+echo "gh GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} CLAUDECODE=${CLAUDECODE-<unset>}" >> "$FAKE_ENV"
 case "$1 $2" in
   "api user") echo example-lead ;;
+  "auth git-credential") cat > /dev/null; printf 'username=x-access-token\npassword=fake-owner\n' ;;
   "pr create")
     while [ $# -gt 0 ]; do
       [ "$1" = --body-file ] && cp "$2" "$FAKE_BODY"
@@ -57,10 +59,16 @@ case "$1 $2" in
 esac
 EOF
 chmod +x "$T/stub/gh"
-export FAKE_LOG="$T/gh.log" FAKE_BODY="$T/body.md"
+export FAKE_LOG="$T/gh.log" FAKE_BODY="$T/body.md" FAKE_ENV="$T/gh.env"
 PATH="$T/stub:$PATH"
 export PATH
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+# Rule 23.4: the owner's gh directory, gh's default under XDG_CONFIG_HOME;
+# and the environment of an agent shell, which the script must
+# not pass on to gh or the push.
+export XDG_CONFIG_HOME="$T/xdg"
+mkdir -p "$T/xdg/gh"
+export CLAUDECODE=1 GH_TOKEN=ghs_agent_token GITHUB_TOKEN=ghs_agent_token2
 
 # record <id> <status>: a decision record in the shape PAP's take.
 record() {
@@ -109,8 +117,21 @@ record 0005 proposed
 git add decisions
 git commit -q -m 'a new record'
 git checkout -q main
+# The push's own environment, which its git hooks get, and the credential
+# git would ask for it: the origin here is a path, so the hook asks for one
+# itself, through the helpers the push was given.
+cat > .git/hooks/pre-push << 'EOF'
+#!/bin/sh
+echo "push GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} CLAUDECODE=${CLAUDECODE-<unset>}" >> "$FAKE_ENV"
+# Only a push given a helper asks: the suite's own pushes have none.
+case "${GIT_CONFIG_PARAMETERS:-}" in
+  *"gh auth git-credential"*)
+    printf 'protocol=https\nhost=github.com\n\n' | GIT_TERMINAL_PROMPT=0 git credential fill | sed -n 's/^password=/cred /p' >> "$FAKE_ENV" ;;
+esac
+EOF
+chmod +x .git/hooks/pre-push
 
-run() { : > "$FAKE_LOG"; out="$(sh "$script" "$@" 2>&1)"; rc=$?; }
+run() { : > "$FAKE_LOG"; : > "$FAKE_ENV"; out="$(sh "$script" "$@" 2>&1)"; rc=$?; }
 branches() { git for-each-ref --format='%(refname:short)' 'refs/heads/change/accept-*' 'refs/remotes/origin/change/accept-*'; }
 clean() { [ -z "$(branches)" ] && [ ! -s "$FAKE_LOG" ] && [ -z "$(git status --porcelain)" ]; }
 
@@ -169,11 +190,26 @@ grep -q '^Change: none$' "$FAKE_BODY" && grep -q '^Record: none$' "$FAKE_BODY" &
   ! grep -q '^Approved-by:' "$FAKE_BODY"
 result $? "body: protected-path box unticked with the head to approve, no Approved-by line" "$(cat "$FAKE_BODY")"
 
+owner_env="GH_CONFIG_DIR=$T/xdg/gh GH_TOKEN=<unset> GITHUB_TOKEN=<unset> CLAUDECODE=<unset>"
+[ "$(grep -c '^gh ' "$FAKE_ENV")" = 3 ] && [ "$(sed -n 's/^gh //p' "$FAKE_ENV" | sort -u)" = "$owner_env" ] &&
+  [ "$(sed -n 's/^cred //p' "$FAKE_ENV")" = fake-owner ]
+result $? "both gh calls and the push's credential run as the owner: owner's GH_CONFIG_DIR, no GH_TOKEN, GITHUB_TOKEN or CLAUDECODE" "$(cat "$FAKE_ENV")"
+[ "$(sed -n 's/^push //p' "$FAKE_ENV")" = "GH_CONFIG_DIR=<unset> GH_TOKEN=ghs_agent_token GITHUB_TOKEN=ghs_agent_token2 CLAUDECODE=1" ]
+result $? "the push's git hooks keep the caller's environment, not the owner's" "$(cat "$FAKE_ENV")"
+
 # The branch now exists: a second run for the same ids is refused.
 git -C "$wt" checkout -q --detach
 run 0001 0002
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: change/accept-0001-0002 already exists' && [ ! -s "$FAKE_LOG" ]
 result $? "an existing accept branch is refused" "exit $rc; $out"
+
+# No gh default directory: refused before anything is fetched or written.
+mv "$T/xdg/gh" "$T/gh.away"
+run 0002
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: gh has no default directory at .*gh auth login' &&
+  [ ! -s "$FAKE_ENV" ] && [ ! -s "$FAKE_LOG" ] && ! git rev-parse -q --verify refs/heads/change/accept-0002 > /dev/null
+result $? "no gh default directory: refused naming gh auth login, nothing pushed or opened" "exit $rc; $out"
+mv "$T/gh.away" "$T/xdg/gh"
 
 # Risk mode: decisions/** is fixed high, so the box says so.
 cd "$T/repo" || exit 1

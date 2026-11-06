@@ -42,6 +42,28 @@
 #   0023  every `git push` runs the same push-args check, which also
 #         refuses a push to an SSH remote (rule 23.1): an agent pushes over
 #         HTTPS as the pap-agent app.
+#         gh run by a path (`/usr/bin/gh`, `./gh`, `~/bin/gh`, also after
+#         env, command or exec) or with a `PATH=` assignment is refused
+#         (rule 23.1): it skips the shim. `command gh` and `env gh` find
+#         the shim on PATH and pass. In every repository, adopting or not,
+#         GH_CONFIG_DIR changed in assignment position (= or += as a prefix
+#         or after env, export, declare, typeset, readonly or local; unset,
+#         env -u, env -i) is refused (rule 23.4): pap claude sets it to the
+#         agent's gh directory and it stays so. A mention elsewhere (grep
+#         GH_CONFIG_DIR= docs) passes. So is a read of gh's keyring entry,
+#         service gh:github.com (secret-tool lookup or search naming it,
+#         security find-generic-password or find-internet-password naming
+#         it, security dump-keychain) or gh printing its token (gh auth
+#         token, gh auth status -t), a command naming the agent directory
+#         (gh-agent, or $GH_CONFIG_DIR expanded) or signing gh in (gh auth
+#         login, switch, refresh), and running reviewed.sh or accept.sh,
+#         the owner's skill scripts, by name or path (also after sh, bash,
+#         env or source): a skill's own preprocessing never reaches this
+#         hook, so only an agent's call is refused.
+#         None follows bash -c, eval, scripts, a name built from a
+#         variable, set -a with read, or another language's subprocess;
+#         HOME or XDG_CONFIG_HOME pointed at a copy of the owner's
+#         directory passes; a heredoc line that assigns it is refused.
 #
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
@@ -220,6 +242,43 @@ targets="$(jq -r '
   | reduce .[] as $seg ({dir: $cwd, lefthook: null, out: []};
       . as $st
       | ($seg | gsub("^\\s+|\\s+$"; "")) as $s
+      # Decision 0023, rule 23.4: GH_CONFIG_DIR assigned (= or +=) in
+      # assignment position: the leading words (prefix assignments, env and
+      # its flags, the name after -u), or any word after export and its kin.
+      # A word elsewhere, as in a grep pattern, passes.
+      | ([$s | scan(arg) | .[0] | unquote]) as $w
+      | ([foreach $w[] as $x ({go: true, prev: "", out: null};
+            if .go and (($x | test("^(env|-[^=]*|[A-Za-z_][A-Za-z0-9_]*\\+?=.*)$")) or (.prev | IN("-u", "--unset")))
+            then {go: true, prev: $x, out: $x} else {go: false, prev: $x, out: null} end;
+            .out // empty)]) as $lead
+      | (if ($lead | any(test("^GH_CONFIG_DIR(\\+?=|$)")))
+            or ((($w[0] // "") == "env") and ($lead | any(IN("-i", "--ignore-environment"))))
+            or ((($w[0] // "") | IN("export", "declare", "typeset", "readonly", "local", "unset"))
+                and ($w[1:] | any(test("^GH_CONFIG_DIR(\\+?=|$)"))))
+         then .out += ["ghconfig\t\($st.dir)\tGH_CONFIG_DIR"] else . end)
+      # Rule 23.1: gh run by a path, or with PATH changed, skips the shim.
+      | ([$w[] | select(test("^(env|command|exec|nohup|time|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $h
+      | (if (($h // "") | test("/gh$")) or ($h == "gh" and ($w | any(test("^PATH="))))
+         then .out += ["ghpath\t\($st.dir)\t\($h)"] else . end)
+      # Rule 23.4: the keyring entry gh keeps the owner token in (service
+      # gh:github.com), and gh printing that token.
+      | ($w | join(" ")) as $j
+      | (if ($h == "secret-tool" and ($w | any(IN("lookup", "search"))) and ($j | test("gh:")))
+            or ($h == "security" and ($w | any(test("^find-(generic|internet)-password$"))) and ($j | test("gh:")))
+            or ($h == "security" and ($w | any(. == "dump-keychain")))
+            or ($h == "gh" and ($j | test("(^|\\s)gh\\s+auth\\s+(token(\\s|$)|status\\s.*(-t|--show-token)(\\s|$))")))
+         then .out += ["keyring\t\($st.dir)\t\($h)"] else . end)
+      # Rule 23.4: the agent directory stays empty. A hosts.yml naming the
+      # owner would make gh fetch the owner token from the keyring, and a
+      # gh auth login there would sign it in. No agent needs to name it.
+      | (if ($j | test("gh-agent|\\$\\{?GH_CONFIG_DIR"))
+            or ($h == "gh" and ($j | test("(^|\\s)gh\\s+auth\\s+(login|switch|refresh)(\\s|$)")))
+         then .out += ["agentdir\t\($st.dir)\t\($h)"] else . end)
+      # Rule 23.4: the two skill scripts that act as the owner. The skill
+      # runs them by its own preprocessing, which no PreToolUse hook sees.
+      | ([$w[] | select(test("^(env|command|exec|nohup|time|sh|bash|dash|zsh|source|\\.|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $x
+      | (if (($x // "") | test("(^|/)(reviewed|accept)\\.sh$"))
+         then .out += ["ownerscript\t\($st.dir)\t\($x)"] else . end)
       | if ($s | test("^cd(\\s|$)")) then
           .dir = ((($s | capture("^cd\\s+(?<a>" + arg + ")")? | .a) // "~") | resolve($st.dir))
         else
@@ -279,6 +338,31 @@ labelled() {
 }
 
 while IFS="$tab" read -r kind target reason file; do
+  if [ "$kind" = keyring ]; then
+    printf 'guard-route: refusing a read of gh'"'"'s keyring entry or token (%s) in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 23.4: the owner'"'"'s gh token stays out of agent shells; an agent acts as pap-agent through the gh shim.\n' >&2
+    status=2
+    continue
+  fi
+  if [ "$kind" = agentdir ]; then
+    printf 'guard-route: refusing a command that names the agent gh directory or signs gh in (%s) in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 23.4: the agent gh directory stays empty; an agent acts as pap-agent through the gh shim.\n' >&2
+    status=2
+    continue
+  fi
+  if [ "$kind" = ownerscript ]; then
+    printf 'guard-route: refusing %s run from an agent'"'"'s command in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 23.4: /pap:reviewed and /pap:accept act as the owner; only the owner invokes them, as skills.\n' >&2
+    status=2
+    continue
+  fi
+  if [ "$kind" = ghconfig ]; then
+    # In every repository: the owner's sign-in is out of every agent shell.
+    printf 'guard-route: refusing %s set in an agent'"'"'s command in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 23.4: an agent shell carries no owner sign-in; only /pap:reviewed and /pap:accept reach the owner'"'"'s gh directory.\n' >&2
+    status=2
+    continue
+  fi
   root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || continue
   guard="$root/scripts/guard-branch.sh"
   [ -x "$guard" ] || continue
@@ -317,6 +401,11 @@ while IFS="$tab" read -r kind target reason file; do
       [ "$kind" = label ] || labelled "$file" || continue
       printf 'guard-route: refusing the owner-reviewed label (%s) in %s\n' "$reason" "$root" >&2
       printf 'guard-route: decision 0016: the owner adds owner-reviewed after review; an agent never does (rule 16.2).\n' >&2
+      status=2
+      ;;
+    ghpath)
+      printf 'guard-route: refusing gh run as %s, past the pap gh shim, in %s\n' "$reason" "$root" >&2
+      printf 'guard-route: rule 23.1: run gh by name with PATH as it is, so the shim gives it the pap-agent token.\n' >&2
       status=2
       ;;
     merge)

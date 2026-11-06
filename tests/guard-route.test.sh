@@ -137,6 +137,69 @@ check 2 "$T/G2" 'git config --local core.HooksPath .no-hooks'
 check 0 "$T/G2" 'git commit -m "skip --no-verify next time"'
 check 0 "$T/G2" "git commit -m 'why LEFTHOOK=0 is refused'"
 check 0 "$T/G2" 'LEFTHOOK_VERBOSE=1 git commit -m x'
+
+# Rule 23.4: GH_CONFIG_DIR set in an agent's command, in every repository.
+for cwd in "$T/G2" "$T/U"; do
+  check 2 "$cwd" 'GH_CONFIG_DIR=/home/x/.config/gh-owner gh pr list'
+  check 2 "$cwd" 'export GH_CONFIG_DIR=/home/x/.config/gh-owner'
+  check 2 "$cwd" 'export GH_CONFIG_DIR'
+  check 2 "$cwd" "export 'GH_CONFIG_DIR=/x' && gh pr list"
+  check 2 "$cwd" 'env GH_CONFIG_DIR=/x gh pr list'
+  check 2 "$cwd" 'declare -x GH_CONFIG_DIR=/x; gh api user'
+  check 2 "$cwd" 'cd /tmp && GH_CONFIG_DIR=/x git push'
+done
+# Unsetting it changes it too: gh would fall back to the owner's directory.
+check 2 "$T/G2" 'unset GH_CONFIG_DIR && gh pr list'
+check 2 "$T/U"  'env -u GH_CONFIG_DIR gh pr list'
+check 2 "$T/U"  'env -i gh pr list'
+# shellcheck disable=SC2016 # the command is the hook's input, unexpanded
+check 2 "$T/G2" 'echo "$GH_CONFIG_DIR"'
+check 0 "$T/G2" 'GH_CONFIG_DIRS=x gh pr list'
+check 2 "$T/G2" 'GH_CONFIG_DIR+=/x gh pr list'
+check 2 "$T/U"  'export GH_CONFIG_DIR+=/x'
+check 2 "$T/U"  'env -u GH_CONFIG_DIR GH_CONFIG_DIR=/x gh pr list'
+# Rule 23.4: gh's keyring entry (service gh:github.com) and its token.
+check 2 "$T/U"  'secret-tool lookup service gh:github.com username example'
+check 2 "$T/U"  'secret-tool search --all service gh:github.com'
+check 2 "$T/U"  'security find-generic-password -s gh:github.com -w'
+check 2 "$T/U"  'security find-internet-password -s gh:github.com'
+check 2 "$T/U"  'security dump-keychain -d'
+check 2 "$T/G2" 'gh auth token'
+check 2 "$T/U"  'gh auth token --hostname github.com'
+check 2 "$T/U"  'gh auth status --show-token'
+check 0 "$T/U"  'gh auth status'
+# The agent directory stays empty: no write, link or copy into it, no
+# sign-in through gh.
+check 2 "$T/U"  "printf 'github.com:\\n  user: x\\n' > ~/.config/gh-agent/hosts.yml"
+check 2 "$T/U"  'ln -s ../gh/hosts.yml ~/.config/gh-agent/hosts.yml'
+# shellcheck disable=SC2016 # the command is the hook's input, unexpanded
+check 2 "$T/U"  'cp ~/.config/gh/hosts.yml "$GH_CONFIG_DIR/"'
+check 2 "$T/U"  'gh auth login --web'
+check 2 "$T/U"  'cd /tmp && gh auth switch'
+check 2 "$T/U"  'gh auth refresh -s repo'
+check 0 "$T/U"  'gh auth setup-git'
+check 0 "$T/U"  'secret-tool lookup service pap-agent account private-key'
+check 0 "$T/U"  'security find-generic-password -s pap-agent'
+check 0 "$T/U"  'grep -rn GH_CONFIG_DIR= docs'
+check 0 "$T/U"  'echo GH_CONFIG_DIR=/x'
+
+# Rule 23.1: gh by a path or with PATH changed skips the shim, in an
+# adopting repository; command gh and env gh find the shim and pass.
+check 2 "$T/G2" '/usr/bin/gh pr list'
+check 2 "$T/G2" "\"$HOME/.local/share/mise/installs/gh/2.0.0/bin/gh\" pr list"
+# shellcheck disable=SC2088 # the command is the hook's input, unexpanded
+check 2 "$T/G2" '~/bin/gh api user'
+check 2 "$T/G2" './gh pr list'
+check 2 "$T/G2" 'command /usr/bin/gh pr list'
+check 2 "$T/G2" 'env /usr/bin/gh pr list'
+check 2 "$T/G2" 'PATH=/usr/bin gh pr list'
+check 2 "$T/G2" 'env PATH=/usr/bin gh pr list'
+check 2 "$T/G2" 'git status && /usr/bin/gh pr list'
+check 0 "$T/G2" 'gh pr list'
+check 0 "$T/G2" 'command gh pr list'
+check 0 "$T/G2" 'env gh pr list'
+check 0 "$T/G2" 'cat scripts/shim/gh'
+check 0 "$T/U"  '/usr/bin/gh pr list'
 check 0 "$T/G2" 'git push -n origin change/x'
 check 0 "$T/G2" 'git commit -m n'
 check 0 "$T/G2" 'git commit -uno -m x'
@@ -219,12 +282,18 @@ check 2 "$T/G2" "gh api repos/o/r/issues/7/labels --input $T/G2/named.json"
 check 2 "$T/G2" "gh api repos/o/r/issues/7/labels --input - <<'EOF'${nl}{\"labels\":[\"owner-reviewed\"]}${nl}EOF"
 check 2 "$T/G2" 'gh api -X PATCH repos/o/r/labels/approved -f new_name=owner-reviewed'
 check 2 "$T/G2" 'gh pr merge 7'
-# The /pap:reviewed skill runs its script through the Bash tool when a person
-# invokes it; the hook lets the script through, as it does any script, and
-# still refuses the direct gh call above. Rule 16.2 and the skill's
-# disable-model-invocation keep the agent from the script.
-check 0 "$T/G2" 'sh plugins/pap/skills/reviewed/reviewed.sh "7 abc1234"'
-check 0 "$T/G2" '/home/u/.claude/plugins/cache/pap/skills/reviewed/reviewed.sh "7" "abc1234"'
+# The /pap:reviewed and /pap:accept scripts act as the owner (rule 23.4). A
+# person's skill invocation runs them by the skill's own preprocessing,
+# which never reaches a PreToolUse hook (checked with a logging hook), so
+# an agent's Bash call that runs either is refused, by name or path.
+check 2 "$T/G2" 'sh plugins/pap/skills/reviewed/reviewed.sh "7 abc1234"'
+check 2 "$T/G2" '/home/u/.claude/plugins/cache/pap/skills/reviewed/reviewed.sh "7" "abc1234"'
+# shellcheck disable=SC2016 # the command is the hook's input, unexpanded
+check 2 "$T/U"  'PATH=/tmp/evil:$PATH /x/skills/accept/accept.sh 0001'
+check 2 "$T/U"  'cd /x/skills/accept && ./accept.sh 0001'
+check 2 "$T/U"  'bash accept.sh 0001'
+check 0 "$T/G2" 'cat plugins/pap/skills/reviewed/reviewed.sh'
+check 0 "$T/G2" 'shellcheck plugins/pap/skills/accept/accept.sh'
 check 2 "$T/G2" 'gh pr merge --auto --squash 7'
 check 2 "$T/G2" 'git push && gh pr merge 7 --merge --delete-branch'
 check 2 "$T/U"  "cd $T/G2; gh pr merge"

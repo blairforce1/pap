@@ -80,7 +80,9 @@ run the same Renovate self-hosted under a GitHub App you own.
 
 Every `pap repo` command, `pap revisits` and the skills that open pull
 requests go through `gh`. Sign in as an account that administers the
-repositories (`gh auth login`), on every machine that runs them.
+repositories (`gh auth login`, keeping its default keyring storage), on
+every machine that runs them, and start Claude Code with `pap claude`
+([your own sign-in](#your-own-sign-in-and-pap-claude)).
 
 ## The `pap-agent` app
 
@@ -218,3 +220,22 @@ shim acts only when Claude Code's `CLAUDECODE` is set. A dev container has
 no key, so there the shim steps aside and the container keeps your sign-in,
 by decision 0023. [Troubleshooting](troubleshooting.md#the-gh-shim-and-pap-agent)
 has each message the shim prints.
+
+## Your own sign-in and `pap claude`
+
+Your `gh` sign-in stays where `gh auth login` puts it, gh's default
+directory with the token in the keyring; nothing moves. What changes is
+how you start Claude Code: **always with `pap claude`** (any `claude`
+arguments pass through; `alias claude='pap claude'` saves remembering). It
+sets `GH_CONFIG_DIR` to an empty agent directory and unsets the GitHub
+token variables, so an agent shell finds no stored account and only the
+shim's `pap-agent` token works (rule 23.4). In an adopting repository the
+shim refuses every `gh` in a session started any other way.
+
+Then run `pap doctor`. Its "sign-ins" section checks your sign-in and that
+its token is in the keyring (sign in again without `--insecure-storage` if
+it warns), the agent directory, and whether the shell it runs in is an
+agent shell started by `pap claude`. `/pap:reviewed` and `/pap:accept`
+act as you from gh's default directory; only you can invoke them.
+[Agent identity and its security](agent-identity-security.md) says what
+this protects and what it does not.

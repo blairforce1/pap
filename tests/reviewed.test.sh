@@ -45,6 +45,7 @@ cat > "$T/stub/gh" <<'EOF'
 # Fake gh. FAKE_STATE, FAKE_HEAD and the labels file FAKE_LABELS (one per
 # line) describe the one pull request; FAKE_FAIL names a subcommand to fail.
 echo "gh $*" >> "$FAKE_LOG"
+echo "GH_CONFIG_DIR=${GH_CONFIG_DIR-<unset>} GH_TOKEN=${GH_TOKEN-<unset>} GITHUB_TOKEN=${GITHUB_TOKEN-<unset>} CLAUDECODE=${CLAUDECODE-<unset>}" >> "$FAKE_ENV"
 [ "${FAKE_FAIL:-}" != "$1 $2" ] || { echo "fake gh: $1 $2 failed" >&2; exit 1; }
 filter=''
 for a in "$@"; do
@@ -63,9 +64,15 @@ case "$1 $2" in
 esac
 EOF
 chmod +x "$T/stub/gh"
-export FAKE_LOG="$T/gh.log" FAKE_LABELS="$T/labels.txt"
+export FAKE_LOG="$T/gh.log" FAKE_LABELS="$T/labels.txt" FAKE_ENV="$T/gh.env"
 PATH="$T/stub:$PATH"
 export PATH
+# Rule 23.4: the owner's gh directory, gh's default under XDG_CONFIG_HOME;
+# and the environment of an agent shell, which the script must
+# not pass on to gh.
+export XDG_CONFIG_HOME="$T/xdg"
+mkdir -p "$T/xdg/gh"
+export CLAUDECODE=1 GH_TOKEN=ghs_agent_token GITHUB_TOKEN=ghs_agent_token2
 
 HEAD=3a7b521f07c2c0c74f197989ceb5fe64c34a8660
 
@@ -74,6 +81,7 @@ fixture() {
   export FAKE_STATE="$1" FAKE_HEAD="$HEAD"
   printf '%s\n' "$2" | tr ',' '\n' | grep . > "$FAKE_LABELS" || : > "$FAKE_LABELS"
   : > "$FAKE_LOG"
+  : > "$FAKE_ENV"
   unset FAKE_FAIL FAKE_EDIT_NOOP
 }
 # run <args...>: the script; sets $out and $rc.
@@ -142,6 +150,25 @@ fixture OPEN 'class:infra,risk:high'
 run 7 ''
 [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^owner-reviewed added' && [ "$(edits)" = 1 ]
 result $? "an empty second argument is no SHA" "exit $rc; $out"
+
+# Rule 23.4: every gh call runs as the owner, from the owner's directory.
+fixture OPEN 'class:infra,risk:high'
+run 7
+[ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(wc -l < "$FAKE_ENV" | tr -d ' ')" -ge 4 ] &&
+  [ "$(sort -u "$FAKE_ENV")" = "GH_CONFIG_DIR=$T/xdg/gh GH_TOKEN=<unset> GITHUB_TOKEN=<unset> CLAUDECODE=<unset>" ]
+result $? "every gh call has GH_CONFIG_DIR the owner's, GH_TOKEN, GITHUB_TOKEN and CLAUDECODE unset" "exit $rc; $(cat "$FAKE_ENV")"
+fixture OPEN 'class:infra,risk:high'
+mv "$T/xdg/gh" "$T/gh.away"
+run 7
+[ "$rc" = 0 ] && printf '%s' "$out" | grep -q '^refused: gh has no default directory at .*gh auth login' && [ ! -s "$FAKE_LOG" ]
+result $? "no gh default directory: refused naming gh auth login, gh not called" "exit $rc; $out"
+mv "$T/gh.away" "$T/xdg/gh"
+# Without XDG_CONFIG_HOME, gh's default is ~/.config/gh, on macOS too.
+fixture OPEN 'class:infra,risk:high'
+mkdir -p "$T/home/.config/gh"
+out="$(env -u XDG_CONFIG_HOME HOME="$T/home" sh "$script" 7 2>&1)"; rc=$?
+[ "$rc" = 0 ] && [ "$(edits)" = 1 ] && [ "$(sort -u "$FAKE_ENV" | cut -d' ' -f1)" = "GH_CONFIG_DIR=$T/home/.config/gh" ]
+result $? "without XDG_CONFIG_HOME the owner directory is ~/.config/gh" "exit $rc; $out; $(cat "$FAKE_ENV")"
 
 # Failures: gh itself, or a label that did not land.
 fixture OPEN 'class:infra,risk:high'

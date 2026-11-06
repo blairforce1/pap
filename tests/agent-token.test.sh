@@ -234,8 +234,10 @@ shim="$T/repo/scripts/shim/gh"
 gh_run() { # gh_run <dir> [env...]: the shim, first on PATH, from <dir>
   dir="$1"; shift
   : > "$T/gh.log"
-  (cd "$dir" && env PATH="$T/repo/scripts/shim:$PATH" "$@" gh pr list 2>&1)
+  # GH_CONFIG_DIR as pap claude sets it (rule 23.4); a case may override it.
+  (cd "$dir" && env PATH="$T/repo/scripts/shim:$PATH" GH_CONFIG_DIR="$T/xdg/gh-agent" "$@" gh pr list 2>&1)
 }
+mkdir -p "$T/xdg/gh-agent"
 out="$(gh_run "$T/repo" CLAUDECODE=1)"; rc=$?
 [ "$rc" = 0 ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list' "$T/gh.log"
 result $? "shim: CLAUDECODE in an adopting repository runs the real gh with GH_TOKEN" "$out $(cat "$T/gh.log")"
@@ -247,6 +249,22 @@ result $? "shim: without CLAUDECODE, gh unchanged" "$(cat "$T/gh.log")"
 out="$(gh_run "$T/plain" CLAUDECODE=1)"
 grep -qx 'GH_TOKEN=<unset> args=pr list' "$T/gh.log"
 result $? "shim: CLAUDECODE in a repository that does not adopt PAP, gh unchanged" "$(cat "$T/gh.log")"
+
+# Rule 23.4: an agent session not started by pap claude is refused.
+for v in '' "$T/xdg/gh"; do
+  out="$(gh_run "$T/repo" CLAUDECODE=1 GH_CONFIG_DIR="$v")"; rc=$?
+  [ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] &&
+    printf '%s\n' "$out" | grep -q "^gh (pap shim): this Claude Code session was not started with pap claude (GH_CONFIG_DIR is ${v:-unset}, not $T/xdg/gh-agent).*quit and run pap claude (rule 23.4)$"
+  result $? "shim: GH_CONFIG_DIR ${v:-unset}, not the agent directory: refused naming pap claude, gh never runs" "rc=$rc $out $(cat "$T/gh.log")"
+done
+printf 'ghe.example.com:\n    user: example-owner\n' > "$T/xdg/gh-agent/hosts.yml"
+out="$(gh_run "$T/repo" CLAUDECODE=1)"; rc=$?
+[ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] && printf '%s\n' "$out" | grep -q 'hosts.yml holds a sign-in'
+result $? "shim: an agent directory holding any sign-in, a GHE host included, is refused, gh never runs" "rc=$rc $out"
+rm "$T/xdg/gh-agent/hosts.yml"
+out="$(gh_run "$T/plain" CLAUDECODE=1 GH_CONFIG_DIR=)"
+grep -qx 'GH_TOKEN=<unset> args=pr list' "$T/gh.log"
+result $? "shim: outside an adopting repository the directory is not checked (rule 23.4's escape)" "$out"
 
 mv "$FAKE_KEYRING" "$T/keyring.away"; fresh
 out="$(gh_run "$T/repo" CLAUDECODE=1 GH_TOKEN=stored-sign-in)"; rc=$?

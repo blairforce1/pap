@@ -15,6 +15,7 @@
 # A refusal prints "refused:" and exits 0, so a skill invocation renders it;
 # a gh failure, or a label that did not land, exits 1. Arguments are checked
 # (digits only; 7 to 40 hex characters) before any use and always quoted.
+# Every gh call runs as the owner from gh's default directory (rule 23.4).
 set -u
 
 usage='usage: /pap:reviewed <PR#> [sha7+]'
@@ -33,6 +34,19 @@ if [ -n "$sha" ]; then
   [ "${#sha}" -ge 7 ] && [ "${#sha}" -le 40 ] || refuse "'$sha' is not 7 to 40 hex characters. $usage"
   sha="$(printf '%s' "$sha" | tr '[:upper:]' '[:lower:]')"
 fi
+
+# Rule 23.4: this script is the one door back to the owner's sign-in. Every
+# gh call below runs as the owner, from gh's own default directory, where
+# the owner signed in (gh resolves it, without GH_CONFIG_DIR, as
+# $XDG_CONFIG_HOME/gh, else ~/.config/gh, macOS included), with the token
+# variables unset so the agent app's token cannot stand in, and CLAUDECODE
+# unset so the gh shim passes through instead of refusing a GH_CONFIG_DIR
+# that is not the agent's.
+owner_gh="${XDG_CONFIG_HOME:-$HOME/.config}/gh"
+[ -d "$owner_gh" ] ||
+  refuse "gh has no default directory at $owner_gh, so this cannot act as you. Sign in from your own terminal with gh auth login, then invoke this again."
+as_owner() { (unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
+gh() { as_owner command gh "$@"; }
 
 repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" || fail "gh could not read the repository here."
 pr="$(gh pr view "$n" --json headRefOid,labels,state \

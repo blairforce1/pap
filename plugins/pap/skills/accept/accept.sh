@@ -29,6 +29,9 @@
 # a label but class:docs and never writes an Approved-by line.
 # A refusal prints "refused:" and exits 0, so a skill invocation renders it;
 # a git or gh failure exits 1. Ids are checked before any use.
+# Every gh call, and the credential the push asks for, run as the owner
+# from gh's default directory (rule 23.4). The fetch goes as whoever the
+# shim says.
 set -u
 
 usage='usage: /pap:accept [--repo <path>] <NNNN> [NNNN ...]'
@@ -74,6 +77,19 @@ for id in "$@"; do
 done
 # shellcheck disable=SC2046
 set -- $(printf '%s\n' "$@" | sort -u)
+
+# Rule 23.4: this script is the one door back to the owner's sign-in. Every
+# gh call below runs as the owner, from gh's own default directory, where
+# the owner signed in (gh resolves it, without GH_CONFIG_DIR, as
+# $XDG_CONFIG_HOME/gh, else ~/.config/gh, macOS included), with the token
+# variables unset so the agent app's token cannot stand in, and CLAUDECODE
+# unset so the gh shim passes through instead of refusing a GH_CONFIG_DIR
+# that is not the agent's.
+owner_gh="${XDG_CONFIG_HOME:-$HOME/.config}/gh"
+[ -d "$owner_gh" ] ||
+  refuse "gh has no default directory at $owner_gh, so this cannot act as you. Sign in from your own terminal with gh auth login, then invoke this again."
+as_owner() { (unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN CLAUDECODE; GH_CONFIG_DIR="$owner_gh"; export GH_CONFIG_DIR; "$@"); }
+gh() { as_owner command gh "$@"; }
 
 # The default branch is main, as the /change worktree script assumes.
 git fetch -q origin || fail "git could not fetch origin."
@@ -153,7 +169,12 @@ title="docs(decisions): accept $ids"
 git -C "$wt" add -- $paths || fail "git add failed in $wt."
 git -C "$wt" commit -q -m "$title" \
   -m "Status set to $new at the Project Lead's /pap:accept." || fail "git commit failed in $wt."
-git -C "$wt" push -q -u origin "$branch" || fail "git push of $branch failed."
+# The push itself keeps the agent's environment, so git hooks do not run
+# with the owner's: only git's credential helper, for this push, is gh as
+# the owner. An empty credential.helper first clears every configured one.
+q="'$(printf '%s' "$owner_gh" | sed "s/'/'\\\\''/g")'"
+helper="!env -u GH_TOKEN -u GITHUB_TOKEN -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN -u CLAUDECODE GH_CONFIG_DIR=$q gh auth git-credential"
+git -C "$wt" -c credential.helper= -c "credential.helper=$helper" push -q -u origin "$branch" || fail "git push of $branch failed."
 
 # The protected-path box: decisions/** is fixed high in risk mode (decision
 # 0016); otherwise a CODEOWNERS path needs the owner's Approved-by line,

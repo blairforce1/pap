@@ -205,6 +205,62 @@ over HTTPS, as the app (rule 23.1). Switch the clone once, from your
 terminal: `git remote set-url origin https://github.com/<owner>/<repo>.git`.
 The refusal prints the exact command.
 
+## Your own sign-in and `pap claude`
+
+Rule 23.4 keeps your `gh` sign-in out of agent shells: Claude Code is
+started with `pap claude`, which points `GH_CONFIG_DIR` at an empty agent
+directory. [Agent identity and its security](agent-identity-security.md)
+has the whole picture.
+
+**`gh (pap shim): this Claude Code session was not started with pap claude
+(GH_CONFIG_DIR is <x>, not <agent dir>), so gh could reach your own
+sign-in; quit and run pap claude (rule 23.4)`.** Quit the session and start
+it with `pap claude`, with the same arguments (`pap claude --resume`
+resumes).
+
+**`gh (pap shim): <agent dir>/hosts.yml holds a github.com sign-in`.**
+Something signed in inside the agent directory, which must stay empty.
+Remove that `hosts.yml` from your own terminal.
+
+**The guard hook refuses `GH_CONFIG_DIR set in an agent's command`.** An
+agent's command set, exported or unset `GH_CONFIG_DIR`, or ran `env -i`,
+any of which moves gh off the agent directory. Nothing an agent does needs
+it. A mention elsewhere, such as `grep GH_CONFIG_DIR= docs`, passes; a
+heredoc line that assigns it is read as a command and refused.
+
+**The guard hook refuses `a read of gh's keyring entry or token`.** An
+agent's command looked up gh's keyring entry (service `gh:github.com`)
+with `secret-tool` or `security`, dumped the keychain, or ran `gh auth
+token` or `gh auth status -t`. An agent never needs your token; it acts
+as `pap-agent` through the shim.
+
+**The guard hook refuses `reviewed.sh` or `accept.sh` `run from an agent's
+command`.** Those scripts act as you. Invoke `/pap:reviewed` or
+`/pap:accept` yourself; the skill runs its script directly, out of the
+hook's sight.
+
+**The guard hook refuses `gh run as <path>, past the pap gh shim`.** In
+an adopting repository an agent ran `gh` by a path (`/usr/bin/gh`,
+`./gh`) or with `PATH=` set, which skips the shim. Run `gh` by name.
+`command gh` and `env gh` pass: they find the shim on `PATH`.
+
+**`refused: gh has no default directory at <path>, so this cannot act as
+you`.** `/pap:reviewed` or `/pap:accept` found no gh directory to act
+from. Sign in from your own terminal with `gh auth login`.
+
+**`pap doctor` items under "sign-ins (rule 23.4)":**
+
+- `missing your gh sign-in`: run `gh auth login` in your own terminal.
+  From an agent shell it is `skipped`, never read.
+- `warn your gh token in the keyring`: the token is in plain text in
+  gh's `hosts.yml`. Run `gh auth logout --hostname github.com`, then `gh
+  auth login` without `--insecure-storage`.
+- `missing`, `drift` on `agent gh directory`: start Claude Code with `pap
+  claude`, which creates it at mode 700; `chmod 700` it, or remove a
+  `hosts.yml` in it, as printed.
+- `drift this shell`: an agent shell not started by `pap claude`; quit
+  and restart the session with it.
+
 ## The `pap` command
 
 **`pap init` or `pap sync`: "the working tree has uncommitted changes".**
