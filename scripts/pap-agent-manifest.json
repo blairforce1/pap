@@ -1,0 +1,20 @@
+{
+  "name": "OWNER-pap-agent",
+  "url": "https://github.com/blairforce1/pap",
+  "description": "Agent sessions of PAP (decision 0023): pushes, pull requests, labels and comments, as the agent and not the person.",
+  "hook_attributes": {
+    "url": "https://github.com/blairforce1/pap",
+    "active": false
+  },
+  "redirect_url": "REDIRECT",
+  "public": true,
+  "default_events": [],
+  "default_permissions": {
+    "contents": "write",
+    "pull_requests": "write",
+    "workflows": "write",
+    "checks": "read",
+    "statuses": "read",
+    "metadata": "read"
+  }
+}

@@ -21,6 +21,7 @@ set -u
 here="$(cd "$(dirname "$0")/.." && pwd)"
 pap="$here/bin/pap"
 
+real_curl="$(command -v curl || true)"
 for tool in git jq openssl; do
   command -v "$tool" >/dev/null 2>&1 || { printf 'Bail out! %s not found\n' "$tool"; exit 1; }
 done
@@ -73,12 +74,11 @@ cfg="$(cat)"
 path="/${url#http://github.invalid/}"
 printf 'ARGV %s\nREQ %s %s\nCFG %s\n' "$argv" "$method" "$path" "$cfg" >> "$FAKE_GH/log"
 f="$FAKE_GH/$(printf '%s_%s' "$method" "$path" | tr '/' '_')"
-if [ -f "$f" ]; then
-  code="$(head -n 1 "$f")"; tail -n +2 "$f" > "$out"
-else
-  code=404; echo '{"message":"Not Found"}' > "$out"
-fi
-printf '%s' "$code"
+if [ -f "$f" ]; then code="$(head -n 1 "$f")"; body="$(tail -n +2 "$f")"
+else code=404; body='{"message":"Not Found"}'; fi
+# -o names the body's file; without it the body goes to stdout before the code.
+if [ -n "$out" ]; then printf '%s\n' "$body" > "$out"; printf '%s' "$code"
+else printf '%s\n%s' "$body" "$code"; fi
 EOF
 # pap on PATH, as mise provides it in an adopting repository.
 # shellcheck disable=SC2016 # expands in the stub, not here
@@ -290,6 +290,104 @@ mkdir "$T/empty"
 out="$(cd "$T/repo" && env PATH="$T/repo/scripts/shim:$T/empty" $to gh pr list 2>&1)"; rc=$?
 [ "$rc" = 127 ] && printf '%s\n' "$out" | grep -q 'no gh on PATH besides this shim'
 result $? "shim: no real gh, exits 127 naming it" "rc=$rc $out"
+
+# --- agent-setup ---------------------------------------------------------------
+
+if ! command -v python3 >/dev/null 2>&1 || [ -z "$real_curl" ]; then
+  printf 'ok %d - # SKIP agent-setup: no python3 or curl\n' "$((n + 1))"; n=$((n + 1))
+else
+  # The browser: on the loopback form it saves the page and answers the
+  # callback with the form's state (or a wrong one, FAKE_STATE=bad); on the
+  # install page it records the URL and installs the app on the fake GitHub.
+  cat > "$T/fake/browser" <<EOF
+#!/bin/sh
+echo "\$1" >> "$T/opened.log"
+case "\$1" in
+  http://127.0.0.1:*)
+    "$real_curl" -s "\$1" > "$T/form.html"
+    st="\$(sed -n 's/.*?state=\([0-9a-f]*\)".*/\1/p' "$T/form.html")"
+    [ "\${FAKE_STATE:-}" != bad ] || st=0000
+    "$real_curl" -s "\${1}callback?code=fakecode&state=\$st" >/dev/null ;;
+  https://github.com/apps/*/installations/new)
+    printf '200\n{"id":5151}\n' > "$FAKE_GH/GET__users_\${FAKE_OWNER:-example-owner}_installation" ;;
+esac
+EOF
+  chmod +x "$T/fake/browser"
+  export PAP_SETUP_TIMEOUT=20 PAP_BROWSER="$T/fake/browser" HOME="$T/home" GIT_CONFIG_GLOBAL="$T/gitconfig" TMPDIR="$T/tmp"
+  mkdir -p "$T/home" "$T/tmp"
+  git config --global credential.https://github.com.helper '!gh auth git-credential'
+  setup_reset() { : > "$FAKE_KEYRING"; rm -f "$T/xdg/pap/agent.conf" "$T/opened.log" "$T/form.html" "$FAKE_GH"/*; fresh; }
+  conversion() { # the fake GitHub's answer to the code, with the pem and two secrets
+    jq -n --rawfile pem "$T/app.pem" '{id: 1, slug: "example-owner-pap-agent", client_id: "Iv1.setup",
+      client_secret: "client-secret-xyz", webhook_secret: "webhook-secret-xyz", pem: $pem}' > "$T/conv.json"
+    { echo 201; cat "$T/conv.json"; } > "$FAKE_GH/POST__app-manifests_fakecode_conversions"
+  }
+  setup_reset; conversion
+  answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
+  installed 3600 setup
+  out="$(printf 'n\n' | p agent-setup 2>&1)"; rc=$?
+  m="$(sed -n 's/.*name=manifest value="\([^"]*\)".*/\1/p' "$T/form.html" | sed 's/&quot;/"/g; s/&amp;/\&/g')"
+  printf '%s' "$m" | jq -e '.name == "example-owner-pap-agent" and .public == true and .hook_attributes.active == false
+      and .default_permissions == {contents: "write", pull_requests: "write", workflows: "write", checks: "read", statuses: "read", metadata: "read"}
+      and (.redirect_url | test("^http://127\\.0\\.0\\.1:[0-9]+/callback$")) and .default_events == []' >/dev/null &&
+    grep -q 'action="https://github.com/settings/apps/new?state=[0-9a-f]\{32\}"' "$T/form.html"
+  result $? "agent-setup: posts exactly 0023's manifest to the personal account's form, with a state" "$m"
+  [ "$rc" = 0 ] && cmp -s "$FAKE_KEYRING" "$T/app.pem" &&
+    grep -qx 'client_id=Iv1.setup' "$T/xdg/pap/agent.conf" && grep -qx 'slug=example-owner-pap-agent' "$T/xdg/pap/agent.conf" &&
+    printf '%s\n' "$out" | grep -q 'is installed on example-owner (installation 4242)'
+  result $? "agent-setup: the converted key is in the keyring, client id and slug in the config, installation confirmed" "rc=$rc $out"
+  ! printf '%s\n' "$out" | grep -qE 'PRIVATE KEY|client-secret-xyz|webhook-secret-xyz' &&
+    ! grep -rqlE 'PRIVATE KEY|client-secret-xyz' "$T/tmp" "$T/run" "$T/xdg" "$T/home" 2>/dev/null &&
+    ! grep -E '^ARGV' "$FAKE_GH/log" | grep -q 'fakecode.*Bearer'
+  result $? "agent-setup: the pem and secrets are never printed nor written outside the keyring" "$out"
+
+  was="$(grep -c '^REQ POST /app-manifests' "$FAKE_GH/log")"
+  out="$(printf 'n\n' | p agent-setup 2>&1)"; rc=$?
+  [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'registration skipped' &&
+    [ "$(grep -c '^REQ POST /app-manifests' "$FAKE_GH/log")" = "$was" ]
+  result $? "agent-setup: a second run with the key here skips registration" "$out"
+
+  setup_reset; conversion
+  answer GET__users_example-org 200 '{"login":"example-org","type":"Organization"}'
+  answer GET__users_example-org_installation 200 '{"id":4343}'
+  out="$(printf 'n\n' | p agent-setup --owner example-org --name example-org-agent 2>&1)"
+  grep -q 'action="https://github.com/organizations/example-org/settings/apps/new?state=' "$T/form.html" &&
+    sed -n 's/.*name=manifest value="\([^"]*\)".*/\1/p' "$T/form.html" | grep -q '&quot;name&quot;: &quot;example-org-agent&quot;'
+  result $? "agent-setup: an organisation's form, and --name" "$out $(head -c 300 "$T/form.html")"
+
+  setup_reset; conversion
+  answer GET__users_example-owner 200 '{"login":"example-owner","type":"User"}'
+  out="$(cd "$T/repo" && FAKE_STATE=bad PAP_SETUP_TIMEOUT=3 sh "$pap" agent-setup < /dev/null 2>&1)"; rc=$?
+  [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'no answer from GitHub in time' && [ ! -s "$FAKE_KEYRING" ] &&
+    ! grep -q '^REQ POST /app-manifests' "$FAKE_GH/log"
+  result $? "agent-setup: a callback with the wrong state is refused; nothing converted or stored" "rc=$rc $out"
+
+  # The install page: the app is installed only once the browser has been
+  # there; the answers wait for it.
+  cp "$T/app.pem" "$FAKE_KEYRING"; printf 'client_id=Iv1.setup\nslug=example-owner-pap-agent\n' > "$T/xdg/pap/agent.conf"
+  rm -f "$FAKE_GH/GET__users_example-owner_installation"
+  answer POST__app_installations_5151_access_tokens 201 "{\"token\":\"ghs_fake_5151\",\"expires_at\":\"$(future 3600)\"}"
+  out="$( { until [ -f "$FAKE_GH/GET__users_example-owner_installation" ]; do sleep 0.1; done; printf '\nn\n'; } | p agent-setup 2>&1)"
+  grep -qx 'https://github.com/apps/example-owner-pap-agent/installations/new' "$T/opened.log" &&
+    printf '%s\n' "$out" | grep -q 'is installed on example-owner (installation 5151)'
+  result $? "agent-setup: opens the install page and confirms the installation with the app's JWT" "$out"
+
+  # The origin and the global rewrite: only on a yes, and never twice.
+  git -C "$T/repo" remote set-url origin git@github.com:example-owner/repo.git
+  out="$(printf '\n\n' | p agent-setup 2>&1)"
+  [ "$(git -C "$T/repo" config remote.origin.url)" = git@github.com:example-owner/repo.git ] &&
+    [ -z "$(git config --global --get-all url.https://github.com/.insteadOf)" ] &&
+    printf '%s\n' "$out" | grep -qF 'warn     SSH GitHub URLs read as HTTPS  (git config --global --add url."https://github.com/".insteadOf git@github.com:; git config --global --add url."https://github.com/".insteadOf ssh://git@github.com/)'
+  result $? "agent-setup: the default answer changes neither origin nor global config; doctor's item warns with the commands" "$out"
+  out="$(printf 'y\ny\n' | p agent-setup 2>&1)"
+  out2="$(git config --global --unset-all url.https://github.com/.insteadOf 'ssh://' ; git config --global --get-all url.https://github.com/.insteadOf)"
+  out="$(printf 'y\n' | p agent-setup 2>&1)"
+  [ "$(git -C "$T/repo" config remote.origin.url)" = https://github.com/example-owner/repo.git ] &&
+    [ "$(git config --global --get-all url.https://github.com/.insteadOf | sort | tr '\n' ' ')" = "git@github.com: ssh://git@github.com/ " ] &&
+    printf '%s\n' "$out" | grep -qF 'ok       SSH GitHub URLs read as HTTPS'
+  result $? "agent-setup: yes switches origin and adds each rewrite once, topping up a partial one" "$out2 / $out"
+  unset PAP_BROWSER
+fi
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }

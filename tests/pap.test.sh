@@ -500,8 +500,10 @@ out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
   printf '%s\n' "$out" | grep -qF 'ok       pap-agent installed on example-owner  (a token mints)'
 result $? "doctor, agent app: an SSH origin with the set-url fix, a helper by path, the installation" "$out"
 out="$(fixdoctor MISE_SHELL=bash PATH="$apath")"
-[ "$(git -C "$T/app" remote get-url origin)" = git@github.com:example-owner/app.git ]
-result $? "doctor --fix: never changes the remote" "$(git -C "$T/app" remote get-url origin)"
+[ "$(git -C "$T/app" remote get-url origin)" = git@github.com:example-owner/app.git ] &&
+  ! grep -qi insteadof "$GIT_CONFIG_GLOBAL" &&
+  printf '%s\n' "$out" | grep -qF 'warn     SSH GitHub URLs read as HTTPS  (git config --global --add url."https://github.com/".insteadOf git@github.com:'
+result $? "doctor --fix: never changes the remote nor writes the insteadOf rewrite; reports it with the commands" "$out"
 
 git -C "$T/app" remote set-url origin https://github.com/example-owner/app.git
 git config --file "$GIT_CONFIG_GLOBAL" credential.https://github.com.helper '!gh auth git-credential'
