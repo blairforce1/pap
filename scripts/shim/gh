@@ -58,16 +58,22 @@ else
 fi
 
 if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
-  "$pap" agent-key status >/dev/null 2>&1 || exec "$real" "$@"
+  # Exit 1 is "no key"; a key without a client id still mints, and fails.
+  "$pap" agent-key status >/dev/null 2>&1
+  [ $? != 1 ] || exec "$real" "$@"
 fi
 
-# agent-token prints the token on stdout and nothing else on success, and
-# one line on stderr on failure, so both together are the token or the
-# reason.
-out="$("$pap" agent-token 2>&1)"
+# The token is agent-token's stdout; its stderr, the reason on failure, goes
+# to a file of its own so no warning on stderr can end up in GH_TOKEN.
+err="$(mktemp)" || { printf 'gh (pap shim): cannot make a temporary file. Not falling back to a stored sign-in (rule 23.1)\n' >&2; exit 1; }
+out="$("$pap" agent-token 2>"$err")"
 rc=$?
+reason="$(sed -n '$p' "$err" | sed 's/^pap: agent-token: //; s/^pap: //')"
+rm -f "$err"
+case "$out" in
+  "" | *[!A-Za-z0-9_.-]*) [ "$rc" != 0 ] || { rc=1; reason="pap agent-token printed something that is not a token"; } ;;
+esac
 if [ "$rc" != 0 ]; then
-  reason="$(printf '%s\n' "$out" | sed -n '$p' | sed 's/^pap: agent-token: //; s/^pap: //')"
   # 64 is pap's usage exit: a pap from before agent-token.
   [ "$rc" != 64 ] || reason="this pap has no agent-token; run mise install to get the pinned pap"
   printf 'gh (pap shim): %s. Not falling back to a stored sign-in (rule 23.1)\n' "$reason" >&2

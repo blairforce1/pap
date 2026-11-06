@@ -509,6 +509,23 @@ out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qF 'ok       origin is HTTPS' &&
   printf '%s\n' "$out" | grep -qF "ok       gh is git's credential helper for github.com"
 result $? "doctor, agent app: HTTPS origin and gh by name as the helper; exits 0" "$out"
+git config --file "$GIT_CONFIG_GLOBAL" --add credential.helper store
+out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
+[ "$rc" = 1 ] && printf '%s\n' "$out" | grep -qF "drift    gh is git's credential helper for github.com  (other helpers are asked too"
+result $? "doctor, agent app: another helper beside gh is drift, a stored credential could answer first" "$out"
+# A general helper first, then github.com's reset and gh, as gh auth
+# setup-git writes them. A helper after gh would still be asked when the
+# shim refuses, so order matters.
+cat > "$GIT_CONFIG_GLOBAL" <<'EOF'
+[credential]
+  helper = store
+[credential "https://github.com"]
+  helper =
+  helper = !gh auth git-credential
+EOF
+out="$(doctor MISE_SHELL=bash PATH="$apath")"
+printf '%s\n' "$out" | grep -qF "ok       gh is git's credential helper for github.com"
+result $? "doctor, agent app: an empty helper before gh clears the others, as gh auth setup-git writes it" "$out"
 
 rm -rf "$T/run" && mkdir "$T/run"
 git -C "$T/app" remote set-url origin https://github.com/other-owner/app.git

@@ -265,6 +265,15 @@ out="$(gh_run "$T/repo" CLAUDECODE=1 FAKE_GH_DOWN=1)"; rc=$?
 [ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] && printf '%s\n' "$out" | grep -q '^gh (pap shim): GitHub unreachable'
 result $? "shim: GitHub unreachable, exits 1, never runs gh" "$out"
 
+# A pap that warns on stderr: the warning stays out of GH_TOKEN.
+mkdir "$T/noisy"
+# shellcheck disable=SC2016 # expands in the stub, not here
+printf '#!/bin/sh\necho "mise WARN  a newer mise is available" >&2\nexec sh "%s" "$@"\n' "$pap" > "$T/noisy/pap"
+chmod +x "$T/noisy/pap"
+out="$(gh_run "$T/repo" CLAUDECODE=1 PATH="$T/repo/scripts/shim:$T/noisy:$PATH")"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list' "$T/gh.log"
+result $? "shim: a warning on pap's stderr never reaches GH_TOKEN" "$out $(cat "$T/gh.log")"
+
 # Two more copies of the shim ahead of it on PATH: none of them recurses.
 mkdir -p "$T/copy1" "$T/copy2"
 cp "$shim" "$T/copy1/gh"; cp "$shim" "$T/copy2/gh"

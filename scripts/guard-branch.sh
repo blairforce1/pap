@@ -118,7 +118,7 @@ check_push_remote() {
     *:*) case "${url%%:*}" in */*) return 0 ;; esac ;;
     *) return 0 ;;
   esac
-  slug="$(printf '%s\n' "$url" | sed -E -n 's#^(ssh://)?([^@/]+@)?github\.com[:/]([^/]+/[^/]+)$#\3#p' | sed 's#\.git$##; s#/$##')"
+  slug="$(printf '%s\n' "$url" | sed -E -n 's#^(ssh://)?([^@/]+@)?github\.com(:[0-9]+)?[:/]([^/]+/[^/]+)$#\4#p' | sed 's#\.git$##; s#/$##')"
   [ "$remote" != "$url" ] || remote=origin
   printf 'guard-branch: refusing a push to an SSH remote (%s)\n' "$url" >&2
   printf 'guard-branch: rule 23.1, decision 0023: an agent pushes over HTTPS, as the pap-agent app, through the gh shim.\n' >&2

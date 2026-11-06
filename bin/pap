@@ -89,7 +89,8 @@
 #         the login keychain through `security` on macOS) and the app's
 #         client id in pap's user config, prints nothing secret, and tells
 #         you to delete the file. status says whether the key is there and
-#         what the config holds; it exits 0 only when key and client id are.
+#         what the config holds; it exits 0 when key and client id are there,
+#         1 with no key, 2 with a key and no client id.
 #         The config is not secret: $XDG_CONFIG_HOME/pap/agent.conf
 #         (default ~/.config) on Linux, and on macOS when XDG_CONFIG_HOME
 #         is set; otherwise ~/Library/Application Support/pap/agent.conf. It holds client_id=<id> and one
@@ -670,10 +671,19 @@ EOF
         # Reported, never changed: doctor --fix leaves remotes alone.
         *) item missing "origin is HTTPS" "git remote set-url origin https://github.com/$slug.git" ;;
       esac
-      helper="$(git config --get-urlmatch credential.helper https://github.com 2>/dev/null || true)"
+      # The helpers git asks for github.com, in order: every credential.helper
+      # and credential.https://github.com.helper value across the config
+      # files, an empty value clearing those before it. Only gh, by name,
+      # may be left: an earlier helper with a stored credential would answer
+      # before the shim is asked.
+      helper="$(git config --get-regexp '^credential\.(https://github\.com/?\.)?helper$' 2>/dev/null |
+        awk '{ sub(/^[^ ]* ?/, ""); if ($0 == "") n = 0; else h[++n] = $0 }
+             END { for (i = 1; i <= n; i++) printf "%s%s", (i > 1 ? "\n" : ""), h[i] }' || true)"
       reset="git config --global --replace-all credential.https://github.com.helper '' && git config --global --add credential.https://github.com.helper '!gh auth git-credential'"
       case "$helper" in
         '!gh auth git-credential') item ok "gh is git's credential helper for github.com" ;;
+        *"
+"*) item drift "gh is git's credential helper for github.com" "other helpers are asked too, so a stored credential can answer first: $reset" ;;
         *'gh auth git-credential') item drift "gh is git's credential helper for github.com" "it calls ${helper%% auth git-credential} by path, past the shim: $reset" ;;
         *) item missing "gh is git's credential helper for github.com" "$reset" ;;
       esac
@@ -713,6 +723,7 @@ a_config() {
   else printf '%s/pap/agent.conf' "${XDG_CONFIG_HOME:-$HOME/.config}"; fi
 }
 a_keyring() { if a_mac; then echo security; else echo secret-tool; fi; }
+a_cachedir() { base="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"; printf '%s/pap-agent-%s' "${base%/}" "$(id -u)"; }
 
 conf_get() { # conf_get <key>: the last value of <key>, or nothing
   [ -f "$a_cf" ] || return 0
@@ -850,6 +861,8 @@ cmd_agent_key() {
       key_store < "$pem" || die "agent-key: the keyring ($(a_keyring)) did not store the key"
       has_key || die "agent-key: the keyring ($(a_keyring)) stored nothing readable"
       conf_set client_id "$cid"
+      # Tokens minted with the key before this one go.
+      rm -f "$(a_cachedir)"/token-*
       say "agent-key: the pap-agent private key is in the keyring ($(a_keyring))." \
         "agent-key: client id $cid is in $a_cf." \
         "Now delete $pem; the keyring holds the only copy this machine needs." ;;
@@ -859,7 +872,7 @@ cmd_agent_key() {
       if has_key; then say "key        in the keyring ($(a_keyring))"
       else say "key        missing (pap agent-key import <pem> --client-id <id>)"; ok=1; fi
       cid="$(conf_get client_id)"
-      if [ -n "$cid" ]; then say "client id  $cid"; else say "client id  missing"; ok=1; fi
+      if [ -n "$cid" ]; then say "client id  $cid"; else say "client id  missing"; [ "$ok" = 1 ] || ok=2; fi
       say "config     $a_cf"
       if [ -f "$a_cf" ]; then
         awk 'index($0, "installation.") == 1 { sub(/^installation\./, ""); sub(/=/, " "); print "installed  " $0 }' "$a_cf"
@@ -886,8 +899,7 @@ cmd_agent_token() {
 
   # The cache: one file per owner, "<expiry epoch> <token>", mode 0600 in a
   # 0700 directory of this user's.
-  base="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
-  dir="${base%/}/pap-agent-$(id -u)"
+  dir="$(a_cachedir)"
   if [ ! -d "$dir" ]; then (umask 077 && mkdir -p "$dir") || die "agent-token: cannot create $dir"; fi
   # shellcheck disable=SC2012 # one known directory, only its owner column
   [ ! -L "$dir" ] && [ "$(ls -ldn "$dir" | awk '{ print $3 }')" = "$(id -u)" ] || die "agent-token: $dir is not this user's own directory; remove it"
@@ -922,6 +934,7 @@ cmd_agent_token() {
   tok="$(jq -r '.token // empty' "$work/resp")"
   t_exp="$(jq -r '.expires_at // empty | fromdateiso8601' "$work/resp" 2>/dev/null || true)"
   [ -n "$tok" ] && [ -n "$t_exp" ] || die "agent-token: GitHub's token answer had no token or expiry"
+  rm -f "$work/resp"
   (umask 077 && printf '%s %s\n' "$t_exp" "$tok" > "$cache.tmp.$$") || die "agent-token: cannot write $cache"
   chmod 600 "$cache.tmp.$$" && mv -f "$cache.tmp.$$" "$cache"
   say "$tok"
