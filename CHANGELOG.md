@@ -161,13 +161,21 @@ not carry.
 
 #### Added
 
-- Decision 0023 (proposed): agent sessions act on GitHub as their own
+- Decision 0023's first slice (rule 23.1): `pap agent-key import` and
+  `status` keep the `pap-agent` app's private key in the OS keyring;
+  `pap agent-token` mints and caches an installation token for the
+  repository's owner; the base layer's `gh` shim, first on `PATH`, runs
+  `gh` and git's pushes with it in an agent session and never falls back
+  to a stored sign-in; `pap doctor` checks what the app needs; the guard
+  hook refuses an agent's push to an SSH remote. `docs/account-setup.md`
+  has the app's one-time setup.
+- Decision 0023: agent sessions act on GitHub as their own
   GitHub App, so GitHub can tell an agent's push, pull request, label or
   comment from the owner's; commits stay the owner's, SSH-signed, with the
   model trailer, and the owner's `gh` sign-in lives where no agent shell
   reaches it. Rules 23.1 to 23.4 with their planned checks; it amends
-  0022's override and 0016's label gate once it ships. Nothing is built
-  yet; backlog item H-016 names the slices and their order.
+  0022's override and 0016's label gate once it ships. Backlog item H-016
+  names the slices and their order.
 
 ### [0.13.0] - 2026-11-06
 

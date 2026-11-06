@@ -8,7 +8,8 @@ their job when they refuse; the fix is rarely to get round them.
 
 From the repository, `pap doctor` checks this machine: git, mise and its
 activation, `gh` and its sign-in, `jq`, the `claude` CLI and the PAP
-plugins, `flock`, the git hooks and every pinned tool. Each failing item
+plugins, `flock`, the git hooks, every pinned tool and, in an adopting
+repository, what the `pap-agent` app needs. Each failing item
 names the command that fixes it on your platform. `pap doctor --fix` runs
 the fixes mise can make (`mise trust`, `mise install`) and prints the
 rest, which need you: a package manager, `sudo` or `gh auth login`.
@@ -111,6 +112,72 @@ type the line, run `/pap:reviewed`, press merge.
 **A commit says "Can't find lefthook in PATH" or the hooks did not run.**
 The clone has not been set up: `mise trust && mise install && mise run
 setup`, then `pap doctor` to confirm.
+
+## The `gh` shim and `pap-agent`
+
+In an agent session in an adopting repository, `gh` and git's pushes run
+through the base layer's shim, which mints a `pap-agent` token (decision
+0023, rule 23.1). When it cannot, it prints one line,
+`gh (pap shim): <reason>. Not falling back to a stored sign-in (rule
+23.1)`, and exits 1 without running `gh`. The reasons, and the fix for
+each, done by you at a terminal:
+
+**`no pap-agent key in the keyring`.** This machine has no key. Import
+it: `pap agent-key import <pem> --client-id <id>` ([account
+setup](account-setup.md#the-pap-agent-app)). If the key was imported, the
+keyring may be locked; unlock it (log in to the desktop session) and retry.
+
+**`no client id in <path>`.** The key is there but the config is not.
+Run the import again with `--client-id <id>`, from the app's settings page.
+
+**`pap-agent is not installed on <owner>; install it there with this
+repository selected`.** The app has no installation on the repository's
+owner. Install it on that account or organisation, with this repository
+selected. If it is installed but this repository is not selected, the
+token mints and the push or call fails with 403 or 404: add the
+repository to the installation.
+
+**`GitHub unreachable at https://api.github.com; check the network and
+try again`.** curl could not reach the API. Check the network or a proxy;
+nothing is cached past a token's hour.
+
+**`GitHub refused an installation token for <owner> (HTTP 401: ...)`.**
+GitHub rejected the JWT: the machine's clock is off by minutes (fix the
+clock; the JWT allows one minute of drift), the client id in the config is
+not this app's, or the key was regenerated on the app and this machine has
+the old one (import the new key).
+
+**`no --owner, and origin is not a GitHub remote`.** The shim names the
+token's owner from `origin`. Point `origin` at
+`https://github.com/<owner>/<repo>.git`.
+
+**`openssl is not on PATH`, `curl is not on PATH`, `jq is not on PATH`,
+`secret-tool is not on PATH`.** `pap agent-token` needs them; `pap doctor`
+prints the install command for this platform (`jq` comes from `mise
+install`; openssl, curl and secret-tool from the machine).
+
+**`openssl could not sign with the key in the keyring; re-import it`.**
+What the keyring returned is not a usable private key. Import the key
+again.
+
+**`<dir> is not this user's own directory; remove it`.** The token cache,
+`$XDG_RUNTIME_DIR/pap-agent-<uid>` (`$TMPDIR` on macOS), is a symlink or
+owned by someone else. Remove it; `pap agent-token` recreates it at mode
+0700.
+
+**`pap is not on PATH, so no pap-agent token; run mise install`** or
+**`this pap has no agent-token; run mise install to get the pinned pap`.**
+The shim calls `pap agent-token`; the pap mise installs at the repository's
+pin carries it.
+
+**`gh (pap shim): no gh on PATH besides this shim; run mise install`.**
+The shim found no real `gh` after itself. `mise install` provides the
+pinned one.
+
+**The guard hook refuses `git push` to an SSH remote.** An agent pushes
+over HTTPS, as the app (rule 23.1). Switch the clone once, from your
+terminal: `git remote set-url origin https://github.com/<owner>/<repo>.git`.
+The refusal prints the exact command.
 
 ## The `pap` command
 
