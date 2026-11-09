@@ -59,6 +59,12 @@ ruleset would be a bypass for every agent.
    status` reports the ruleset as drift twice: its definition differs, and
    the enforcement layer says `enforcement disabled; pap repo apply
    restores it`. A bypass actor added by hand is drift too.
+   Note (2026-11-09): amended by
+   [0023](0023-agents-act-on-github-as-their-own-app.md) point 4, shipped
+   in its slice d. The ruleset lists the owner as its one bypass actor,
+   so the override is now the owner's own force push from their terminal,
+   with nothing to disable and re-apply; an `Integration`, or any actor
+   but the owner, is drift.
 
 The reason that carried it: the credentials are shared, so the only
 GitHub control that binds the agent binds the human as well, and the only

@@ -105,12 +105,19 @@ and worktree once its upstream is gone.
 `--force-with-lease`, `+<refspec>`).** No branch takes a force push
 (decision 0022, proposed): the hook refuses an agent's, and the
 `all-branches` ruleset `pap repo apply` creates refuses everyone's on
-every branch but Renovate's and Dependabot's, with no bypass actors,
-because agents push with your credentials. A branch
+every branch but Renovate's and Dependabot's, except yours: you are its
+one bypass actor (decision 0023), and the agent app never is. A branch
 behind main merges main; it is never rebased. To force-push on purpose,
-disable the `all-branches` ruleset (repository settings, Rules, Rulesets),
-push from your own terminal, then run `pap repo apply`, which restores it;
-until then `pap repo status` reports it as drift.
+push from your own terminal; nothing needs disabling.
+
+**`pap repo status` says "not visible to this token (needs
+administration; run from the owner's terminal)".** An agent shell acts as
+the agent app, which has no Administration permission, so GitHub hides
+ruleset bypass actors from it and refuses the Dependabot reads. Those
+items are `skipped`, not drift; the rest of each ruleset is still
+compared. Run `pap repo status` from your own terminal to see them, and
+`pap repo apply` there too: from an agent shell it refuses before
+writing anything.
 
 **The hook refuses `--no-verify`, `LEFTHOOK=0` or `core.hooksPath`.** An
 agent session may not bypass a git hook (rule 5.1). Fix what the hook

@@ -159,6 +159,23 @@ not carry.
 
 ### [Unreleased]
 
+#### Changed
+
+- The `all-branches` ruleset lists the repository's owner as its one
+  bypass actor, mode `always` (decision 0023, slice d): `pap repo apply`
+  resolves it at apply time, `OrganizationAdmin` on an organisation's
+  repository, the owner's `User` on a personal one with `RepositoryRole`
+  admin if GitHub refuses the `User`. The owner's override is now a plain
+  force push from their terminal. `pap repo status` reports an
+  `Integration`, a missing owner or any other actor as drift. Run
+  `pap repo apply` in each adopting repository from your own terminal,
+  then `pap repo status` to confirm.
+- `pap repo status` from a token without administration (an agent
+  shell) reports ruleset bypass actors and the Dependabot settings
+  `skipped`, "not visible to this token", instead of drift and error, and
+  still compares the rest of each ruleset; `pap repo apply` from such a
+  token refuses before writing anything.
+
 ### [0.15.0] - 2026-11-09
 
 #### Added

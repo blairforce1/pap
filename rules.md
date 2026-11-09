@@ -225,10 +225,10 @@ The `spec.md` of a feature, infra or security-sensitive change has an Operations
 
 ### 22.1 No branch takes a force push
 
-No push to any branch rewrites its history; a branch behind main merges main. The human overrides on purpose by disabling the `all-branches` ruleset, pushing, and running `pap repo apply`.
+No push to any branch rewrites its history; a branch behind main merges main. The owner overrides on purpose with a force push from their own terminal, which the `all-branches` ruleset's owner bypass (rule 23.3) lets through.
 
 - Decision: [0022](decisions/0022-no-branch-takes-a-force-push.md); the override amended by [0023](decisions/0023-agents-act-on-github-as-their-own-app.md): once agents push as the agent app, the owner's bypass of rule 23.3 replaces disabling the ruleset
-- Enforced by: Repository ruleset [`.github/rulesets/all-branches.json`](.github/rulesets/all-branches.json) (`non_fast_forward` on `~ALL`, no bypass actors, Renovate's and Dependabot's branches excluded), applied by `pap repo apply`; `pap repo status` reports it disabled or changed as drift ([`scripts/repo-sync.sh`](scripts/repo-sync.sh)). Claude Code `PreToolUse` hook [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) running [`scripts/guard-branch.sh`](scripts/guard-branch.sh) `push-args`, which refuses an agent's `git push` with `--force`, `-f`, `--force-with-lease`, `--force-if-includes`, `--mirror` or a `+<refspec>`. It does not follow `bash -c`, `eval`, scripts or a push refspec in git config, and on `renovate/` and `dependabot/` branches it is the only enforcer; nothing refuses an agent disabling the ruleset through `gh api`.
+- Enforced by: Repository ruleset [`.github/rulesets/all-branches.json`](.github/rulesets/all-branches.json) (`non_fast_forward` on `~ALL`, the owner as its one bypass actor, Renovate's and Dependabot's branches excluded), applied by `pap repo apply`; `pap repo status` reports it disabled or changed as drift ([`scripts/repo-sync.sh`](scripts/repo-sync.sh)). Claude Code `PreToolUse` hook [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) running [`scripts/guard-branch.sh`](scripts/guard-branch.sh) `push-args`, which refuses an agent's `git push` with `--force`, `-f`, `--force-with-lease`, `--force-if-includes`, `--mirror` or a `+<refspec>`. It does not follow `bash -c`, `eval`, scripts or a push refspec in git config, and on `renovate/` and `dependabot/` branches it is the only enforcer; nothing refuses an agent disabling the ruleset through `gh api`.
 
 ### 23.1 An agent session acts on GitHub as the agent app
 
@@ -249,7 +249,7 @@ A `risk:high` pull request passes only when the latest `labeled` event for `owne
 `.github/rulesets/all-branches.json` lists the owner, and no `Integration`, as its one bypass actor, mode `always`; `main.json` lists none.
 
 - Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md); amends [0022](decisions/0022-no-branch-takes-a-force-push.md)'s override
-- Enforced by: Nothing yet. Planned: `pap repo apply` writes the owner as the actor (`User` where the API accepts it on that repository, else the owner's admin role) and ships only after rule 23.1's shim is on every machine that runs agents; `pap repo status` reports an `Integration` actor, or a missing owner, as drift.
+- Enforced by: `pap repo apply` ([`scripts/repo-sync.sh`](scripts/repo-sync.sh)) writes the owner, resolved from the repository at apply time, as the one actor: `OrganizationAdmin` on an organisation's repository; the owner's `User` on a personal one, or `RepositoryRole` admin if GitHub refuses the `User` with HTTP 422. `pap repo status` reports an `Integration` actor, a missing owner, or any other actor as drift. From a token without administration (the agent app's), status reports the bypass actors `skipped` and apply refuses before writing, so only the owner's run can confirm the list. Still escaping: anyone with admin editing the list in the settings until the next status run.
 
 ### 23.4 An agent shell carries no owner sign-in
 
