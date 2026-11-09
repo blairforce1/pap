@@ -8,10 +8,14 @@ and rules 18.1 to 18.7 in [`rules.md`](../rules.md). The console is the
 
 **What is a command today and what is not.** The PM way of working is
 written down and the console exists. The `/pap:pm` skill (`start`,
-`launch`, `event`, `relaunch`, `audit`), the `pap:member` agent
-definition and the tracker and brief templates are planned, backlog item
-H-012. Until they ship you run the role by hand, from the rules below, in
-a Claude Code session you brief as the PM; `/change` itself is a command.
+`launch`, `event`, `relaunch`, `audit`) and the tracker and brief
+templates are planned, backlog item H-012. Until they ship you run the
+role by hand, from the rules below, in a Claude Code session you brief as
+the PM; `/change` itself is a command. The cycle agents ship in the pap
+plugin (decision
+[0024](../decisions/0024-cycles-run-as-slim-plugin-agents.md)):
+`pap:cycle`, `pap:cycle-mechanical` for bumps and syncs, and
+`pap:reviewer` for `/change`'s cold review.
 
 ## Vocabulary
 
@@ -59,8 +63,9 @@ choose brings a one-paragraph design. "Why", "should we" and "what would it
 take" are questions: the PM answers them and launches nothing until you
 say go.
 
-A launch is a background sub-agent given one brief and nothing else, so
-the brief carries everything: the `/change <slug> <class>` line; what to
+A launch is a background sub-agent, spawned as `pap:cycle` (or
+`pap:cycle-mechanical` for a bump or a sync) and never as general-purpose
+(decision 0024), given one brief and nothing else, so the brief carries everything: the `/change <slug> <class>` line; what to
 build; the standing rules (the worktree, the paths it may touch, push
 after every commit, a save point after every commit, the report format,
 `ASK:` and `PAUSED:`); the model and effort for the task; and a **budget**
