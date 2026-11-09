@@ -12,7 +12,7 @@
   "name": "pap",
   // mcr.microsoft.com/devcontainers/base:2.2.1-trixie: plain Debian 13 with
   // a non-root vscode user, no language toolchain.
-  "image": "mcr.microsoft.com/devcontainers/base:2.2.1-trixie@sha256:1f851004adcd3dff3776b4a1da86727cf52280b0fdc9d5b0568c9c7d74274286",
+  "image": "mcr.microsoft.com/devcontainers/base:2.2.5-trixie@sha256:71b6fe7c4e07ec747a94a72b2a17f2f8c286eaa7b1c59862888df764efb8b6c6",
   // gh and jq are mise pins (.config/mise/conf.d/base.toml), installed by
   // postCreateCommand, so they need no feature. Claude Code is installed by
   // onCreateCommand, below.
@@ -42,7 +42,7 @@
   // (on PATH through remoteEnv). The one tool not pinned, on purpose: it
   // updates itself often, its auto-update stays on, and a pin would only
   // hold it back.
-  "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.5.12/install.sh && echo 'b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh && curl -fsSL https://claude.ai/install.sh | bash",
+  "onCreateCommand": "{ [ -w /tmp ] || sudo chmod 1777 /tmp; } && curl -fsSL -o /tmp/mise-install.sh https://github.com/jdx/mise/releases/download/v2026.10.25/install.sh && echo '61cb4d61d523a90fc9c479891897f8d0bbf0f622bd909119c06d32cd2202a414  /tmp/mise-install.sh' | sha256sum -c - && sh /tmp/mise-install.sh && rm /tmp/mise-install.sh && curl -fsSL https://claude.ai/install.sh | bash",
   // The clone setup, which fails the create if it fails; then the pap and
   // spec-review plugins, each saying so if it cannot install (offline, say);
   // then pap doctor to show what is left (gh auth login, and claude's own
