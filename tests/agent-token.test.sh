@@ -473,7 +473,7 @@ EOF
   out="$(printf 'n\n' | p agent-setup 2>&1)"; rc=$?
   m="$(sed -n 's/.*name=manifest value="\([^"]*\)".*/\1/p' "$T/form.html" | sed 's/&quot;/"/g; s/&amp;/\&/g')"
   printf '%s' "$m" | jq -e '.name == "example-owner-pap-agent" and .public == true and .hook_attributes.active == false
-      and .default_permissions == {contents: "write", pull_requests: "write", workflows: "write", checks: "read", statuses: "read", metadata: "read"}
+      and .default_permissions == {contents: "write", pull_requests: "write", workflows: "write", checks: "read", actions: "read", statuses: "read", metadata: "read"}
       and (.redirect_url | test("^http://127\\.0\\.0\\.1:[0-9]+/callback$")) and .default_events == []' >/dev/null &&
     grep -q 'action="https://github.com/settings/apps/new?state=[0-9a-f]\{32\}"' "$T/form.html"
   result $? "agent-setup: posts exactly 0023's manifest to the personal account's form, with a state" "$m"
