@@ -19,6 +19,7 @@
 # at the base commit. Never add a checkout of the head, or a step that runs
 # anything from it, here or there. pull-requests: write is for the labels
 # and the comment only.
+# A public repository needs an Actions policy allowing pull_request_target for this path (docs/adopt-a-repo.md).
 name: pr-checks
 
 on:

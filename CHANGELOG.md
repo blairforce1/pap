@@ -159,6 +159,23 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `pap repo status` reports, in a public repository, whether an active
+  Actions policy allows `pull_request_target` for
+  `.github/workflows/pr-checks.yml`: ok, missing, drift when it allows
+  every workflow, or skipped when the policies API does not answer.
+
+#### Changed
+
+- Docs for public repositories: GitHub's default event policy blocks
+  `pull_request_target` there (brownouts now, enforced from 2026-12-02),
+  so the `pr-checks` run ends in `startup_failure`. `docs/adopt-a-repo.md`,
+  the base README and `docs/troubleshooting.md` say to create an Actions
+  policy permitting the event for the pr-checks workflow path only, why
+  that is safe and what must stay true; both `pr-checks.yml` callers point
+  at it in their header. No behaviour change to the workflow.
+
 #### Security
 
 - `.github/risk.yml` rates `bin/pap`, `scripts/shim/**` and the

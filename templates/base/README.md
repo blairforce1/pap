@@ -260,6 +260,21 @@ the ruleset holds the merge. There are two ways through.
 Either way it happens once per repository: after the switch every pull
 request, including one that edits the caller, runs the base branch's copy.
 
+### Public repositories
+
+GitHub's default Actions event policy blocks `pull_request_target` in
+public repositories, enforced from 2026-12-02 (brownouts before then):
+the `pr-checks` run ends in `startup_failure`, "blocked due to a scheduled
+brownout of the default `pull_request_target` protection". In Settings >
+Actions > Policies (each repository's on a personal account, or once for
+an organisation), create an Active policy targeting the workflow path
+pattern `.github/workflows/pr-checks.yml`, with Restrict events ticked and
+Allowed events trimmed to `pull_request_target` only (Deselect all, then
+Add values). It is safe for this caller for the
+reasons its header gives, and only while they hold: never check out or
+run head code there, and pass pull request fields through `env` only. pap's
+`docs/adopt-a-repo.md` has the detail; `pap repo status` reports it.
+
 ## Setting up a clone
 
 Once per clone:
