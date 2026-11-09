@@ -102,7 +102,7 @@ Its `intent.md` names a source (an issue URL, or `none`) and a hypothesis (`H-NN
 An Android, iOS or Mac Catalyst target, a Release configuration or an AOT build holds the machine's one heavy-build lock, `${XDG_RUNTIME_DIR:-/tmp}/pap-heavy-build.lock`, while it runs, and on battery runs with at most two MSBuild nodes (`-m:2`).
 
 - Decision: [0015](decisions/0015-agent-sessions-share-one-machines-power-and-cores.md)
-- Enforced by: Nothing yet. The .NET layer's [`templates/dotnet/scripts/heavy-build.sh`](templates/dotnet/scripts/heavy-build.sh) does both for a build run through it, and the `/change` skill sends heavy builds through it; nothing refuses a bare `dotnet build` of a heavy target. Planned: the `PreToolUse` hook refuses an agent's bare `dotnet build` or `dotnet publish` of a heavy target in an adopting repository and names the script.
+- Enforced by: Nothing yet. The .NET layer's [`templates/dotnet/scripts/heavy-build.sh`](templates/dotnet/scripts/heavy-build.sh) does both for a build run through it and logs each one to `${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log`, and the `/change` skill sends heavy builds through it; nothing refuses a bare `dotnet build` of a heavy target. Planned: the `PreToolUse` hook refuses an agent's bare `dotnet build` or `dotnet publish` of a heavy target in an adopting repository and names the script.
 
 ### 16.1 High risk waits for the owner's `owner-reviewed` label
 

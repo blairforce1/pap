@@ -29,6 +29,14 @@
 # without it (macOS ships none; `brew install flock`) the build runs
 # unlocked and says so. PAP_HEAVY_LOCK and PAP_POWER_SUPPLY override the
 # lock path and the sysfs directory, for tests.
+#
+# Each build appends one line to
+# ${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log, so a revisit
+# of decision 0015 can count heavy builds: the UTC start time, the dotnet
+# command, battery or mains, and the duration in seconds, tab-separated.
+# The log is per user and per machine, never in a repository: a relative
+# XDG_STATE_HOME is ignored, as the XDG spec says, and with no absolute
+# HOME either nothing is logged. A log that cannot be written never fails the build.
 
 set -u
 
@@ -61,7 +69,9 @@ case "${1:-}" in
 esac
 
 cap=""
+power=mains
 if on_battery; then
+  power=battery
   case " $* " in
     *" -m"* | *" /m"* | *" --max-cpu-count"*) ;;
     *) cap="-m:2"; say "on battery: MSBuild capped at two nodes (-m:2)" ;;
@@ -80,5 +90,25 @@ else
   fi
 fi
 
+state=""
+case "${XDG_STATE_HOME:-}" in
+  /*) state="$XDG_STATE_HOME" ;;
+  *) case "${HOME:-}" in /*) state="$HOME/.local/state" ;; esac ;;
+esac
+started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+t0="$(date +%s)"
+
 # shellcheck disable=SC2086 # $cap is one word or nothing
 dotnet "$verb" "$@" $cap 9>&-
+rc=$?
+
+if [ -n "$state" ]; then
+  # shellcheck disable=SC2086
+  cmdline="$(printf '%s ' dotnet "$verb" "$@" $cap | tr '\t\n' '  ' | sed 's/ $//')"
+  if ! { mkdir -p "$state/pap" &&
+    printf '%s\t%s\t%s\t%ss\n' "$started" "$cmdline" "$power" "$(($(date +%s) - t0))" \
+      >>"$state/pap/heavy-builds.log"; } 2>/dev/null; then
+    say "cannot write $state/pap/heavy-builds.log; this build is not logged"
+  fi
+fi
+exit "$rc"

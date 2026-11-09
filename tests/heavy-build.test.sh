@@ -52,6 +52,8 @@ exit "${STUB_EXIT:-0}"
 EOF
 chmod +x "$T/stub/dotnet"
 export STUB_LOG="$T/dotnet.log" PAP_HEAVY_LOCK="$T/lock" PAP_POWER_SUPPLY="$T/ps"
+# Every build logs under the state directory: keep it in the temp dir.
+export HOME="$T/home" XDG_STATE_HOME="$T/state"
 PATH="$T/stub:$PATH"
 export PATH
 
@@ -142,6 +144,46 @@ ln -s "$(command -v cat)" "$T/bin/cat"
 out="$(PATH="$T/stub:$T/bin" "$(command -v sh)" "$hb" -c Release 2>&1)"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'flock not found' && [ "$(cat "$STUB_LOG")" = "build -c Release" ]
 result $? "no flock: the build runs unlocked and says so" "exit $rc; out '$out'"
+
+# --- the log ---------------------------------------------------------------------
+
+# Each build appends one tab-separated line (UTC start, command, power,
+# seconds) under the user's state directory, and nothing in the repository
+# it ran from.
+git init -q "$T/repo"
+rm -rf "$T/ps" "$T/state"; supply ADP1 Mains 0; supply BAT0 Battery
+log="$T/state/pap/heavy-builds.log"
+(cd "$T/repo" && STUB_SLEEP=1 sh "$hb" publish -f net10.0-ios -c Release >/dev/null 2>&1)
+line="$(cat "$log" 2>/dev/null)"
+tab="$(printf '\t')"
+printf '%s\n' "$line" | grep -Eq "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z${tab}dotnet publish -f net10.0-ios -c Release -m:2${tab}battery${tab}[1-9][0-9]*s\$" &&
+  [ "$(wc -l < "$log")" -eq 1 ] && [ -z "$(git -C "$T/repo" status --porcelain)" ]
+result $? "a build appends time, command, power and duration to the state log, not the repo" "log '$line'; repo: $(git -C "$T/repo" status --porcelain | tr '\n' ' ')"
+
+rm -r "$T/ps"; supply ACAD Mains 1
+(cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
+[ "$(wc -l < "$log")" -eq 2 ] && tail -n 1 "$log" | grep -q "${tab}dotnet build -c Release${tab}mains${tab}"
+result $? "a second build appends a second line, on mains" "log: $(tr '\n' '|' < "$log")"
+
+unset XDG_STATE_HOME
+(cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
+grep -q "${tab}dotnet build -c Release${tab}" "$T/home/.local/state/pap/heavy-builds.log" 2>/dev/null
+result $? "without XDG_STATE_HOME the log is under HOME/.local/state" ""
+
+export XDG_STATE_HOME=state
+(cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
+[ ! -e "$T/repo/state" ] && [ "$(wc -l < "$T/home/.local/state/pap/heavy-builds.log")" -eq 2 ] &&
+  [ -z "$(git -C "$T/repo" status --porcelain)" ]
+result $? "a relative XDG_STATE_HOME is ignored, so nothing lands in the repo" "repo: $(find "$T/repo" -maxdepth 1 ! -name .git | tr '\n' ' ')"
+
+export XDG_STATE_HOME="$T/state"
+chmod a-w "$T/state/pap/heavy-builds.log"
+export STUB_EXIT=4
+out="$(cd "$T/repo" && sh "$hb" -c Release 2>&1)"; rc=$?
+unset STUB_EXIT
+chmod u+w "$T/state/pap/heavy-builds.log"
+[ "$rc" = 4 ] && printf '%s\n' "$out" | grep -q 'not logged'
+result $? "a log it cannot write never changes the build's status, and says so" "exit $rc; out '$out'"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]
