@@ -83,12 +83,12 @@ The trigger fired at #111, the 20th change pull request merged after
 #86: #87 to #99, #101, #102 and #107 to #111. `pap measure 0020` ran (the ten merged before the start and the first ten after); the Expected effect reads
 `changes/*/intent.md`, not a measure column, so no `--verdict` ran.
 
-| Question                                     | Answer                                                                                                                                                                              |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Share carrying an accepted `intent.md`       | 0 of 20. Main holds one `changes/*/intent.md`, process-coverage's, from #54 and never accepted. The one other adopting repository checked has none written since `/intent` shipped. |
-| Intent churn                                 | Not defined: no change in the window has an `intent.md`, so none has one to churn.                                                                                                  |
-| Reactive share                               | Not defined, for the same reason.                                                                                                                                                   |
-| Intents returned to (5.10) at spec or review | 0; none was accepted.                                                                                                                                                               |
+| Question                                     | Answer                                                                                                                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Share carrying an accepted `intent.md`       | 0 of 20. Main holds one `changes/*/intent.md`, process-coverage's, from #54 and never accepted. The one other adopting repository with a `changes/` folder has none written since `/intent` shipped. |
+| Intent churn                                 | Not defined: no change in the window has an `intent.md`, so none has one to churn.                                                                                                                   |
+| Reactive share                               | Not defined, for the same reason.                                                                                                                                                                    |
+| Intents returned to (5.10) at spec or review | 0; none was accepted.                                                                                                                                                                                |
 
 No change in the window was started with `/intent`: every cycle came from
 a project manager's brief to `/change`, as before the record. The

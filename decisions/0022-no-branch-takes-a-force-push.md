@@ -76,7 +76,8 @@ other is either a wall the human cannot open or a door the agent can.
 ### Revisit of 2026-11-09
 
 The trigger fired at #117, the 20th change pull request merged after
-#90: #93 to #99, #101, #102 and #107 to #117. `pap measure 0022` ran (the ten merged before the start and the first ten after); the Expected
+#90 in merge order, as `pap revisits` counts (#91 and #92 merged
+before #90): #93 to #99, #101, #102 and #107 to #117. `pap measure 0022` ran (the ten merged before the start and the first ten after); the Expected
 effect is a count of force pushes, not a measure column, so no
 `--verdict` ran. Force pushes are read from GitHub's repository activity
 (`gh api repos/<owner>/<repo>/activity?activity_type=force_push`).
@@ -97,11 +98,12 @@ sentence (an override shows as `pap repo status` drift until
 `pap repo apply`) no longer describes it. The agent stays refused, by
 the hook and by the ruleset.
 
-The target held, over a short window: four days and 20 pull requests,
-against a baseline of one incident.
+No force push reached any branch. Over four days and 20 pull requests,
+against a baseline of one incident, that is not yet falsified rather than
+shown: the count would read 0 with or without the guard.
 
 Recommendation: amend (the Expected effect's override sentence, to the
-owner's force push of 0023 point 4), then accept
+owner's force push of 0023 point 4)
 
 ## Considered options
 

@@ -116,23 +116,24 @@ the code exists to argue with.
 ### Revisit of 2026-11-09
 
 The trigger fired at #116, the 20th change pull request merged after
-#89: #90, #93 to #99, #101, #102 and #107 to #116. `pap measure 0021`
+#89 in merge order, as `pap revisits` counts (#91 and #92 merged
+before #89): #90, #93 to #99, #101, #102 and #107 to #116. `pap measure 0021`
 ran (the ten merged before the start and the first ten after); the
 Expected effect reads `changes/*/spec.md`, not a measure column, so no
 `--verdict` ran.
 
-| Question                                        | Answer                                                                                                                                                                                                                                                               |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Share with Signals, Good, Wrong and Undo        | 0 of 12 feature, infra and security-sensitive pull requests in the window (#90, #94, #97, #99, #101, #107, #108, #110, #111, #113, #115, #116). Main holds no `changes/*/spec.md`; the one other adopting repository checked has none written since `/spec` shipped. |
-| The proxy: `fix:` or `revert:` within 14 days   | Not applicable as defined: it is read per change with a spec, and there is none. For the record, two `fix:` pull requests in the window touch files a change in it changed (#102 after #99 and #101; #107 after #99, #101 and #102); no `revert:`.                   |
-| Specs returned to (5.10)                        | 0; none was written.                                                                                                                                                                                                                                                 |
-| Operational scenarios exercised                 | 0; none was written, and H-015's watcher is not built.                                                                                                                                                                                                               |
-| Whether docs and chore specs earned a half page | Cannot judge: none was written.                                                                                                                                                                                                                                      |
+| Question                                        | Answer                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Share with Signals, Good, Wrong and Undo        | 0 of 12 feature, infra and security-sensitive pull requests in the window (#90, #94, #97, #99, #101, #107, #108, #110, #111, #113, #115, #116). Main holds no `changes/*/spec.md`; the one other adopting repository with a `changes/` folder has none written since `/spec` shipped. |
+| The proxy: `fix:` or `revert:` within 14 days   | Not applicable as defined: it is read per change with a spec, and there is none. For the record, two `fix:` pull requests in the window touch files a change in it changed (#102 after #99 and #101; #107 after #99, #101 and #102); no `revert:`.                                    |
+| Specs returned to (5.10)                        | 0; none was written.                                                                                                                                                                                                                                                                  |
+| Operational scenarios exercised                 | 0; none was written, and H-015's watcher is not built.                                                                                                                                                                                                                                |
+| Whether docs and chore specs earned a half page | Cannot judge: none was written.                                                                                                                                                                                                                                                       |
 
 As with [0020](0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md),
 no change in the window was started with `/spec`, so the 20 tested
 whether it was used, not whether it works. The two `fix:` follow-ups
-are a security boundary closed in three passes, the kind of gap a spec's
+are a security boundary that took two follow-up fixes, the kind of gap a spec's
 Wrong row is meant to name early; that is a reason to try it, not a
 measurement of it.
 

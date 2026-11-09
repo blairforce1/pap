@@ -117,14 +117,16 @@ taken up 36 change pull requests later. `pap measure 0015` ran (#56 to
 checks, and the Expected effect names none of them, so no `--verdict`
 ran.
 
-| Question                                            | Answer                                                                                                                                                                                                                                          |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A heavy build run outside `scripts/heavy-build.sh`  | Cannot measure: only a session transcript shows the commands a session ran, and none are kept. Countable if `scripts/heavy-build.sh` logged each run, and a heavy build without the lock were logged by the hook, to a file a revisit can read. |
-| A session's end disturbing another session's build  | Cannot measure, for the same reason. The Measurement section's five cases show the shutdown cannot break a build in flight; nothing since is recorded either way.                                                                               |
-| Battery draw with two sessions building, under 30 W | Cannot measure: the machine was on mains at the revisit. It takes a hand reading on battery (`/sys/class/power_supply/BAT*/power_now`) while two sessions build.                                                                                |
-| .NET SDKs with live build servers, 2 to 1           | 1 at a single look on 2026-11-09: five MSBuild nodes and one VBCSCompiler, all from the one mise SDK root; the second SDK is gone from the machine. A snapshot, not a count across the window.                                                  |
+| Question                                                         | Answer                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Heavy builds at once on one machine, at most 1 (Expected effect) | Cannot measure: the record set no baseline count, and concurrency shows only in transcripts or a log of heavy builds with start and end times.                                                                                                  |
+| A heavy build run outside `scripts/heavy-build.sh`               | Cannot measure: only a session transcript shows the commands a session ran, and none are kept. Countable if `scripts/heavy-build.sh` logged each run, and a heavy build without the lock were logged by the hook, to a file a revisit can read. |
+| A session's end disturbing another session's build               | Cannot measure, for the same reason. The Measurement section's five cases show the shutdown cannot break a build in flight; nothing since is recorded either way.                                                                               |
+| Battery draw with two sessions building, under 30 W              | Cannot measure: the machine was on mains at the revisit. It takes a hand reading on battery (`/sys/class/power_supply/BAT*/power_now`) while two sessions build.                                                                                |
+| .NET SDKs with live build servers, 2 to 1                        | 1 at a single look on 2026-11-09: five MSBuild nodes and one VBCSCompiler, all from the one mise SDK root; the second SDK is gone from the machine. A snapshot, not a count across the window.                                                  |
 
-One expected effect is seen once, at its target; two are unmeasured, and
+Of the three expected effects one is seen once, at its target, and two
+are unmeasured; and
 none of the three Revisit questions can be answered from git, pull
 requests or CI. The next revisit is a `when`, since the battery reading
 needs the conditions, not a count.
