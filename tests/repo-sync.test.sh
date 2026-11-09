@@ -480,12 +480,25 @@ out="$(status)"
 [ "$(state "$ab bypass actors")" = drift ]
 result $? "status: on an organisation's repository a User actor is not the owner's bypass" "$out"
 out="$(apply)"; rc=$?
-[ "$rc" = 0 ] && one_owner "$T/input-all-branches.json" OrganizationAdmin
-result $? "apply: an organisation's repository gets OrganizationAdmin" "exit $rc; $out"
-actors '[{"actor_id": null, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}]'
+[ "$rc" = 0 ] && grep -q '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG" &&
+  jq -e '.bypass_actors == [{"actor_id": null, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}]' \
+    "$T/input-all-branches.json" >/dev/null
+result $? "apply: an organisation's repository gets exactly OrganizationAdmin, actor_id null, always" "exit $rc; $out"
+# GitHub ignores actor_id for OrganizationAdmin; whatever it returns there, the type counts.
+for id in null 1; do
+  actors "[{\"actor_id\": $id, \"actor_type\": \"OrganizationAdmin\", \"bypass_mode\": \"always\"}]"
+  out="$(status)"
+  [ "$(state "$ab bypass actors")" = ok ]
+  result $? "status: an organisation's repository with OrganizationAdmin (actor_id $id) is ok" "$out"
+done
+actors '[{"actor_id": null, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}, {"actor_id": 424242, "actor_type": "Integration", "bypass_mode": "always"}]'
 out="$(status)"
-[ "$(state "$ab bypass actors")" = ok ]
-result $? "status: an organisation's repository with OrganizationAdmin is ok" "$out"
+[ "$(state "$ab bypass actors")" = drift ] && printf '%s\n' "$out" | grep -q 'an Integration (GitHub App) is listed'
+result $? "status: on an organisation's repository an Integration beside OrganizationAdmin is drift" "$out"
+actors '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]'
+out="$(status)"
+[ "$(state "$ab bypass actors")" = drift ]
+result $? "status: on an organisation's repository the admin role is not the owner (other admins hold it)" "$out"
 repo_as User true
 
 echo '[{"id": 7, "name": "main", "source_type": "Repository"}]' > "$T/fix/rulesets.json"
