@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.14.0] - 2026-11-09
+
 #### Security
 
 - `.github/risk.yml` rates `bin/pap`, `scripts/shim/**` and the
