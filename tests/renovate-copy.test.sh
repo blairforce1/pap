@@ -7,6 +7,8 @@
 # Usage: sh tests/renovate-copy.test.sh
 
 set -u
+# shellcheck disable=SC1091 # tests/clean-env.sh, sourced from this directory
+. "$(dirname "$0")/clean-env.sh"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -L "$here/.github/renovate.jsonc" ]; then
