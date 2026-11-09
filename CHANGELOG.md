@@ -159,16 +159,6 @@ not carry.
 
 ### [Unreleased]
 
-### [0.16.1] - 2026-11-09
-
-#### Fixed
-
-- A cycle started in its launcher's directory no longer makes its
-  worktree in the launcher's repository: `pap:cycle` and
-  `pap:cycle-mechanical` first `cd` to the repository the brief names (or
-  ask), and `/change` step 1 checks `git rev-parse --show-toplevel`
-  against it before running `worktree.sh`.
-
 #### Changed
 
 - Docs catch up with 0.14.0 to 0.16.1 (decision 0023, slice e):
@@ -182,6 +172,16 @@ not carry.
   does; `docs/troubleshooting.md` covers a stale `pap` on `PATH`, a cycle
   that branched the wrong repository and a bot-added `owner-reviewed`.
   Dated notes on decisions 0007, 0016, 0018 and 0023.
+
+### [0.16.1] - 2026-11-09
+
+#### Fixed
+
+- A cycle started in its launcher's directory no longer makes its
+  worktree in the launcher's repository: `pap:cycle` and
+  `pap:cycle-mechanical` first `cd` to the repository the brief names (or
+  ask), and `/change` step 1 checks `git rev-parse --show-toplevel`
+  against it before running `worktree.sh`.
 
 ### [0.16.0] - 2026-11-09
 
