@@ -159,13 +159,16 @@ not carry.
 
 ### [Unreleased]
 
-### [0.14.0] - 2026-11-09
-
 #### Security
 
 - `.github/risk.yml` rates `bin/pap`, `scripts/shim/**` and the
   `reviewed` and `accept` skills high (decision 0023): a pull request
   changing agent identity now needs `owner-reviewed`, not just a merge.
+
+### [0.14.0] - 2026-11-09
+
+#### Security
+
 - A `pap claude` shell pushed as the owner, not as `pap-agent`, to any
   repository that does not adopt PAP: the gh shim ran the real `gh`
   there, and gh's `auth git-credential`, with an empty config directory,
