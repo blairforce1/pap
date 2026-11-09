@@ -125,6 +125,7 @@ case "$path" in
   */codeowners/errors) f=codeowners ;;
   */vulnerability-alerts) f=alerts ;;
   */automated-security-fixes) f=fixes ;;
+  */code-scanning/default-setup) f=codeql ;;
   */actions/policies\?*) f=policies ;;
   */actions/policies/*) f="policy-${path##*/}" ;;
   */contents/*) f="contents/${path#*/contents/}" ;;
@@ -422,6 +423,21 @@ out="$(status)"; rc=$?
 [ "$(state "Dependabot alerts")" = error ] && [ "$(state "$ab bypass actors")" = drift ]
 result $? "status: with administration, a 403 is an error and an empty list drift, never skipped" "exit $rc; $out"
 rm "$T/fix/alerts.code" "$T/fix/fixes.code"
+
+# In a public repository, the same token sees no security_and_analysis and
+# gets 403 on CodeQL's default setup.
+repo_as User false
+jq '.visibility = "public" | del(.security_and_analysis)' "$T/fix/repo.json" > "$T/rj" && mv "$T/rj" "$T/fix/repo.json"
+echo 403 > "$T/fix/codeql.code"
+out="$(status)"
+[ "$(state "secret scanning push protection")" = skipped ] && [ "$(state "CodeQL default setup")" = skipped ]
+result $? "status: without administration, push protection and CodeQL are skipped, not missing or error" "$out"
+repo_as User true
+out="$(status)"
+[ "$(state "secret scanning push protection")" = missing ] && [ "$(state "CodeQL default setup")" = error ]
+result $? "status: with administration, the same answers are missing and error" "$out"
+rm "$T/fix/codeql.code"
+jq '.visibility = "private"' "$T/fix/repo.json" > "$T/rj" && mv "$T/rj" "$T/fix/repo.json"
 
 # The deliberate override before 0023: the ruleset disabled by hand.
 live '.'

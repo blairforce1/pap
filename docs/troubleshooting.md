@@ -113,7 +113,8 @@ push from your own terminal; nothing needs disabling.
 **`pap repo status` says "not visible to this token (needs
 administration; run from the owner's terminal)".** An agent shell acts as
 the agent app, which has no Administration permission, so GitHub hides
-ruleset bypass actors from it and refuses the Dependabot reads. Those
+ruleset bypass actors and the security settings from it (Dependabot,
+push protection, CodeQL). Those
 items are `skipped`, not drift; the rest of each ruleset is still
 compared. Run `pap repo status` from your own terminal to see them, and
 `pap repo apply` there too: from an agent shell it refuses before

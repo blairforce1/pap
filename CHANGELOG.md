@@ -171,8 +171,8 @@ not carry.
   `pap repo apply` in each adopting repository from your own terminal,
   then `pap repo status` to confirm.
 - `pap repo status` from a token without administration (an agent
-  shell) reports ruleset bypass actors and the Dependabot settings
-  `skipped`, "not visible to this token", instead of drift and error, and
+  shell) reports ruleset bypass actors, the Dependabot settings, push
+  protection and CodeQL default setup `skipped`, "not visible to this token", instead of drift and error, and
   still compares the rest of each ruleset; `pap repo apply` from such a
   token refuses before writing anything.
 

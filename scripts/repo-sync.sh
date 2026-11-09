@@ -53,8 +53,9 @@
 # no bypass. Status reports an Integration, a missing owner or any other
 # actor as drift.
 #
-# Bypass actors, and the Dependabot settings, need administration to read.
-# A token without it (an agent app's) sees them as empty or gets 403: status
+# Bypass actors and the security settings (Dependabot, push protection,
+# CodeQL) need administration to read. A token without it (an agent app's)
+# sees them empty or absent, or gets 403: status
 # reports those items skipped, not drift or error, and compares the rest of
 # each ruleset; apply refuses up front, before any write.
 #
@@ -260,7 +261,9 @@ if [ "$visibility" != public ]; then
 else
   item="secret scanning push protection"
   status="$(jq -r '.security_and_analysis.secret_scanning_push_protection.status // "disabled"' <<<"$repo_json")"
-  if [ "$status" = enabled ]; then
+  if [ "$is_admin" != true ] && ! jq -e 'has("security_and_analysis")' <<<"$repo_json" >/dev/null; then
+    record security skipped "$item" "not visible to this token ($no_admin)"
+  elif [ "$status" = enabled ]; then
     record security ok "$item"
   else
     record security missing "$item" "status $status"
@@ -282,6 +285,8 @@ else
       plan "$item" "+ security: configure CodeQL default setup" \
         gh api -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured
     fi
+  elif [ "$code" = 403 ] && [ "$is_admin" != true ]; then
+    record security skipped "$item" "not visible to this token ($no_admin)"
   else
     record security error "$item" "HTTP $code"
   fi

@@ -469,8 +469,8 @@ answers are the points above.
   holds admin. Status reports an `Integration`, a missing owner, an owner
   not in mode `always` or any other actor as drift, on its own line
   beside the rest of the ruleset. The app holds no Administration, so
-  GitHub shows it bypass actors as empty and answers the two Dependabot
-  reads with 403: for a token without admin on the repository
+  GitHub shows it bypass actors as empty, hides push protection's status
+  and answers the two Dependabot reads and CodeQL's with 403: for a token without admin on the repository
   (`permissions.admin` not true) those items are `skipped` ("needs
   administration; run from the owner's terminal"), the rest of each
   ruleset is still compared, and `pap repo apply` refuses before any
