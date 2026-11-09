@@ -17,6 +17,8 @@
 # shellcheck disable=SC2319
 
 set -u
+# shellcheck source=tests/clean-env.sh
+. "$(dirname "$0")/clean-env.sh"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 pap="$here/bin/pap"

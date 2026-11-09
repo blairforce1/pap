@@ -13,6 +13,8 @@
 # shellcheck disable=SC2016,SC2319
 
 set -u
+# shellcheck source=tests/clean-env.sh
+. "$(dirname "$0")/clean-env.sh"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 gen="$here/scripts/gen-codeowners.sh"

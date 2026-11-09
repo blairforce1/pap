@@ -17,6 +17,8 @@
 #   U     does not adopt decision 0002, on main
 
 set -u
+# shellcheck source=tests/clean-env.sh
+. "$(dirname "$0")/clean-env.sh"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 router="$here/plugins/pap/hooks/guard-route.sh"
