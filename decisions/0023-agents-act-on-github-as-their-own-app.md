@@ -457,6 +457,25 @@ answers are the points above.
   steps and `agent-identity-security.md` carry it; an existing app gains
   it by hand, and each installation's owner accepts it. Point 1's text is
   unchanged; read Actions read into its permission list.
+  Note (2026-11-09): slice d shipped in `scripts/repo-sync.sh`. The
+  template's `all-branches.json` keeps an empty list, so it carries no
+  id; `pap repo apply` resolves the owner from the repository's own
+  record (`owner.type`, `owner.id`). On an organisation's repository it
+  writes `OrganizationAdmin`, since the owner there is no user. On a
+  personal repository it writes the owner's `User`, and if GitHub refuses
+  that with HTTP 422, which [S11] neither promises nor rules out, it
+  retries with `RepositoryRole` admin (role id 5), says so in the apply
+  log, and status accepts either; on a personal repository only the owner
+  holds admin. Status reports an `Integration`, a missing owner, an owner
+  not in mode `always` or any other actor as drift, on its own line
+  beside the rest of the ruleset. The app holds no Administration, so
+  GitHub shows it bypass actors as empty, hides push protection's status
+  and answers the two Dependabot reads and CodeQL's with 403: for a token without admin on the repository
+  (`permissions.admin` not true) those items are `skipped` ("needs
+  administration; run from the owner's terminal"), the rest of each
+  ruleset is still compared, and `pap repo apply` refuses before any
+  write. An admin token that sees an empty list gets drift, never the
+  skip. Rule 23.3 names its enforcer.
 
 ## Where it is taught or enforced
 

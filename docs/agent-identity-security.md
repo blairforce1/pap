@@ -121,8 +121,19 @@ warns if the token is in `hosts.yml` in plain text instead.
   preprocessing never reaches a PreToolUse hook (checked with a logging
   hook).
 - **Later slices:** the `owner-reviewed` gate in `pr-checks` counts only a
-  label you added (slice c), and the `all-branches` ruleset lets only you
-  bypass it (slice d).
+  label you added (slice c).
+- **The owner bypass (slice d).** `pap repo apply` lists you as the one
+  bypass actor of the `all-branches` ruleset, mode `always`: your `User`
+  on a personal repository (or the admin role, which only you hold there,
+  if GitHub refuses a user), the organisation-admin role on an
+  organisation's. It lets you force-push any branch from your own
+  terminal; that is now the override, with no ruleset to disable and
+  re-apply. The agent app is never listed: it pushes with an installation
+  token and holds no role, so `non_fast_forward` binds it, and
+  `pap repo status` reports an `Integration` actor, or a missing owner, as
+  drift. `main` keeps no bypass, for you included. The app cannot read
+  bypass actors, so an agent's status run reports them `skipped`; only
+  your own run confirms the list.
 
 ## The finding: pushes as you outside adopting repositories
 

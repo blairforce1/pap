@@ -42,9 +42,22 @@
 #         that neither main.json nor .github/required-checks.yml names.
 #
 # The all-branches ruleset (decision 0022) blocks force pushes on every branch
-# but Renovate's and Dependabot's, with no bypass actors. The override is
-# deliberate: the human disables it in the repository's settings, pushes,
-# and runs apply, which restores it; status reports it as drift meanwhile.
+# but Renovate's and Dependabot's. Its one bypass actor is the repository's
+# owner, mode always, never an Integration (decision 0023 point 4): the
+# owner's override is a plain force push from their own terminal, and an
+# agent app, which holds no role and is never listed, stays bound. The
+# template carries no id; apply resolves the owner from the repository:
+# an organisation's repository gets OrganizationAdmin; a personal one gets
+# the owner's User, and if GitHub refuses that (HTTP 422), RepositoryRole
+# admin, which on a personal repository only the owner holds. main keeps
+# no bypass. Status reports an Integration, a missing owner or any other
+# actor as drift.
+#
+# Bypass actors and the security settings (Dependabot, push protection,
+# CodeQL) need administration to read. A token without it (an agent app's)
+# sees them empty or absent, or gets 403: status
+# reports those items skipped, not drift or error, and compares the rest of
+# each ruleset; apply refuses up front, before any write.
 #
 # Push protection and CodeQL default setup need GitHub Advanced Security on
 # private repositories, which a Pro personal account does not have. They are
@@ -161,6 +174,23 @@ api_get "repos/$repo"
 [ "$code" = 200 ] || die "cannot read $repo (HTTP $code)"
 repo_json="$body"
 visibility="$(jq -r .visibility <<<"$repo_json")"
+owner_login="$(jq -r '.owner.login // empty' <<<"$repo_json")"
+is_admin="$(jq -r '.permissions.admin // false' <<<"$repo_json")"
+no_admin="needs administration; run from the owner's terminal"
+if [ "$cmd" = apply ] && [ "$dry_run" = false ] && [ "$is_admin" != true ]; then
+  die "apply needs administration on $repo and this token has none ($no_admin); nothing was changed. --dry-run shows the plan."
+fi
+
+# The owner's bypass actor for all-branches, and its fallback (see the header).
+if [ "$(jq -r '.owner.type // empty' <<<"$repo_json")" = Organization ]; then
+  owner_org=true
+  owner_actor='{"actor_id": null, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}'
+  owner_role_actor=""
+else
+  owner_org=false
+  owner_actor="$(jq -c '{actor_id: .owner.id, actor_type: "User", bypass_mode: "always"}' <<<"$repo_json")"
+  owner_role_actor='{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}'
+fi
 
 # --- 1. Repository settings -------------------------------------------------
 
@@ -206,6 +236,8 @@ case "$code" in
     plan "$item" "+ security: enable Dependabot alerts" \
       gh api -X PUT "repos/$repo/vulnerability-alerts"
     ;;
+  403) if [ "$is_admin" = true ]; then record security error "$item" "HTTP 403"; else
+    record security skipped "$item" "not visible to this token ($no_admin)"; fi ;;
   *) record security error "$item" "HTTP $code" ;;
 esac
 
@@ -217,6 +249,8 @@ elif [ "$code" = 200 ] || [ "$code" = 404 ]; then
   record security missing "$item"
   plan "$item" "+ security: enable Dependabot security updates" \
     gh api -X PUT "repos/$repo/automated-security-fixes"
+elif [ "$code" = 403 ] && [ "$is_admin" != true ]; then
+  record security skipped "$item" "not visible to this token ($no_admin)"
 else
   record security error "$item" "HTTP $code"
 fi
@@ -227,7 +261,9 @@ if [ "$visibility" != public ]; then
 else
   item="secret scanning push protection"
   status="$(jq -r '.security_and_analysis.secret_scanning_push_protection.status // "disabled"' <<<"$repo_json")"
-  if [ "$status" = enabled ]; then
+  if [ "$is_admin" != true ] && ! jq -e 'has("security_and_analysis")' <<<"$repo_json" >/dev/null; then
+    record security skipped "$item" "not visible to this token ($no_admin)"
+  elif [ "$status" = enabled ]; then
     record security ok "$item"
   else
     record security missing "$item" "status $status"
@@ -249,6 +285,8 @@ else
       plan "$item" "+ security: configure CodeQL default setup" \
         gh api -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured
     fi
+  elif [ "$code" = 403 ] && [ "$is_admin" != true ]; then
+    record security skipped "$item" "not visible to this token ($no_admin)"
   else
     record security error "$item" "HTTP $code"
   fi
@@ -260,7 +298,7 @@ fi
 # keys the wanted ruleset carries, recursively, with rules matched by type, so
 # a field GitHub adds or returns by default cannot cause permanent drift.
 # Rules are sorted by type and required checks by name, so order alone is not
-# drift.
+# drift. Bypass actors are left out here and checked by bypass_check.
 # shellcheck disable=SC2016 # jq's $variables, not the shell's
 normalise='
   def prune($t):
@@ -274,7 +312,7 @@ normalise='
           | ($t | map(select(.type == $e.type)) | first) as $m
           | if $m == null then . else prune($m) end)
     else . end;
-  def owned: del(.id, .source, .source_type, .created_at, .updated_at);
+  def owned: del(.id, .source, .source_type, .created_at, .updated_at, .bypass_actors);
   ($t[0] | owned) as $want
   | owned | prune($want)
   | if has("rules") then
@@ -286,6 +324,53 @@ normalise='
 '
 # shellcheck disable=SC2016
 checks='[.rules[]? | select(.type == "required_status_checks") | .parameters.required_status_checks[]?]'
+
+# bypass_check <ruleset json> <owner|none>: sets bstate and bdetail for the
+# ruleset's bypass actors. owner: exactly the owner's actor (decision 0023);
+# none: no actor at all. A token without administration sees the list empty
+# or absent, so for it an empty list is skipped, never ok and never drift;
+# one with administration that sees an empty list gets the real verdict.
+# shellcheck disable=SC2016 # jq's $variables, not the shell's
+bypass_check() {
+  local v
+  if [ "$is_admin" != true ] && jq -e '(.bypass_actors // []) | length == 0' <<<"$1" >/dev/null; then
+    bstate=skipped bdetail="bypass actors not visible to this token ($no_admin)"
+    return
+  fi
+  v="$(jq -r --arg mode "$2" --argjson org "$owner_org" --argjson own "$owner_actor" '
+    def is_owner: .bypass_mode == "always" and
+      if $org then .actor_type == "OrganizationAdmin"
+      else (.actor_type == "User" and .actor_id == $own.actor_id)
+        or (.actor_type == "RepositoryRole" and .actor_id == 5) end;
+    (.bypass_actors // []) as $a
+    | ($a | map("\(.actor_type) \(.actor_id // "-") \(.bypass_mode)") | join(", ")) as $all
+    | if $mode == "none" then
+        if ($a | length) == 0 then "ok\tno bypass actors" else "drift\tbypass actors listed: \($all)" end
+      elif any($a[]; .actor_type == "Integration") then
+        "drift\tan Integration (GitHub App) is listed and must never bypass: \($all)"
+      elif any($a[]; is_owner) | not then
+        "drift\tthe owner is not listed\(if $all == "" then "" else ": \($all)" end)"
+      elif ($a | map(select(is_owner | not)) | length) > 0 then
+        "drift\tactors besides the owner: \($all)"
+      else "ok\towner \($a | map(select(is_owner)) | first | "\(.actor_type) \(.actor_id // "-")")" end' <<<"$1")"
+  bstate="${v%%$'\t'*}" bdetail="${v#*$'\t'}"
+}
+
+# write_branches <method> <path>: writes all-branches with the owner's
+# actor. On a personal repository a User actor GitHub refuses (HTTP 422)
+# falls back to RepositoryRole admin, said on fd 3, the apply log.
+write_branches() {
+  local out
+  out="$(gh api -X "$1" "$2" --input "$branches_body" 2>&1)" && return 0
+  if [ -n "$owner_role_actor" ] && grep -q 'HTTP 422' <<<"$out"; then
+    printf '  note     GitHub refused a User bypass actor (%s); writing RepositoryRole admin instead\n' \
+      "$(tail -1 <<<"$out")" >&3
+    gh api -X "$1" "$2" --input "$branches_role_body"
+    return
+  fi
+  printf '%s\n' "$out"
+  return 1
+}
 
 group "Ruleset"
 ruleset_name="$(jq -r .name "$ruleset_file")"
@@ -340,6 +425,8 @@ if [ -n "$ruleset_live" ]; then
       gh api -X POST "repos/$repo/rulesets" --input "$ruleset_body"
   else
     have="$(jq -S --slurpfile t "$ruleset_body" "$normalise" <<<"$ruleset_live")"
+    bypass_check "$ruleset_live" none
+    delta=""
     if [ "$have" = "$ruleset_want" ]; then
       record ruleset ok "$item" "id $ruleset_id"
     else
@@ -347,7 +434,13 @@ if [ -n "$ruleset_live" ]; then
         <(printf '%s\n' "$have") <(printf '%s\n' "$ruleset_want") | tail -n +3 || true)"
       record ruleset drift "$item" "id $ruleset_id"
       [ "$cmd" = status ] && note "$delta"
-      plan "$item" "~ ruleset: update '$ruleset_name' (id $ruleset_id)"$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')" \
+    fi
+    record ruleset "$bstate" "$item bypass actors" "$bdetail"
+    if [ -n "$delta" ] || [ "$bstate" = drift ]; then
+      why=""
+      [ -z "$delta" ] || why+=$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')"
+      [ "$bstate" != drift ] || why+=$'\n'"      bypass actors: $bdetail -> none"
+      plan "$item" "~ ruleset: update '$ruleset_name' (id $ruleset_id)$why" \
         gh api -X PUT "repos/$repo/rulesets/$ruleset_id" --input "$ruleset_body"
     fi
   fi
@@ -372,11 +465,19 @@ if [ -n "$ruleset_live" ]; then
 fi
 
 # The all-branches ruleset (decision 0022): no force push on any branch, no
-# bypass actors, no required checks. Created or updated whole by name, as
-# main is, so a ruleset the human disabled for a deliberate force push is
-# drift until apply restores it.
+# required checks, and the owner as its one bypass actor (decision 0023,
+# see the header). Created or updated whole by name, as main is, so a
+# ruleset disabled by hand is drift until apply restores it.
 branches_file="$root/.github/rulesets/all-branches.json"
 branches_name="$(jq -r .name "$branches_file")"
+branches_body="$tmp/all-branches.json" branches_role_body=""
+jq --argjson a "$owner_actor" '.bypass_actors = [$a]' "$branches_file" > "$branches_body"
+owner_says="owner ${owner_login:-?} as $(jq -r .actor_type <<<"$owner_actor")"
+if [ -n "$owner_role_actor" ]; then
+  branches_role_body="$tmp/all-branches-role.json"
+  jq --argjson a "$owner_role_actor" '.bypass_actors = [$a]' "$branches_file" > "$branches_role_body"
+  owner_says+=" (RepositoryRole admin if GitHub refuses a User)"
+fi
 branches_enforcement=""
 item="ruleset '$branches_name'"
 if [ "$rulesets_code" != 200 ]; then
@@ -387,8 +488,8 @@ else
   branches_want="$(jq -S --slurpfile t "$branches_file" "$normalise" "$branches_file")"
   if [ -z "$branches_id" ]; then
     record ruleset missing "$item"
-    plan "$item" "+ ruleset: create '$branches_name' from .github/rulesets/all-branches.json" \
-      gh api -X POST "repos/$repo/rulesets" --input "$branches_file"
+    plan "$item" "+ ruleset: create '$branches_name' from .github/rulesets/all-branches.json, bypass: $owner_says" \
+      write_branches POST "repos/$repo/rulesets"
   else
     api_get "repos/$repo/rulesets/$branches_id"
     if [ "$code" != 200 ]; then
@@ -396,6 +497,8 @@ else
     else
       branches_enforcement="$(jq -r .enforcement <<<"$body")"
       have="$(jq -S --slurpfile t "$branches_file" "$normalise" <<<"$body")"
+      bypass_check "$body" owner
+      delta=""
       if [ "$have" = "$branches_want" ]; then
         record ruleset ok "$item" "id $branches_id"
       else
@@ -403,8 +506,14 @@ else
           <(printf '%s\n' "$have") <(printf '%s\n' "$branches_want") | tail -n +3 || true)"
         record ruleset drift "$item" "id $branches_id"
         [ "$cmd" = status ] && note "$delta"
-        plan "$item" "~ ruleset: update '$branches_name' (id $branches_id)"$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')" \
-          gh api -X PUT "repos/$repo/rulesets/$branches_id" --input "$branches_file"
+      fi
+      record ruleset "$bstate" "$item bypass actors" "$bdetail"
+      if [ -n "$delta" ] || [ "$bstate" = drift ]; then
+        why=""
+        [ -z "$delta" ] || why+=$'\n'"$(printf '%s\n' "$delta" | sed 's/^/      /')"
+        [ "$bstate" != drift ] || why+=$'\n'"      bypass actors: $bdetail -> $owner_says"
+        plan "$item" "~ ruleset: update '$branches_name' (id $branches_id)$why" \
+          write_branches PUT "repos/$repo/rulesets/$branches_id"
       fi
     fi
   fi
@@ -602,6 +711,7 @@ for i in "${!plan_desc[@]}"; do printf '  %s\n' "${plan_desc[$i]}"; done
 
 if [ "$dry_run" = false ]; then
   printf '\nApplying:\n'
+  exec 3>&1
   for i in "${!plan_cmd[@]}"; do
     if out="$(eval "${plan_cmd[$i]}" 2>&1)"; then
       applied=$((applied + 1))
