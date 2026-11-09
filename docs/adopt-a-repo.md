@@ -76,8 +76,10 @@ reports each item as ok, drift, missing or unavailable on your plan, in
 five groups: repository settings, security, the rulesets (`main`, with
 each required status check by name, and `all-branches`), the enforcement
 layers (decision 0002's, both rulesets' enforcement, and whether GitHub
-accepts the owners in `.github/CODEOWNERS`), and labels. It exits 1 unless
-everything is ok, unavailable or skipped.
+accepts the owners in `.github/CODEOWNERS`; in a public repository, an
+Actions policy that allows `pull_request_target` for the `pr-checks`
+caller, see [Public repositories](#public-repositories-allow-pull_request_target)),
+and labels. It exits 1 unless everything is ok, unavailable or skipped.
 
 `apply` prints the intended changes, then makes them unless `--dry-run`.
 It creates or updates two rulesets by name: `main` (squash merge only,
@@ -163,3 +165,40 @@ The same gap opens when an existing repository moves its caller from
 `pull_request` to `pull_request_target` (pap 0.9.0 and later). The base
 README's "Moving pr-checks to pull_request_target" gives a two-step route
 with no bypass.
+
+## Public repositories: allow `pull_request_target`
+
+GitHub's default Actions event policy blocks `pull_request_target` in
+public repositories; private and internal ones are not affected. It is
+enforced from 2026-12-02 for repositories still on the default, with
+brownouts before then. The `pr-checks` caller runs on that event, so in a
+public repository without a policy of its own the required check cannot
+run and the ruleset holds every merge. The symptom: the `pr-checks` run
+ends in `startup_failure`, with "Workflows are being blocked due to a
+scheduled brownout of the default `pull_request_target` protection" (or,
+after enforcement, a block by the default policy).
+
+The fix, once per public repository or once for the organisation: in
+Settings > Actions > Policies, create a policy whose event rule permits
+`pull_request_target`, targeted at the workflow path
+`.github/workflows/pr-checks.yml` only, and set it active. An
+organisation policy also targets the repositories it covers. Do not allow
+the event for every workflow: any other workflow on it would get the same
+privileged run without the same care. `pap repo status` reports the item
+as ok, missing, drift (allowed for every workflow) or skipped (the
+policies API did not answer).
+
+Why that is safe for `pr-checks`: GitHub runs the base branch's copy of
+the caller, so a pull request cannot edit its own required check; the
+reusable workflow never checks out or runs head code, reads the title,
+body, file names and diff through the API as data, and passes pull
+request fields to its steps through `env` only; its token is
+`contents: read` and `pull-requests: write`, for the labels and the
+review-focus comment; it uses no secrets and no cache. What must stay
+true: never add a checkout of the head, or a step that runs anything from
+it, to the caller or the reusable workflow, and never interpolate a pull
+request field into a `run:` line. A change that breaks any of these
+makes the policy unsafe, not just the workflow. GitHub's
+[Securely using `pull_request_target`](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target)
+and [Control workflow execution](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution)
+give the detail.

@@ -33,6 +33,16 @@ request.** The caller runs on `pull_request_target`, from the base branch,
 which has no caller yet. One-time ruleset bypass; see
 [Adopt a repository](adopt-a-repo.md#the-first-pull-request).
 
+**`pr-checks` ends in `startup_failure`: "Workflows are being blocked
+due to a scheduled brownout of the default `pull_request_target`
+protection".** The repository is public, and GitHub's default event policy
+blocks `pull_request_target` there (brownouts now, enforced from
+2026-12-02). Create an Actions policy that permits `pull_request_target`
+for `.github/workflows/pr-checks.yml` only, then re-run the check; see
+[Adopt a repository](adopt-a-repo.md#public-repositories-allow-pull_request_target).
+`pap repo status` shows whether one applies. During a brownout window
+with no policy, the failure is GitHub's, not the pull request's.
+
 **A coverage check fails or never runs on the first pull request.** It has
 no baseline on main to compare against. Merge through the same bypass,
 then `pap repo apply` from main makes it required from the next pull
