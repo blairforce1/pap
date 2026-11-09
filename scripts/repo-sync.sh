@@ -464,10 +464,22 @@ pr_checks_path=".github/workflows/pr-checks.yml"
 if [ "$visibility" != public ]; then
   record enforcement skipped "$item" "$visibility repository; the default policy blocks it in public ones only"
 else
+  # The list gives summaries; each active policy's rules and conditions come
+  # from its own GET, by its self link (an inherited one is the org's).
   api_get "repos/$repo/actions/policies?has_parents=true&per_page=100"
+  policy_code="$code" details="[]"
   if [ "$code" = 200 ]; then
+    for href in $(jq -r --arg r "repos/$repo/actions/policies/" '.policies[]?
+        | select(.enforcement == "active")
+        | (._links.self.href // ($r + (.id | tostring))) | sub("^https://api.github.com/"; "")' <<<"$body"); do
+      api_get "$href"
+      [ "$code" = 200 ] || { policy_code="$code"; break; }
+      details="$(jq -c --argjson d "$body" '. + [$d]' <<<"$details")"
+    done
+  fi
+  if [ "$policy_code" = 200 ]; then
     allowed="$(jq -r --arg p "$pr_checks_path" '
-      [.policies[]? | select(.enforcement == "active")
+      [.[] | select(.enforcement == "active")
         | select(any(.rules[]?; .type == "restrict_action_events"
             and ((.parameters.allowed_events // []) | index("pull_request_target"))))
         | (.conditions.workflow_path // {include: [], exclude: []}) as $w
@@ -475,14 +487,14 @@ else
         | if (($w.include // []) | length) == 0 or (($w.include // []) | index("~ALL")) then "all"
           elif ($w.include | index($p)) then "scoped"
           else empty end]
-      | if index("scoped") then "scoped" elif index("all") then "all" else "none" end' <<<"$body")"
+      | if index("scoped") then "scoped" elif index("all") then "all" else "none" end' <<<"$details")"
     case "$allowed" in
       scoped) record enforcement ok "$item" ;;
       all) record enforcement drift "$item" "a policy allows it for every workflow; scope it to $pr_checks_path" ;;
       *) record enforcement missing "$item" "Settings > Actions > Policies; see docs/adopt-a-repo.md" ;;
     esac
   else
-    record enforcement skipped "$item" "policies unavailable (HTTP $code)"
+    record enforcement skipped "$item" "policies unavailable (HTTP $policy_code); reading them needs administration access"
   fi
 fi
 

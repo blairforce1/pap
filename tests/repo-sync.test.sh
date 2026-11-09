@@ -119,6 +119,7 @@ case "$path" in
   */rulesets/*) f="ruleset-${path##*/}" ;;
   */codeowners/errors) f=codeowners ;;
   */actions/policies\?*) f=policies ;;
+  */actions/policies/*) f="policy-${path##*/}" ;;
   */contents/*) f="contents/${path#*/contents/}" ;;
   *) f=none ;;
 esac
@@ -196,11 +197,15 @@ result $? "status: an owner GitHub does not accept is drift, named by line; exit
 
 # policy: the pull_request_target line of the report, state first.
 policy() { printf '%s\n' "$out" | sed -n 's/^  \([a-z-]*\) *Actions policy allows pull_request_target for pr-checks.*/\1/p'; }
-# policies <enforcement> <events> <workflow_path json>: one live policy.
+# policies <enforcement> <events> <workflow_path json>: one live policy, id 1:
+# a summary in the list, its rules and conditions only in its own GET.
 policies() {
-  jq -n --arg e "$1" --argjson ev "$2" --argjson w "$3" '{total_count: 1, policies: [{id: 1, name: "pr-checks",
+  jq -n --arg e "$1" '{total_count: 1, policies: [{id: 1, name: "pr-checks", target: "actions",
+    source_type: "Repository", enforcement: $e,
+    _links: {self: {href: "https://api.github.com/repos/blairforce1/demo/actions/policies/1"}}}]}' > "$T/fix/policies.json"
+  jq -n --arg e "$1" --argjson ev "$2" --argjson w "$3" '{id: 1, name: "pr-checks",
     target: "actions", source_type: "Repository", enforcement: $e, conditions: {workflow_path: $w},
-    rules: [{type: "restrict_action_events", parameters: {allowed_events: $ev}}]}]}' > "$T/fix/policies.json"
+    rules: [{type: "restrict_action_events", parameters: {allowed_events: $ev}}]}' > "$T/fix/policy-1.json"
 }
 scoped='{"include": [".github/workflows/pr-checks.yml"], "exclude": []}'
 
@@ -243,7 +248,13 @@ out="$(status)"
 [ "$(policy)" = drift ] && printf '%s\n' "$out" | grep -q 'scope it to .github/workflows/pr-checks.yml'
 result $? "status: a policy allowing it for every workflow is drift" "$out"
 
-rm -f "$T/fix/policies.json"
+policies active '["pull_request_target"]' "$scoped"
+rm "$T/fix/policy-1.json"
+out="$(status)"
+[ "$(policy)" = skipped ] && printf '%s\n' "$out" | grep -q 'policies unavailable (HTTP 404)'
+result $? "status: a policy whose detail the API will not serve is skipped, not missing" "$out"
+
+rm -f "$T/fix/policies.json" "$T/fix/policy-1.json"
 echo '{"visibility": "private"}' > "$T/fix/repo.json"
 
 # --- apply: required checks kept, added, removed -----------------------------
