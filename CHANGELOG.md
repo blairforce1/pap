@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.14.0] - 2026-11-09
+
 #### Security
 
 - A `pap claude` shell pushed as the owner, not as `pap-agent`, to any
