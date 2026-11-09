@@ -159,6 +159,15 @@ not carry.
 
 ### [Unreleased]
 
+#### Changed
+
+- The revisits of decisions 0015, 0019, 0020, 0021 and 0022 are written
+  into their Result sections. 0019 is `measured:inconclusive` and kept,
+  with point 1 amended by 0024. The four proposed records keep their
+  status and end with a recommendation for the Project Lead: 0015, 0020
+  and 0021 amend, 0022 amend then accept. 0015, 0020 and 0021 get `when`
+  revisits, 0022 a new count from #117.
+
 #### Fixed
 
 - A cycle started in its launcher's directory no longer makes its

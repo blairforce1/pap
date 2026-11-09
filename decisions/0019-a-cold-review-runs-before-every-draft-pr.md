@@ -1,6 +1,7 @@
 # 0019. A cold review runs before every draft pull request
 
-- **Status:** accepted (blairforce1, 2026-11-05)
+- **Status:** measured:inconclusive (2026-11-09)
+- **Disposition:** kept; point 1 amended by [0024](0024-cycles-run-as-slim-plugin-agents.md)
 - **Date:** 2026-11-05
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none; amends the `/change` skill of [0006](0006-changes-are-carried-by-a-skill.md)
@@ -51,6 +52,34 @@ finds.
 The reason that carried it: the cheapest reader who does not share the
 author's assumptions is a fresh context, and the cheapest time to use one
 is before the human reads the pull request.
+
+## Result
+
+### Revisit of 2026-11-09
+
+The trigger fired at #110, the 20th change pull request merged after
+#85: #86 to #99, #101, #102 and #107 to #110. `pap measure 0019` ran (the ten merged before the start and the first ten after); its columns hold none of the three
+effects, which are per cycle, so no `--verdict` ran. The rest is counted
+from the 20 pull requests' Verification rows.
+
+| Question                                                     | Answer                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cycles that get a message after their first report, from 18% | Cannot measure from the public record: the baseline and the count are per cycle, in the project manager's tracker. Countable from that tracker's send-backs over the cycles behind these 20. As a pointer only: 6 of the 20 bodies show a round after the first report that was not a merge (#86, #87, #97, #99, #101, #102), at least two directed by the project manager or the owner. |
+| Median tokens on the cycles that still get one, from 690k    | Cannot measure: cycle totals are in completion notices, not in the pull request.                                                                                                                                                                                                                                                                                                         |
+| Median tokens per cycle not up by more than the reviewer's   | The cycle side cannot be measured, as above. The reviewer side: 14 rows state tokens, from about 25k to 159k, median about 95k, over half the 157k baseline cycle median.                                                                                                                                                                                                                |
+| Reviews run                                                  | 14 of 20. Skipped by the brief: 4 (#95, #96, #109, #110; version bumps and one config rule). No row: 2 (#91, #98, decision acceptances).                                                                                                                                                                                                                                                 |
+| Share of reviews that found nothing                          | 0 of 14. `/code-review low` returned nothing on #93 and #99; the reviewer's own read of the diff against the brief found 10 and 8.                                                                                                                                                                                                                                                       |
+| Findings the reviews fixed                                   | 99 findings in 13 rows (#101's two rounds give no number); about 77 fixed, the rest answered with a reason, counted from prose to within about 5. Among the fixed: a worktree left open that would stop the next skill (#86, #89), a stored credential helper answering before the agent's shim (#99, #107), and a setup failure masked by `\|\| true` (#94).                            |
+| `/code-review` seeing the diff                               | 5 of 14 (#86, #87, #89, #93, #99); elsewhere not available or not run, and the reviewer read the diff against the brief.                                                                                                                                                                                                                                                                 |
+
+Inconclusive. Every review found something and most of it was fixed
+before the owner saw the pull request, which is the mechanism working;
+whether that cut rework or tokens per cycle cannot be read without the
+tracker, and no number here says it did. The review's cost, a median of
+about 95k, is the case [0024](0024-cycles-run-as-slim-plugin-agents.md)
+answers: the reviewer runs as a slim `pap:reviewer`, and a mechanical
+change skips it (the Project Lead's decision of 2026-11-09; 0024 is
+proposed). Kept, with point 1 amended by 0024.
 
 ## Considered options
 
