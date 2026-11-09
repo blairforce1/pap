@@ -86,6 +86,16 @@ is before the human reads the pull request.
   tracker's cycle records, as 0018's baseline was; neither is in git
   history. The window is small, so the result is read as a direction, not
   a significance test (0001's ten-a-side rule applies to the token median).
+  Note (2026-11-09): decision
+  [0024](0024-cycles-run-as-slim-plugin-agents.md) (proposed) has
+  `/change` spawn the reviewer as `pap:reviewer`, a read-only agent on
+  Sonnet without the session's MCP tools, falling back to a general-purpose
+  subagent where the session cannot load it, and skips the review for a
+  mechanical change (version strings, unedited sync output, changelog
+  moves; 0024 point 5 defines it), by the Project Lead's decision. On two
+  syncs that day the general-purpose reviewer cost about 64k tokens and
+  returned no result. Points 1 to 3 otherwise stand; this record's status
+  is unchanged.
 
 ## Where it is taught or enforced
 

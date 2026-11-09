@@ -197,9 +197,9 @@ A cycle's brief names its budget in tokens or wall time, set from the last audit
 
 ### 19.1 A cold review runs before a draft pull request
 
-Before `/change` opens its draft pull request, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` against the worktree where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
+Before `/change` opens its draft pull request, unless the change is mechanical as decision 0024 defines it, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` against the worktree where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
 
-- Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md)
+- Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md), amended by [0024](decisions/0024-cycles-run-as-slim-plugin-agents.md)
 - Enforced by: Nothing yet. Taught by the `/change` skill ([`plugins/pap/skills/change/SKILL.md`](plugins/pap/skills/change/SKILL.md), step 5); nothing refuses a pull request whose Verification lacks the row.
 
 ### 20.1 Intent is accepted by a recorded yes, before the spec and the code
