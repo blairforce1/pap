@@ -145,6 +145,14 @@ what to look at, is a review.
 - Limit: the label is writable by the check's own token, by `gh` and by
   anyone with triage access. The check cannot tell who added it, as it
   could not tell who typed the line.
+  Note (2026-11-09): no longer so. Since blairforce1/.github#17
+  (decision 0023, rule 23.2) the label counts only when its latest
+  `labeled` event has an actor of type `User` whose login is an owner in
+  the base branch's `.github/CODEOWNERS`; a label added by a bot, the
+  agent app included, or by anyone else is removed, with the reason in
+  the check's output. Callers also trigger on `closed`, so the
+  `merge-report` job warns and comments when a bot merged the pull
+  request (pap#113). This record's status is unchanged.
 - Limit: the check removes the label on `synchronize` in the run the push
   starts. A label added in the seconds between the push and that run is
   removed with the rest, and the owner adds it again.

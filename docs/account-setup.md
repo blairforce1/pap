@@ -99,6 +99,14 @@ call names, and refuses a repository the installation does not cover, by
 name (`pap doctor` checks this clone's). It costs nothing on GitHub's
 side.
 
+The app holds these repository permissions and no others: Contents,
+Pull requests and Workflows read and write; Checks, Actions, Commit
+statuses and Metadata read-only. Actions read (pap 0.15.0) lets a
+session read its own workflow runs and job logs; it cannot re-run,
+cancel or dispatch a workflow. No Issues, no Administration, no Secrets,
+so the app can neither change a repository's settings nor read a
+ruleset's bypass list.
+
 ### With `pap agent-setup`
 
 From an adopting repository, on the machine that runs agents:
@@ -182,8 +190,9 @@ The same, step by step, when `pap agent-setup` cannot run:
    `.pem` file.
 4. **Install the app** (the app's page, Install App) on your account and on
    each organisation that adopts PAP, with **Only select repositories** and
-   the adopting repositories selected. A repository added later is added
-   to the installation by hand.
+   every repository agents push to or call `gh` for selected: the adopting
+   ones and others, such as a private companion repository or `.github`.
+   A repository added later is added to the installation by hand.
 5. **Import the key** on every machine that runs agents:
 
    ```sh
@@ -248,6 +257,31 @@ and `pap agent-setup` does not change an app that exists. Add it by hand:
 
 Tokens minted after the acceptance carry the permission; one cached from
 before keeps the old ones for its hour ([troubleshooting](troubleshooting.md#the-gh-shim-and-pap-agent)).
+
+### The owner bypass
+
+The `all-branches` ruleset refuses a force push on every branch, and
+lists one bypass actor: you (decision 0023, rule 23.3). The agent app is
+never listed. Write it, and later confirm it, from your own terminal in
+each adopting repository:
+
+```sh
+pap repo apply
+pap repo status
+```
+
+`pap repo apply` resolves the owner from the repository at apply time:
+your `User` on a personal repository (GitHub accepts it; if it ever
+refused, apply would fall back to the admin role, which only you hold
+there), `OrganizationAdmin` on an organisation's. From an agent shell
+`pap repo apply` refuses before writing, and `pap repo status` reports
+the bypass actors `skipped`, "not visible to this token", because the app
+has no Administration.
+
+On an organisation, `OrganizationAdmin` means every admin of the
+organisation, not you alone: each may force-push any branch but `main`.
+Keep the organisation's admins to people you would trust with that
+override.
 
 ## Your own sign-in and `pap claude`
 

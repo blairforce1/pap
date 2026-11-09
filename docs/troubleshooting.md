@@ -58,6 +58,13 @@ the creation, `gh pr edit <PR#> --add-label class:<class>`.
 changed anything.** Any push, a merge from main included, removes
 `owner-reviewed`. Review the new head and run `/pap:reviewed <PR#>` again.
 
+**`owner-reviewed` was removed straight after it was added.** The label
+counts only when its latest `labeled` event is by a user whose login is
+an owner in the base branch's `.github/CODEOWNERS` (rule 23.2). A bot
+added it, the agent app or a workflow's token, or a user who is not a
+code owner, so `pr-checks` removed it and said why in its output. Add it
+yourself with `/pap:reviewed <PR#>`, signed in as a code owner.
+
 ## Skills and worktrees
 
 **The worktree script prints `exists <path>` and the skill stops.** A
@@ -66,6 +73,15 @@ and the skill will not work in it. `git worktree list` shows them. If that
 session has finished, `git worktree remove <path>` (or `mise run tidy`
 once the pull request has merged) and run the skill again; if it is still
 running, wait or pick another slug.
+
+**A cycle made its worktree in the wrong repository.** A cycle launched
+from a PM session starts in the PM's directory; before pap 0.16.1 it ran
+`/change` there and branched the PM's repository. `pap:cycle` and
+`pap:cycle-mechanical` now `cd` to the repository the brief names before
+any other command, and `/change` checks it before making the worktree.
+For a session on an older plugin, put the `cd` as the brief's first
+line. Remove the stray worktree with `git worktree remove <path>` and
+delete its branch.
 
 **`/spec` says `/intent` comes first.** It found no
 `changes/<slug>/intent.md` with `accepted-by:` and `accepted-on:` on the
@@ -351,6 +367,13 @@ be undone with `git diff`.
 repository changed the same lines. Resolve each `<<<<<<< <path> (here)` /
 `>>>>>>> template v<version>` block, then commit; the version is already
 recorded.
+
+**`pap version` prints an old version, or `pap repo status` lacks lines the
+changelog promises.** Your shell found a stale `pap` first on `PATH`,
+often from an old install directory. `type -a pap` lists every `pap` in
+order; remove or reorder the stale one. To run a known version whatever
+`PATH` holds, pin it:
+`mise exec github:blairforce1/pap@<version> -- pap repo status`.
 
 **`pap revisits` prints `unknown (gh: ...)`.** Counting change pull
 requests needs `gh` signed in and the network. Sign in and run it again;

@@ -85,7 +85,8 @@ and labels. It exits 1 unless everything is ok, unavailable or skipped.
 It creates or updates two rulesets by name: `main` (squash merge only,
 linear history, no deletion, no force push, review threads resolved, the
 required checks) and `all-branches` (no force push on any branch but
-Renovate's and Dependabot's, no bypass actors; decision 0022, proposed). It applies the settings and
+Renovate's and Dependabot's, one bypass actor, the owner, whose own push
+is the force-push override; decisions 0022 and 0023). It applies the settings and
 security options, and creates or updates the labels from pap's
 `.github/labels.yml` and, for each layer `.config/pap.toml` names,
 `.github/labels/<layer>.yml`. It never deletes a
