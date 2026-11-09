@@ -498,6 +498,31 @@ else
   printf '%s\n' "$msg" | sed 's/^/# /'
   failed=$((failed + 1))
 fi
+
+# A session whose project adopts PAP needs pap claude for gh, and git to
+# GitHub, outside adopting repositories too: a companion repository, or no
+# repository at all. A project that does not adopt PAP is not refused.
+mkdir -p "$T/norepo"
+export CLAUDE_PROJECT_DIR="$T/H"
+for s in plain shimonly; do
+  session "$s"
+  check 2 "$T/U" 'gh pr list'
+  check 2 "$T/U" 'git fetch'
+  check 2 "$T/norepo" 'gh api user'
+  check 2 "$T/norepo" 'git ls-remote https://github.com/example-owner/companion.git'
+  check 0 "$T/U" 'git status'
+  check 0 "$T/norepo" 'git ls-remote https://example.com/x.git'
+done
+session pap
+check 0 "$T/U" 'gh pr list'
+check 0 "$T/U" 'git fetch'
+check 0 "$T/norepo" 'gh api user'
+check 0 "$T/norepo" 'git ls-remote https://github.com/example-owner/companion.git'
+export CLAUDE_PROJECT_DIR="$T/U"
+session plain
+check 0 "$T/U" 'gh pr list'
+check 0 "$T/norepo" 'gh api user'
+unset CLAUDE_PROJECT_DIR
 session pap
 
 printf '1..%d\n' "$n"
