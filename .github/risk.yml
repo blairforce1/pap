@@ -73,3 +73,13 @@ rules:
       - "/lefthook.yml"
     level: high
     question: "a guard changed: confirm nothing it refused before is now let through"
+  # Agent identity (decision 0023): the CLI that mints agent tokens and
+  # keys, the gh shim, and the only skills that act as the owner. After the
+  # skills rule, so it wins for reviewed and accept.
+  - paths:
+      - "/bin/pap"
+      - "scripts/shim/**"
+      - "plugins/pap/skills/reviewed/**"
+      - "plugins/pap/skills/accept/**"
+    level: high
+    question: "agent identity changed (decision 0023): confirm no path lets an agent shell reach the owner's sign-in, and that reviewed/accept still act only as the owner"
