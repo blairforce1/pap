@@ -75,6 +75,8 @@ things instead of asking for the line.
    runs on `labeled` and `unlabeled`, so adding the label turns it green.
    `risk:medium` and `risk:low` have no gate; the owner's merge is the
    review. The `Approved-by:` line is neither asked for nor read.
+   Decision 0023 narrows this: the label counts only when a CODEOWNERS
+   owner, a user, added it (rule 23.2).
 
 Agents never add `owner-reviewed` and never merge (rule 16.2), beside the
 rule that they never write an `Approved-by:` line, which stays for

@@ -168,6 +168,14 @@ not carry.
 
 #### Changed
 
+- Both `pr-checks.yml` callers also trigger on `closed`, so the reusable
+  workflow's `pr-checks / merge-report` job (blairforce1/.github#17,
+  decision 0023) runs and warns and comments when a bot merged the pull
+  request; `checks` re-runs on close. `pr-checks / merge-report` is not a
+  required check and must not become one: it is skipped on every other
+  event. The risk README, rule 16.1, decision 0016 and the base README
+  say the `owner-reviewed` label counts only from a CODEOWNERS owner by
+  login, and that a bot-added label is removed with the reason.
 - Docs for public repositories: GitHub's default event policy blocks
   `pull_request_target` there (brownouts now, enforced from 2026-12-02),
   so the `pr-checks` run ends in `startup_failure`. `docs/adopt-a-repo.md`,
