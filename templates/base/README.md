@@ -204,11 +204,13 @@ how many local branches have a gone upstream (run `mise run tidy`).
 `pap repo status` reports the GitHub side, and `pap codeowners` regenerates
 `.github/CODEOWNERS`. `pap repo apply` keeps two rulesets: `main`, and
 `all-branches`, which blocks a force push on every branch but Renovate's
-and Dependabot's and has no bypass actors, because agents push with your
-own credentials (decision 0022). To force-push on purpose, disable
-`all-branches` (repository settings, Rules, Rulesets), push from your own
-terminal, and run `pap repo apply`, which restores it; until then `pap repo
-status` reports it as drift. The `/change` agents never force-push: the
+and Dependabot's and has one bypass actor, the repository's owner
+(decisions 0022 and 0023): the owner's user on a personal repository, the
+organisation-admin role on an organisation's. Agents push as the agent
+app, which is never listed. To force-push on purpose, push from your own
+terminal; nothing needs disabling. Run `pap repo apply` from your own
+terminal: from an agent shell it refuses, and `pap repo status` reports
+the bypass list `skipped`. The `/change` agents never force-push: the
 hook refuses it. `pap repo apply` never removes a required status
 check from the `main` ruleset unless given `--remove-checks`: a check it
 does not know is listed as kept. To have it add a check of the

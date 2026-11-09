@@ -140,6 +140,16 @@ level.
 
 It stops there. It never marks the pull request ready, never merges.
 
+Under a project-manager session ([Run a project](run-a-project.md)), each
+`/change` runs in a cycle: a background sub-agent spawned as `pap:cycle`,
+or `pap:cycle-mechanical` (a smaller model) for a version bump or a
+template sync, never as general-purpose (decision 0024). A cycle's first
+command is a `cd` to the repository its brief names, so its worktree is
+made there and not in the PM's repository (pap 0.16.1). A mechanical
+cycle's diff (version strings, unedited sync output, changelog moves)
+skips the cold review; anything else gets `pap:reviewer`. The cycle opens
+one draft pull request, reports, and stops.
+
 ## 4. Review by risk label
 
 In a repository with `.github/risk.yml` on its base branch (the `risk`
@@ -161,6 +171,17 @@ low with the reason and the question to ask of it. Fixed high:
   adds the `owner-reviewed` label to that head. Only you can invoke it.
   Any push, a merge from main included, removes the label; review the new
   head and run it again. The check fails until the label is back.
+  The label counts only when its latest `labeled` event is by a user
+  (not a bot) whose login is an owner in the base branch's
+  `.github/CODEOWNERS` (rule 23.2). Added by anyone else, the agent app
+  included, `pr-checks` removes it and says why.
+
+When a pull request closes, `pr-checks / merge-report` runs: if a bot
+merged it, it warns and comments on the pull request. It is skipped on
+every other event and is not a required check. From the author's side,
+an agent's pull request comes from the agent app, so `pr-checks` holds it
+to every check a person's gets; only Renovate and Dependabot are exempt
+from the Checks section and provenance.
 
 Without `.github/risk.yml` the older rule applies (decisions 0012 and
 0013): a pull request touching a `CODEOWNERS` path needs an

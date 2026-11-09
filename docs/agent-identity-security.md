@@ -120,8 +120,12 @@ warns if the token is in `hosts.yml` in plain text instead.
   That refusal cannot catch your own invocation, because a skill's
   preprocessing never reaches a PreToolUse hook (checked with a logging
   hook).
-- **Later slices:** the `owner-reviewed` gate in `pr-checks` counts only a
-  label you added (slice c).
+- **The `owner-reviewed` gate (slice c).** `pr-checks` counts the label
+  only when its latest `labeled` event is by a user whose login is an
+  owner in the base branch's `.github/CODEOWNERS` (rule 23.2,
+  blairforce1/.github#17); a label the agent app or any other bot added is
+  removed, with the reason. On close, its `merge-report` job warns and
+  comments when a bot merged the pull request.
 - **The owner bypass (slice d).** `pap repo apply` lists you as the one
   bypass actor of the `all-branches` ruleset, mode `always`: your `User`
   on a personal repository (or the admin role, which only you hold there,
