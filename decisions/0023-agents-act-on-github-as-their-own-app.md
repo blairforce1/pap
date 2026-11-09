@@ -444,6 +444,19 @@ answers are the points above.
   `blairforce1-pap-agent[bot]` with type Bot: the branch's push, the pull
   request's author, the `labeled` and `unlabeled` events, the comment and
   the close. This record's status is unchanged.
+  Note (2026-11-09): the app gains Actions read, by the Project Lead's
+  decision. Point 1 left Actions off, so a session could not read its
+  own CI (`gh run view --log-failed`, and `gh pr checks`' lookup of the
+  workflow run were refused with "Resource not accessible by
+  integration"), and every CI failure waited on the Project Lead. Read
+  grants the runs, job logs, artifacts and caches of the covered
+  repositories; it cannot re-run, cancel or dispatch a workflow, and
+  exposes no secret. The cost is that a log or artifact holding sensitive
+  data is readable by every agent session there: GitHub masks registered
+  secrets in logs but not in artifacts. The manifest, the account-setup
+  steps and `agent-identity-security.md` carry it; an existing app gains
+  it by hand, and each installation's owner accepts it. Point 1's text is
+  unchanged; read Actions read into its permission list.
 
 ## Where it is taught or enforced
 
