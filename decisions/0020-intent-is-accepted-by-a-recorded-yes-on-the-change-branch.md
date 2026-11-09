@@ -7,7 +7,7 @@
 - **PIP:** the owner's call of 2026-11-05 that the intent must be intentional. Process 5.1 makes intent phase 1, human-owned and "accepted when merged"; no tool writes it (backlog H-005). In practice the project manager's brief plus the human's yes to a one-line restatement (decision [0018](0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), rule 18.2) has stood in for intent, outside `changes/<slug>/`: of pap's 78 merged change pull requests, one carries an `intent.md` (process-coverage), so no change links to a hypothesis where a measure can read it, and `findings.md` would have no success measure to evaluate
 - **Expected effect:** share of merged change pull requests whose branch carries an accepted `changes/<slug>/intent.md` naming `H-NNN` or `reactive: <reason>` ↑ from 1 of 78 (1%) to every change started with `/intent`, read as `changes/*/intent.md` on main against merged `change/` pull requests, in pap and in each adopting repository separately; intent churn (5.4: commits to `intent.md` after `spec.md` first exists on the branch) counted per change from git, expected at a median of 0 and not above 1; reactive share (6.3) reported from the same files
 - **Introduced in:** not yet released; the release that ships `/intent`
-- **Revisit:** after 20 change PRs from #86: the share, the churn and the reactive share over those 20, and how many intents accepted in the interview were returned to (5.10) at spec or review
+- **Revisit:** when 10 change PRs started with `/intent` have merged in one repository: the share, the churn and the reactive share over those 10, and how many intents accepted in the interview were returned to (5.10) at spec or review
 
 ## Context
 
@@ -74,6 +74,31 @@ sections. The yes exists; the artefact it should accept does not.
 The reason that carried it: the yes is what the human was already giving.
 Writing it into the file the next phase reads costs one interview and buys
 the link to a hypothesis that every measure in 5.2 and 6.3 needs.
+
+## Result
+
+### Revisit of 2026-11-09
+
+The trigger fired at #111, the 20th change pull request merged after
+#86: #87 to #99, #101, #102 and #107 to #111. `pap measure 0020` ran (the ten merged before the start and the first ten after); the Expected effect reads
+`changes/*/intent.md`, not a measure column, so no `--verdict` ran.
+
+| Question                                     | Answer                                                                                                                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Share carrying an accepted `intent.md`       | 0 of 20. Main holds one `changes/*/intent.md`, process-coverage's, from #54 and never accepted. The one other adopting repository with a `changes/` folder has none written since `/intent` shipped. |
+| Intent churn                                 | Not defined: no change in the window has an `intent.md`, so none has one to churn.                                                                                                                   |
+| Reactive share                               | Not defined, for the same reason.                                                                                                                                                                    |
+| Intents returned to (5.10) at spec or review | 0; none was accepted.                                                                                                                                                                                |
+
+No change in the window was started with `/intent`: every cycle came from
+a project manager's brief to `/change`, as before the record. The
+Expected effect is conditional ("every change started with `/intent`"),
+so the 20 tested whether the skill was used, not whether it works. Not
+refuted, not confirmed.
+
+Recommendation: amend (count from the first change started with
+`/intent`, as the new Revisit line does; whether briefs should start
+with `/intent` is a separate call for the Project Lead)
 
 ## Considered options
 

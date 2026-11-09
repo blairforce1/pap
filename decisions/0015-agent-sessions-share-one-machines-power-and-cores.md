@@ -7,7 +7,7 @@
 - **PIP:** the 2026-10-16 measurement on a Framework 16 (Fedora, AMD) on battery: 53 W drawn against 8 to 15 W in light use, load average 9.7, from several Claude Code sessions building at once (one running `dotnet build -f net10.0-android -c Release` in an agent loop), an Android emulator (`-gpu swangle`, software rendering) left at about 9% CPU between uses, and two .NET SDKs (nix 10.0.302, mise 10.0.401) each with its own MSBuild nodes and VBCSCompiler; the battery itself at 94.5% capacity after 40 cycles
 - **Expected effect:** heavy builds running at once on one machine at most 1 (the baseline was not counted; one was seen, beside other sessions' builds); .NET SDKs with live build servers ↓ from 2 to 1; battery draw with two agent sessions building ↓ from 53 W to under 30 W
 - **Introduced in:** v0.8.0
-- **Revisit:** after 10 change PRs: whether a session transcript shows a heavy build run outside `scripts/heavy-build.sh`, whether a session's end ever disturbed another session's build, and the battery draw re-measured with two sessions building
+- **Revisit:** when two agent sessions next build at once on one machine on battery: the draw re-measured against 53 W and the 30 W target, the .NET SDKs with live build servers counted, and, once heavy builds are logged, any run outside `scripts/heavy-build.sh`
 
 ## Context
 
@@ -106,6 +106,33 @@ hook therefore shuts the servers down only from the last session on the
 machine; an earlier one leaves them for the sessions still running.
 Another session is a process named `claude` other than this one; the
 Chrome native host is a `claude` process too and is not a session.
+
+## Result
+
+### Revisit of 2026-11-09
+
+The trigger, 10 change pull requests from v0.8.0, fired at #75 and was
+taken up 36 change pull requests later. `pap measure 0015` ran (#56 to
+#65 before, #66 to #75 after); its columns are pull request timings and
+checks, and the Expected effect names none of them, so no `--verdict`
+ran.
+
+| Question                                                         | Answer                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Heavy builds at once on one machine, at most 1 (Expected effect) | Cannot measure: the record set no baseline count, and concurrency shows only in transcripts or a log of heavy builds with start and end times.                                                                                                  |
+| A heavy build run outside `scripts/heavy-build.sh`               | Cannot measure: only a session transcript shows the commands a session ran, and none are kept. Countable if `scripts/heavy-build.sh` logged each run, and a heavy build without the lock were logged by the hook, to a file a revisit can read. |
+| A session's end disturbing another session's build               | Cannot measure, for the same reason. The Measurement section's five cases show the shutdown cannot break a build in flight; nothing since is recorded either way.                                                                               |
+| Battery draw with two sessions building, under 30 W              | Cannot measure: the machine was on mains at the revisit. It takes a hand reading on battery (`/sys/class/power_supply/BAT*/power_now`) while two sessions build.                                                                                |
+| .NET SDKs with live build servers, 2 to 1                        | 1 at a single look on 2026-11-09: five MSBuild nodes and one VBCSCompiler, all from the one mise SDK root; the second SDK is gone from the machine. A snapshot, not a count across the window.                                                  |
+
+Of the three expected effects one is seen once, at its target, and two
+are unmeasured; and
+none of the three Revisit questions can be answered from git, pull
+requests or CI. The next revisit is a `when`, since the battery reading
+needs the conditions, not a count.
+
+Recommendation: amend (have `scripts/heavy-build.sh` log each heavy build
+it runs, so the first Revisit question is countable without transcripts)
 
 ## Considered options
 

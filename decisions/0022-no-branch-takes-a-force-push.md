@@ -7,7 +7,7 @@
 - **PIP:** the owner's call of 2026-11-05 that no force push becomes the default on every branch, overridable only on purpose. That week a background agent force-pushed its own `change/` branch, and nothing stopped it: the `main` ruleset blocks a non-fast-forward push on the default branch only, and the agent hook had no rule for it
 - **Expected effect:** force pushes by an agent session to any branch of an adopting repository ↓ to 0; no baseline exists beyond the one incident, as nothing recorded them before. Deliberate overrides are visible: every one shows as `pap repo status` drift until `pap repo apply` restores the ruleset
 - **Introduced in:** not yet released; the release that ships `.github/rulesets/all-branches.json` and the `push-args` guard
-- **Revisit:** after 20 change PRs from #90: if the hook refused a push that was not a force push, or a force push reached a branch through a route the hook does not follow; and at once, by hand, if an agent force push is found in an adopting repository
+- **Revisit:** after 20 change PRs from #117: if the hook refused a push that was not a force push, or a force push reached a branch through a route the hook does not follow, with each adopting repository's force-push activity read from GitHub; and at once, by hand, if an agent force push is found in an adopting repository
 
 ## Context
 
@@ -70,6 +70,40 @@ The reason that carried it: the credentials are shared, so the only
 GitHub control that binds the agent binds the human as well, and the only
 control that can tell them apart is the agent's own hook. One without the
 other is either a wall the human cannot open or a door the agent can.
+
+## Result
+
+### Revisit of 2026-11-09
+
+The trigger fired at #117, the 20th change pull request merged after
+#90 in merge order, as `pap revisits` counts (#91 and #92 merged
+before #90): #93 to #99, #101, #102 and #107 to #117. `pap measure 0022` ran (the ten merged before the start and the first ten after); the Expected
+effect is a count of force pushes, not a measure column, so no
+`--verdict` ran. Force pushes are read from GitHub's repository activity
+(`gh api repos/<owner>/<repo>/activity?activity_type=force_push`).
+
+| Question                                                           | Answer                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Force pushes by an agent session, to 0                             | 0. No force push of any kind since 2026-11-05 in pap or the two other adopting repositories. pap's last was 2026-09-24, by hand, before the record.                                                                                                                                                   |
+| The hook refusing a push that was not a force push                 | Cannot measure: a refusal shows only in a session transcript. No pull request in the window reports one from the force-push guard. The SSH pushes the hook refuses (#99, #102, #107) are rule 23.1's routing, by design, not this guard misfiring. Countable if `guard-route.sh` logged its refusals. |
+| A force push reaching a branch by a route the hook does not follow | None seen: the activity logs show no force push at all, so none got past the hook to meet the ruleset either.                                                                                                                                                                                         |
+| An agent force push found by hand                                  | None.                                                                                                                                                                                                                                                                                                 |
+
+The override has changed since the record. Decision
+[0023](0023-agents-act-on-github-as-their-own-app.md) point 4, applied in
+#116 on all three repositories on 2026-11-09, gives the owner a bypass on
+`all-branches`: the deliberate override is now the owner's own force
+push, not a ruleset switched off, so the Expected effect's second
+sentence (an override shows as `pap repo status` drift until
+`pap repo apply`) no longer describes it. The agent stays refused, by
+the hook and by the ruleset.
+
+No force push reached any branch. Over four days and 20 pull requests,
+against a baseline of one incident, that is not yet falsified rather than
+shown: the count would read 0 with or without the guard.
+
+Recommendation: amend (the Expected effect's override sentence, to the
+owner's force push of 0023 point 4)
 
 ## Considered options
 

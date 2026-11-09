@@ -161,6 +161,12 @@ not carry.
 
 #### Changed
 
+- The revisits of decisions 0015, 0019, 0020, 0021 and 0022 are written
+  into their Result sections. 0019 is `measured:inconclusive` and kept,
+  with point 1 to be amended by 0024. The four proposed records keep
+  their status and end with a recommendation for the Project Lead: amend
+  each. 0015, 0020 and 0021 get `when` revisits, 0022 a new count from
+  #117.
 - Docs catch up with 0.14.0 to 0.16.1 (decision 0023, slice e):
   `docs/account-setup.md` lists the agent app's permissions (Actions read
   included), installing it on every repository agents push to, and the

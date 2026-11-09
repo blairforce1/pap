@@ -7,7 +7,7 @@
 - **PIP:** the owner's call of 2026-11-05: once `/intent` has accepted the intent, the change is specified in full, with acceptance scenarios in Given/When/Then, and its operation, how the intent is monitored, traced and undone, is designed at spec time. Of pap's 78 merged change pull requests none carries a `spec.md`; the one `intent.md` (process-coverage, written from the brief and never accepted) went straight to code. The pull request template's "How to revert" is answered last, by the context that wrote the code, and process 5.9's control bands exist in the process document and in no change
 - **Expected effect:** share of merged feature, infra and security-sensitive change pull requests whose `changes/<slug>/spec.md` carries Signals, Good, Wrong and Undo ↑ from 0 of 78 to every change started with `/spec`, read from `changes/*/spec.md` on main against merged `change/` pull requests, in pap and in each adopting repository separately; escapes attributed to a specification gap (5.11) at a median of 0 per closed change once `findings.md` exists, and until then 0017's proxy, `fix:` or `revert:` pull requests merged within 14 days that touch a file the change changed, ↓; the pull request's "How to revert" equal to the spec's Undo in every such change
 - **Introduced in:** not yet released; the release that ships `/spec`
-- **Revisit:** after 20 change PRs from #89: the share and the proxy over those 20, how many specs were returned to (5.10) from code review or verification, how many operational scenarios were exercised, by hand or by H-015's watcher, and whether docs and chore specs earned their half page
+- **Revisit:** when 10 change PRs started with `/spec` have merged in one repository: the share and the proxy over those 10, how many specs were returned to (5.10) from code review or verification, how many operational scenarios were exercised, by hand or by H-015's watcher, and whether docs and chore specs earned their half page
 
 ## Context
 
@@ -110,6 +110,35 @@ The reason that carried it: the signal for a success measure is designed
 when the measure is, or it is never designed; and the person who can say
 how a change is undone is the one who has just read what it does, before
 the code exists to argue with.
+
+## Result
+
+### Revisit of 2026-11-09
+
+The trigger fired at #116, the 20th change pull request merged after
+#89 in merge order, as `pap revisits` counts (#91 and #92 merged
+before #89): #90, #93 to #99, #101, #102 and #107 to #116. `pap measure 0021`
+ran (the ten merged before the start and the first ten after); the
+Expected effect reads `changes/*/spec.md`, not a measure column, so no
+`--verdict` ran.
+
+| Question                                        | Answer                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Share with Signals, Good, Wrong and Undo        | 0 of 12 feature, infra and security-sensitive pull requests in the window (#90, #94, #97, #99, #101, #107, #108, #110, #111, #113, #115, #116). Main holds no `changes/*/spec.md`; the one other adopting repository with a `changes/` folder has none written since `/spec` shipped. |
+| The proxy: `fix:` or `revert:` within 14 days   | Not applicable as defined: it is read per change with a spec, and there is none. For the record, two `fix:` pull requests in the window touch files a change in it changed (#102 after #99 and #101; #107 after #99, #101 and #102); no `revert:`.                                    |
+| Specs returned to (5.10)                        | 0; none was written.                                                                                                                                                                                                                                                                  |
+| Operational scenarios exercised                 | 0; none was written, and H-015's watcher is not built.                                                                                                                                                                                                                                |
+| Whether docs and chore specs earned a half page | Cannot judge: none was written.                                                                                                                                                                                                                                                       |
+
+As with [0020](0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md),
+no change in the window was started with `/spec`, so the 20 tested
+whether it was used, not whether it works. The two `fix:` follow-ups
+are a security boundary that took two follow-up fixes, the kind of gap a spec's
+Wrong row is meant to name early; that is a reason to try it, not a
+measurement of it.
+
+Recommendation: amend (count from the first change started with `/spec`,
+as the new Revisit line does)
 
 ## Considered options
 
