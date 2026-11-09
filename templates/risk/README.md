@@ -32,5 +32,22 @@ it merges, and a sync should not make that choice for a repository.
    owner reads the review-focus comment of a `risk:high` pull request and
    adds the label to its head.
 
+## Who the label counts from
+
+The label counts only when its latest `labeled` event is by an owner in
+the base branch's `.github/CODEOWNERS`, a user login (rule 23.2, decision
+[0023](../../decisions/0023-agents-act-on-github-as-their-own-app.md)).
+A team owner (`@org/team`) matches no one, since the workflow's token
+cannot read team membership, so name at least one owner by login. A label
+added by a bot, the agent app included, or by anyone else is removed, and
+the check fails naming who added it.
+
+When a pull request closes, `pr-checks` runs again and its
+`pr-checks / merge-report` job warns and comments if a bot merged it.
+GitHub does not refuse such a merge; the report makes it visible. Never
+make `pr-checks / merge-report` a required check: it is skipped on every
+event but `closed`, so it never reports on an open pull request.
+`pr-checks / checks` stays the one required pr-checks context.
+
 Dropping the layer from `.config/pap.toml` and deleting the file returns the
 repository to decisions 0012 and 0013.

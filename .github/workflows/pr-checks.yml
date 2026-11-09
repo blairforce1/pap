@@ -8,6 +8,10 @@
 # the owner's owner-reviewed label, which it removes on every push.
 # `edited` re-runs it when the body is fixed, `labeled` and `unlabeled`
 # when the class or owner-reviewed label is, `synchronize` on a push.
+# `closed` re-runs the checks (a skipped run would count as passing) and
+# runs the merge-report job, which warns and comments when a bot merged
+# the pull request (decision 0023). Never require pr-checks / merge-report:
+# it is skipped on every other event.
 #
 # pull_request_target, not pull_request: under pull_request GitHub runs
 # this file as the pull request's head has it, so a pull request could edit
@@ -32,6 +36,7 @@ on:
       ready_for_review,
       labeled,
       unlabeled,
+      closed,
     ]
 
 permissions:

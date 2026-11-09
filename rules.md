@@ -106,7 +106,7 @@ An Android, iOS or Mac Catalyst target, a Release configuration or an AOT build 
 
 ### 16.1 High risk waits for the owner's `owner-reviewed` label
 
-In a repository with `.github/risk.yml` on its base branch, every pull request carries exactly one of `risk:high`, `risk:medium` or `risk:low`, computed from its diff, and a `risk:high` pull request merges only with the `owner-reviewed` label, which any push removes. The owner may add the label with `/pap:reviewed <PR#> [sha7+]`; agents never invoke it.
+In a repository with `.github/risk.yml` on its base branch, every pull request carries exactly one of `risk:high`, `risk:medium` or `risk:low`, computed from its diff, and a `risk:high` pull request merges only with the `owner-reviewed` label, added by a CODEOWNERS owner (rule 23.2), which any push removes. The owner may add the label with `/pap:reviewed <PR#> [sha7+]`; agents never invoke it.
 
 - Decision: [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
 - Enforced by: the reusable `pr-checks` workflow in blairforce1/.github (blairforce1/.github#13), which sets the label, keeps the review-focus comment, removes `owner-reviewed` on a push and fails a `risk:high` pull request without it, from a caller on `pull_request_target` so a pull request cannot edit its own check. The skill: `disable-model-invocation: true` in its frontmatter, so only a person can invoke it; the hook below refuses an agent's own `gh pr edit --add-label owner-reviewed` as before.
