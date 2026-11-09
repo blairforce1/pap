@@ -29,9 +29,9 @@
 - **Introduced in:** not yet released; the release that ships
   `plugins/pap/agents/`
 - **Revisit:** after 10 cycles launched as `pap:cycle` or
-  `pap:cycle-mechanical`: the four effects, and for `pap:cycle-mechanical`
-  whether Haiku finished its bump or sync without a message after its
-  report; whether any change that skipped the review under point 5 needed
+  `pap:cycle-mechanical`: the four effects; for `pap:cycle-mechanical`,
+  how many of its bumps and syncs got a message after their first report
+  (target 0); whether any change that skipped the review under point 5 needed
   a fix after it; on the first Haiku failure, fall back to Sonnet by a dated note here
 
 ## Context

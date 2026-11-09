@@ -151,7 +151,7 @@ The spec of a feature, security-sensitive or bugfix change adds or changes at le
 A session that launches cycles opens no change pull request (process housekeeping the human asks for excepted), adds no `owner-reviewed`, writes no `Approved-by:`, merges nothing, writes no GitHub or repository settings, and does no act a hook refused a cycle.
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md) and [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
-- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:cycle` agent (decision 0024) is the only route to `/change` under it.
+- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:cycle` and `pap:cycle-mechanical` agents (decision 0024) are the only routes to `/change` under it.
 
 ### 18.2 A cycle is launched after a restated yes
 
