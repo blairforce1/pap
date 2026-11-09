@@ -34,9 +34,11 @@
 # ${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log, so a revisit
 # of decision 0015 can count heavy builds: the UTC start time, the dotnet
 # command, battery or mains, and the duration in seconds, tab-separated.
-# The log is per user and per machine, never in a repository: a relative
-# XDG_STATE_HOME is ignored, as the XDG spec says, and with no absolute
-# HOME either nothing is logged. A log that cannot be written never fails the build.
+# The arguments are logged verbatim, so pass no secret as a build
+# property. The log is per user and per machine, never in a repository:
+# a relative XDG_STATE_HOME is ignored, as the XDG spec says; with no
+# absolute HOME either, or a state directory inside a git work tree,
+# nothing is logged. A log that cannot be written never fails the build.
 
 set -u
 
@@ -105,7 +107,10 @@ rc=$?
 if [ -n "$state" ]; then
   # shellcheck disable=SC2086
   cmdline="$(printf '%s ' dotnet "$verb" "$@" $cap | tr '\t\n' '  ' | sed 's/ $//')"
-  if ! { mkdir -p "$state/pap" &&
+  if mkdir -p "$state/pap" 2>/dev/null &&
+    git -C "$state/pap" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    say "$state/pap is inside a git work tree; this build is not logged"
+  elif ! { mkdir -p "$state/pap" &&
     printf '%s\t%s\t%s\t%ss\n' "$started" "$cmdline" "$power" "$(($(date +%s) - t0))" \
       >>"$state/pap/heavy-builds.log"; } 2>/dev/null; then
     say "cannot write $state/pap/heavy-builds.log; this build is not logged"

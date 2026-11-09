@@ -56,7 +56,7 @@ starts is stopped when it ends.
    the dotnet command, battery or mains and its duration in seconds, to
    `${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log`: per user
    and per machine, never in a repository (a relative `XDG_STATE_HOME` is
-   ignored), and a log it cannot write never fails the build. The log is
+   ignored, and a state directory inside a git work tree is not written), and a log it cannot write never fails the build. The log is
    what the revisit counts (amended 2026-11-09).
 2. **Agents build Debug unless the change concerns Release behaviour.**
    The `/change` skill says so, and sends a heavy build through the

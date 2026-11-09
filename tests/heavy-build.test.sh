@@ -176,6 +176,12 @@ export XDG_STATE_HOME=state
   [ -z "$(git -C "$T/repo" status --porcelain)" ]
 result $? "a relative XDG_STATE_HOME is ignored, so nothing lands in the repo" "repo: $(find "$T/repo" -maxdepth 1 ! -name .git | tr '\n' ' ')"
 
+export XDG_STATE_HOME="$T/repo/state"
+out="$(cd "$T/repo" && sh "$hb" -c Release 2>&1)"
+[ ! -e "$T/repo/state/pap/heavy-builds.log" ] && [ -z "$(git -C "$T/repo" status --porcelain)" ] &&
+  printf '%s\n' "$out" | grep -q 'not logged'
+result $? "a state directory inside a work tree is not logged to, and says so" "out '$out'; repo: $(git -C "$T/repo" status --porcelain | tr '\n' ' ')"
+
 export XDG_STATE_HOME="$T/state"
 chmod a-w "$T/state/pap/heavy-builds.log"
 export STUB_EXIT=4
