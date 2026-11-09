@@ -167,6 +167,7 @@ not carry.
   status and end with a recommendation for the Project Lead: 0015, 0020
   and 0021 amend, 0022 amend then accept. 0015, 0020 and 0021 get `when`
   revisits, 0022 a new count from #117.
+### [0.16.1] - 2026-11-09
 
 #### Fixed
 
