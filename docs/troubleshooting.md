@@ -115,9 +115,9 @@ setup`, then `pap doctor` to confirm.
 
 ## The `gh` shim and `pap-agent`
 
-In an agent session in an adopting repository, `gh` and git's pushes run
-through the base layer's shim, which mints a `pap-agent` token (decision
-0023, rule 23.1). When it cannot, it prints one line,
+In a `pap claude` session, every `gh` call and every git push or fetch to
+github.com, in any directory, runs through the shim, which mints a
+`pap-agent` token scoped to one repository (decision 0023, rule 23.1). When it cannot, it prints one line,
 `gh (pap shim): <reason>. Not falling back to a stored sign-in (rule
 23.1)`, and exits 1 without running `gh`. The reasons, and the fix for
 each, done by you at a terminal:
@@ -131,11 +131,45 @@ keyring may be locked; unlock it (log in to the desktop session) and retry.
 Run the import again with `--client-id <id>`, from the app's settings page.
 
 **`pap-agent is not installed on <owner>; install it there with this
-repository selected`.** The app has no installation on the repository's
-owner. Install it on that account or organisation, with this repository
-selected. If it is installed but this repository is not selected, the
-token mints and the push or call fails with 403 or 404: add the
-repository to the installation.
+repository selected (pap agent-setup)`.** The app has no installation on
+the repository's owner. Install it on that account or organisation, with
+this repository selected; `pap agent-setup` opens the page.
+
+**`pap-agent's installation on <owner> does not cover <owner>/<name>; add
+the repository on the installation's page (pap agent-setup opens it)`.**
+The app is installed on the owner but not given this repository. Add it
+on the installation's page (GitHub, Settings, Applications, the app,
+Configure). This applies to repositories that do not adopt PAP too, such
+as a private companion repository: an agent's push there is refused
+until it is added. git shows it as `credential helper '!gh auth
+git-credential' told us to quit`.
+
+**`git sent no repository path, so no token can be scoped to one`.** The
+session was started by a `pap claude` from pap 0.13.0 or earlier, which did not set
+`credential.https://github.com.useHttpPath`. Quit and run `pap claude`
+(`pap claude --resume` keeps the conversation), or set it with `git
+config --global credential.https://github.com.useHttpPath true`.
+
+**`no repository to act for: not in a clone with an origin, and no -R
+<owner>/<name>`.** A `gh` call outside a clone, such as `gh api /user` or
+`gh search`, names no repository, and a `pap-agent` token is scoped to
+one. Run it inside the clone it is about, or pass `-R <owner>/<name>`.
+
+**`origin (<url>) is not on github.com`**, **`'<repo>' is not a repository
+on github.com`**, **`GH_HOST is <host>`** or **`git asked for <url>;
+pap-agent answers only for https://github.com`.** `pap-agent` acts only
+on github.com, and gh would read the keyring for any other host. Point
+the call at a github.com repository, or run it from your own terminal.
+
+**A fork flow fails with 403 or 404.** Each token covers one repository,
+so a call that touches two (`gh repo fork`, `gh pr create` from a fork's
+branch) is refused by GitHub for the other one. Do that step from your
+own terminal.
+
+**`guard-route: refusing gh ... this Claude Code session was not started
+by pap claude`, outside an adopting repository.** When the session's
+project adopts PAP, the hook needs `pap claude` for `gh` and git to
+GitHub in any directory. Quit and run `pap claude`.
 
 **`GitHub unreachable at https://api.github.com; check the network and
 try again`.** curl could not reach the API. Check the network or a proxy;
@@ -147,9 +181,9 @@ clock; the JWT allows one minute of drift), the client id in the config is
 not this app's, or the key was regenerated on the app and this machine has
 the old one (import the new key).
 
-**`no --owner, and origin is not a GitHub remote`.** The shim names the
-token's owner from `origin`. Point `origin` at
-`https://github.com/<owner>/<repo>.git`.
+**`no --owner, and origin is not a GitHub remote`.** `pap agent-token`
+with no `--owner` or `--repo` names the owner from `origin`. Point
+`origin` at `https://github.com/<owner>/<repo>.git`, or pass one.
 
 **`openssl is not on PATH`, `curl is not on PATH`, `jq is not on PATH`,
 `secret-tool is not on PATH`.** `pap agent-token` needs them; `pap doctor`
@@ -166,7 +200,8 @@ owned by someone else. Remove it; `pap agent-token` recreates it at mode
 0700.
 
 **`pap is not on PATH, so no pap-agent token; run mise install`** or
-**`this pap has no agent-token; run mise install to get the pinned pap`.**
+**`this pap has no agent-token --repo; run mise install to get the pinned
+pap`.**
 The shim calls `pap agent-token`; the pap mise installs at the repository's
 pin carries it.
 

@@ -48,7 +48,9 @@
 #         the shim on PATH and pass. In an adopting repository, gh by name
 #         and git push, fetch, pull, clone, ls-remote or remote update to a
 #         GitHub HTTPS remote are refused unless the session was started by
-#         pap claude (rule 23.4; see session_ok). In every repository,
+#         pap claude (rule 23.4; see session_ok); so are they in any other
+#         directory, repository or not, when the session's project
+#         (CLAUDE_PROJECT_DIR) adopts PAP. In every repository,
 #         adopting or not,
 #         GH_CONFIG_DIR changed in assignment position (= or += as a prefix
 #         or after env, export, declare, typeset, readonly or local; unset,
@@ -429,9 +431,25 @@ while IFS="$tab" read -r kind target reason file; do
     status=2
     continue
   fi
-  root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || continue
+  root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || root=""
   guard="$root/scripts/guard-branch.sh"
-  [ -x "$guard" ] || continue
+  if [ -z "$root" ] || [ ! -x "$guard" ]; then
+    # Rule 23.4 outside adopting repositories: in a session whose project
+    # adopts PAP, gh, and git to GitHub, need pap claude in any directory (a
+    # companion repository, a scratch clone, no repository at all). Other
+    # sessions are not pap's to refuse.
+    case "$kind" in ghcall | gitnet) ;; *) continue ;; esac
+    [ -x "${CLAUDE_PROJECT_DIR:-/nonexistent}/scripts/guard-branch.sh" ] || continue
+    d="${root:-$target}"
+    [ -d "$d" ] || d="$CLAUDE_PROJECT_DIR"
+    [ "$kind" = ghcall ] || github_https "$d" "$reason" "$file" || continue
+    session_ok "$d" && continue
+    [ "$kind" = ghcall ] || reason="git $reason"
+    printf 'guard-route: refusing %s in %s: this Claude Code session was not started by pap claude, so it could act as your own GitHub sign-in\n' "$reason" "$d" >&2
+    printf 'guard-route: rule 23.4: quit and start the session with pap claude (pap claude --resume to keep this conversation).\n' >&2
+    status=2
+    continue
+  fi
   case "$kind" in
     branch)
       (cd "$root" && "$guard" branch) || status=2

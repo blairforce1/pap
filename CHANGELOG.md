@@ -159,6 +159,28 @@ not carry.
 
 ### [Unreleased]
 
+#### Security
+
+- A `pap claude` shell pushed as the owner, not as `pap-agent`, to any
+  repository that does not adopt PAP: the gh shim ran the real `gh`
+  there, and gh's `auth git-credential`, with an empty config directory,
+  falls back to the owner's unkeyed keyring token
+  (`docs/agent-identity-security.md` has the gh v2.97.0 source lines).
+  In a `pap claude` session the shim now handles every `gh` call in every
+  directory: it mints a token scoped to the one repository the call names
+  (`pap agent-token --repo`, new), answers git's credential requests
+  itself, and refuses a call with no repository, a repository the
+  installation does not cover (by name), or another host, never running
+  the real `gh` without a token. `pap claude` makes the shim git's only
+  credential helper for github.com at command scope, past any helper in
+  your config, and sets `credential.https://github.com.useHttpPath`. The guard hook's `pap
+  claude` check applies in any directory of a session whose project
+  adopts PAP. `pap doctor` checks that the installation covers this
+  repository. Install the app on every repository agents push to,
+  adopting or not. Behaviour changes: a `gh` call across two
+  repositories (a fork flow) is refused by GitHub, and a session started
+  by an older `pap claude` must be restarted.
+
 #### Added
 
 - Decision 0023's second slice (rule 23.4): `pap claude` starts Claude

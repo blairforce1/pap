@@ -3,29 +3,36 @@
 # puts pap's own scripts/shim there (decision 0023, rule 23.1); the base
 # layer's copy is first only where mise's [env] applies.
 #
-# In an agent session (CLAUDECODE set, which Claude Code sets in every Bash
-# call and a person's terminal never has) inside a repository that adopts
-# PAP (an executable scripts/guard-branch.sh, the hook's own test), it sets
-# GH_TOKEN to a pap-agent installation token from `pap agent-token` and runs
-# the real gh, so the call shows as pap-agent[bot]. git pushes over HTTPS go
-# through `gh auth git-credential`, so they come here too.
+# In a pap claude session (CLAUDECODE set, which Claude Code sets in every
+# Bash call and a person's terminal never has, and GH_CONFIG_DIR exactly the
+# agent's gh directory pap claude sets) it handles every gh call, in every
+# directory, adopting PAP or not: it mints a pap-agent installation token
+# scoped to the one repository the call is about (-R/--repo, GH_REPO, a
+# repos/<owner>/<name> endpoint for gh api, else origin's GitHub URL) and
+# runs the real gh with it as GH_TOKEN, so the call shows as pap-agent[bot].
+# For `gh auth git-credential get`, which git runs for every HTTPS push and
+# fetch to github.com, it answers git itself, for the repository in the
+# request's path (pap claude sets credential.useHttpPath so git sends it).
+# A call with no repository, one the installation does not cover, or a mint
+# that fails for any other reason is refused with the reason (rule 23.1):
+# the real gh never runs without a token, because with an empty agent
+# directory it still falls back to the owner's token in the keyring
+# (docs/agent-identity-security.md).
 #
-# When minting fails it names the reason and exits 1: it never runs gh with
-# a stored sign-in instead. Everywhere else it runs the real gh unchanged.
-# In an agent session in an adopting repository it first refuses unless
-# GH_CONFIG_DIR is exactly the agent's gh directory that pap claude sets,
-# which holds no sign-in (rule 23.4): a session started as plain claude
-# would reach the owner's sign-in in gh's default directory.
+# An agent session not started by pap claude is refused in an adopting
+# repository (rule 23.4) and runs the real gh unchanged elsewhere: nothing
+# there is pap's to fix. A person's terminal runs the real gh unchanged.
 # In a dev container (/.dockerenv or REMOTE_CONTAINERS) with no key it steps
 # aside by decision 0023 point 5: the container keeps the human's sign-in.
 #
 # The real gh is the first gh on PATH that is not a copy of this shim (each
 # carries the pap-gh-shim marker on line 2), so it never runs itself.
 #
-# With PAP_SHIM_CHECK=1 it runs no gh and mints no token: it exits 0 where
-# it would run gh (stepping aside, or with a token to come) and as it would
-# otherwise where it refuses. The guard hook asks it so, so the session
-# checks live in one place (rule 23.4).
+# With PAP_SHIM_CHECK=1 it runs no gh and mints no token: it exits 0 when
+# the session is one it acts in (a pap claude session, or a dev container
+# stepping aside) and as it would otherwise where it refuses, in any
+# directory. The guard hook asks it so, so the session checks live in one
+# place (rule 23.4).
 
 set -u
 
@@ -48,13 +55,27 @@ if [ -z "$real" ]; then
   exit 127
 fi
 
-agent=false
-if [ -n "${CLAUDECODE:-}" ] && top="$(git rev-parse --show-toplevel 2>/dev/null)" &&
-  [ -x "$top/scripts/guard-branch.sh" ]; then
-  agent=true
-fi
+refuse() { printf 'gh (pap shim): %s. Not falling back to a stored sign-in (rule 23.1)\n' "$1" >&2; exit 1; }
 run_real() { [ -z "${PAP_SHIM_CHECK:-}" ] || exit 0; exec "$real" "$@"; }
-[ "$agent" = true ] || run_real "$@"
+
+# Rule 23.4: the agent's own gh directory, as pap claude sets it.
+if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
+  agentdir="$HOME/Library/Application Support/gh-agent"
+else
+  agentdir="${XDG_CONFIG_HOME:-$HOME/.config}/gh-agent"
+fi
+session=false
+[ "${GH_CONFIG_DIR:-}" != "$agentdir" ] || session=true
+# A person's terminal never has the agent directory, so a call with it and
+# CLAUDECODE unset (CLAUDECODE= gh, env -u CLAUDECODE gh) is still a
+# pap claude session's, and is handled as one.
+[ -n "${CLAUDECODE:-}" ] || [ "$session" = true ] || exec "$real" "$@"
+adopting=false
+if top="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -x "$top/scripts/guard-branch.sh" ]; then
+  adopting=true
+fi
+# A plain claude session outside an adopting repository: not pap's to fix.
+[ "$session" = true ] || [ "$adopting" = true ] || [ -n "${PAP_SHIM_CHECK:-}" ] || exec "$real" "$@"
 
 # pap itself: the sibling bin/pap when the shim is pap's own (a checkout or
 # the install pap claude put first on PATH), else the pap on PATH (the base
@@ -65,8 +86,7 @@ if [ -x "$here/../../bin/pap" ] && [ -d "$here/../../templates/base" ]; then
 elif command -v pap >/dev/null 2>&1; then
   pap=pap
 else
-  printf 'gh (pap shim): pap is not on PATH, so no pap-agent token; run mise install. Not falling back to a stored sign-in (rule 23.1)\n' >&2
-  exit 1
+  refuse "pap is not on PATH, so no pap-agent token; run mise install"
 fi
 
 if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
@@ -75,13 +95,7 @@ if [ -f /.dockerenv ] || [ -n "${REMOTE_CONTAINERS:-}" ]; then
   [ $? != 1 ] || run_real "$@"
 fi
 
-# Rule 23.4: only the agent's own gh directory, as pap claude sets it.
-if [ "$(uname -s 2>/dev/null)" = Darwin ] && [ -z "${XDG_CONFIG_HOME:-}" ]; then
-  agentdir="$HOME/Library/Application Support/gh-agent"
-else
-  agentdir="${XDG_CONFIG_HOME:-$HOME/.config}/gh-agent"
-fi
-if [ "${GH_CONFIG_DIR:-}" != "$agentdir" ]; then
+if [ "$session" = false ]; then
   printf 'gh (pap shim): this Claude Code session was not started with pap claude (GH_CONFIG_DIR is %s, not %s), so gh could reach your own sign-in; quit and run pap claude (rule 23.4)\n' "${GH_CONFIG_DIR:-unset}" "$agentdir" >&2
   exit 1
 fi
@@ -92,22 +106,115 @@ fi
 
 [ -z "${PAP_SHIM_CHECK:-}" ] || exit 0
 
-# The token is agent-token's stdout; its stderr, the reason on failure, goes
-# to a file of its own so no warning on stderr can end up in GH_TOKEN.
-err="$(mktemp)" || { printf 'gh (pap shim): cannot make a temporary file. Not falling back to a stored sign-in (rule 23.1)\n' >&2; exit 1; }
-out="$("$pap" agent-token 2>"$err")"
-rc=$?
-reason="$(sed -n '$p' "$err" | sed 's/^pap: agent-token: //; s/^pap: //')"
-rm -f "$err"
-case "$out" in
-  "" | *[!A-Za-z0-9_.-]*) [ "$rc" != 0 ] || { rc=1; reason="pap agent-token printed something that is not a token"; } ;;
+# slug_of <URL, or [github.com/]owner/name>: owner/name on github.com, or
+# nothing for anything else.
+slug_of() {
+  s="$1"
+  case "$s" in
+    https://*) s="${s#https://}"; s="${s#*@}" ;;
+    git@github.com:*) s="github.com/${s#git@github.com:}" ;;
+    ssh://git@github.com/*) s="github.com/${s#ssh://git@github.com/}" ;;
+    *://*) return 0 ;;
+  esac
+  s="${s%/}"; s="${s%.git}"
+  case "$s" in github.com/*/*) s="${s#github.com/}" ;; */*/*) return 0 ;; esac
+  printf '%s' "$s" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$' || return 0
+  printf '%s\n' "$s"
+}
+
+# mint <owner/name>: sets token, scoped to that repository; else refuses.
+mint() {
+  err="$(mktemp)" || refuse "cannot make a temporary file"
+  # The token is agent-token's stdout; its stderr, the reason on failure,
+  # goes to a file of its own so no warning on stderr can end up in it.
+  out="$("$pap" agent-token --repo "$1" 2>"$err")"
+  rc=$?
+  reason="$(sed -n '$p' "$err" | sed 's/^pap: agent-token: //; s/^pap: //')"
+  rm -f "$err"
+  case "$out" in
+    "" | *[!A-Za-z0-9_.-]*) [ "$rc" != 0 ] || { rc=1; reason="pap agent-token printed something that is not a token"; } ;;
+  esac
+  if [ "$rc" != 0 ]; then
+    # 64 is pap's usage exit: a pap from before agent-token --repo.
+    [ "$rc" != 64 ] || reason="this pap has no agent-token --repo; run mise install to get the pinned pap"
+    refuse "$reason"
+  fi
+  token="$out"
+}
+
+# gh would read the keyring for any other host.
+case "${GH_HOST:-github.com}" in
+  github.com) ;;
+  *) refuse "GH_HOST is $GH_HOST; pap-agent acts only on github.com" ;;
 esac
-if [ "$rc" != 0 ]; then
-  # 64 is pap's usage exit: a pap from before agent-token.
-  [ "$rc" != 64 ] || reason="this pap has no agent-token; run mise install to get the pinned pap"
-  printf 'gh (pap shim): %s. Not falling back to a stored sign-in (rule 23.1)\n' "$reason" >&2
-  exit 1
+
+# git's credential helper: the answer is the shim's own, for the repository
+# in the request's path; the real gh is never asked.
+if [ "${1:-}" = auth ] && [ "${2:-}" = git-credential ]; then
+  [ "${3:-}" = get ] || { cat >/dev/null; exit 0; }
+  protocol="" host="" path=""
+  while IFS= read -r line && [ -n "$line" ]; do
+    case "$line" in
+      protocol=*) protocol="${line#protocol=}" ;;
+      host=*) host="${line#host=}" ;;
+      path=*) path="${line#path=}" ;;
+    esac
+  done
+  # Git LFS asks for <owner>/<name>.git/info/lfs: the same repository.
+  path="${path%%.git/*}"
+  # quit=1 stops git asking any later helper, or the terminal.
+  slug=""
+  [ "$protocol" != https ] || [ "$host" != github.com ] || [ -z "$path" ] || slug="$(slug_of "github.com/$path")"
+  if [ -z "$slug" ]; then
+    printf 'quit=1\n'
+    if [ "$protocol" != https ] || [ "$host" != github.com ]; then
+      refuse "git asked for $protocol://$host; pap-agent answers only for https://github.com"
+    elif [ -z "$path" ]; then
+      refuse "git sent no repository path, so no token can be scoped to one; run git config --global credential.https://github.com.useHttpPath true, or start the session with pap claude, which sets it"
+    fi
+    refuse "'$path' is not a GitHub repository"
+  fi
+  # mint refuses from a subshell, so quit=1 goes out first on its failure.
+  if ! token="$(mint "$slug" && printf '%s' "$token")"; then
+    printf 'quit=1\n'
+    exit 1
+  fi
+  printf 'protocol=https\nhost=github.com\nusername=x-access-token\npassword=%s\n' "$token"
+  exit 0
 fi
-GH_TOKEN="$out"
+
+# The repository the call is about.
+repo="" prev="" api=false
+for a in "$@"; do
+  case "$prev" in -R | --repo) repo="$a" ;; esac
+  case "$a" in
+    -R?*) repo="${a#-R}" ;;
+    --repo=*) repo="${a#--repo=}" ;;
+  esac
+  if [ "$api" = true ] && [ -z "$repo" ]; then
+    case "$a" in
+      # gh fills {owner}/{repo} from the repository the call runs in.
+      *"{"*) ;;
+      repos/*/* | /repos/*/*)
+        r="${a#/}"; r="${r#repos/}"; o="${r%%/*}"; r="${r#*/}"
+        repo="$o/${r%%[/?]*}" ;;
+    esac
+  fi
+  [ "$a" != api ] || api=true
+  prev="$a"
+done
+[ -n "$repo" ] || repo="${GH_REPO:-}"
+if [ -n "$repo" ]; then
+  slug="$(slug_of "$repo")"
+  [ -n "$slug" ] || refuse "'$repo' is not a repository on github.com"
+else
+  url="$(git remote get-url origin 2>/dev/null)" ||
+    refuse "no repository to act for: not in a clone with an origin, and no -R <owner>/<name>; a pap-agent token is scoped to one repository"
+  slug="$(slug_of "$url")"
+  # Any user:password@ in the URL stays out of the message.
+  [ -n "$slug" ] || refuse "origin ($(printf '%s' "$url" | sed 's#//[^@/]*@#//#')) is not on github.com, and no -R <owner>/<name>"
+fi
+mint "$slug"
+GH_TOKEN="$token"
 export GH_TOKEN
 exec "$real" "$@"
