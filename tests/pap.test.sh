@@ -16,7 +16,7 @@
 # shellcheck disable=SC2319
 
 set -u
-# shellcheck source=tests/clean-env.sh
+# shellcheck disable=SC1091 # tests/clean-env.sh, sourced from this directory
 . "$(dirname "$0")/clean-env.sh"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
@@ -447,6 +447,18 @@ result $? "doctor, an agent shell not started by pap claude is drift" "$out"
 out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$ad")"; rc=$?
 [ "$rc" = 1 ] && has "drift    gh is the shim  (gh is $T/tools/gh, past the pap-agent shim; quit and run pap claude)"
 result $? "doctor, an agent shell whose gh is not the shim is drift, naming pap claude" "$out"
+out="$(doctor MISE_SHELL=bash SHELL=/bin/zsh)"
+has "warn     claude is pap's function  (not in this shell, so claude in a PAP repository starts without pap claude and the guard refuses its GitHub calls: add eval \"\$(pap shell-init zsh)\" in ~/.zshrc)"
+result $? "doctor: no shell-init in this shell warns, with the eval line for the user's shell" "$out"
+out="$(doctor MISE_SHELL=bash PAP_SHELL_INIT="$pap")"
+has "ok       claude is pap's function  ($pap)"
+result $? "doctor: shell-init's PAP_SHELL_INIT names a pap that exists: ok" "$out"
+out="$(doctor MISE_SHELL=bash PAP_SHELL_INIT="$T/gone/pap")"
+has "warn     claude is pap's function  (it runs $T/gone/pap, which is gone"
+result $? "doctor: shell-init's pap gone warns" "$out"
+out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$ad")"
+has "skipped  claude is pap's function  (checked only from your own terminal, never from an agent shell)"
+result $? "doctor, an agent shell: the shell function is not checked" "$out"
 out="$(doctor MISE_SHELL=bash CLAUDECODE=1 GH_CONFIG_DIR="$ad" PATH="$here/scripts/shim:$dpath")"
 has "ok       gh is the shim  ($here/scripts/shim/gh)"
 result $? "doctor, an agent shell whose gh is the shim: ok" "$out"

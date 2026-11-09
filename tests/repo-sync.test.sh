@@ -17,7 +17,7 @@
 # shellcheck disable=SC2319
 
 set -u
-# shellcheck source=tests/clean-env.sh
+# shellcheck disable=SC1091 # tests/clean-env.sh, sourced from this directory
 . "$(dirname "$0")/clean-env.sh"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"

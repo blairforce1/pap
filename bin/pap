@@ -14,6 +14,7 @@
 #        pap agent-token [--owner <login> | --repo <owner>/<name>]
 #        pap agent-setup [--owner <login>] [--name <app-name>]
 #        pap claude [<claude args>...]
+#        pap shell-init bash|zsh
 #        pap version
 #
 # init    Applies base plus the named layers (dotnet, go, risk) to the repository at
@@ -143,6 +144,15 @@
 #         shim) git's only credential helper for github.com and sets
 #         credential.https://github.com.useHttpPath, so git names the
 #         repository to the shim. Start every Claude Code session with it.
+# shell-init
+#         Prints a claude function for eval "$(pap shell-init bash)" in
+#         ~/.bashrc (zsh: the same text). In a repository that adopts PAP (an
+#         executable scripts/guard-branch.sh, the guard hook's own test) it
+#         runs pap claude through this pap's absolute path, so it needs no
+#         pap on PATH and never picks a stale one; if that path is gone, a pap
+#         on PATH that has pap claude, else a warning and plain claude.
+#         Elsewhere it runs claude unchanged. It exports PAP_SHELL_INIT, the
+#         path, which doctor reads.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -195,7 +205,7 @@ source="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
 record=.config/pap.toml
 pin=.config/mise/conf.d/pap.toml
 
-usage() { sed -n '5,17p' "$self" | sed 's/^# //' >&2; exit 64; }
+usage() { sed -n '5,18p' "$self" | sed 's/^# //' >&2; exit 64; }
 
 # --- Template trees --------------------------------------------------------
 
@@ -646,6 +656,23 @@ d_owner() {
   fi
 }
 
+# d_shell: whether this shell ran pap shell-init's eval line, read from the
+# PAP_SHELL_INIT it exports (doctor cannot see its parent's functions). Never
+# edits an rc file.
+d_shell() {
+  rc=bash; case "${SHELL:-}" in */zsh) rc=zsh ;; esac
+  line="eval \"\$(pap shell-init $rc)\" in ~/.${rc}rc"
+  if [ -n "${CLAUDECODE:-}" ]; then
+    item skipped "claude is pap's function" "checked only from your own terminal, never from an agent shell"
+  elif [ -z "${PAP_SHELL_INIT:-}" ]; then
+    item warn "claude is pap's function" "not in this shell, so claude in a PAP repository starts without pap claude and the guard refuses its GitHub calls: add $line"
+  elif [ ! -f "$PAP_SHELL_INIT" ]; then
+    item warn "claude is pap's function" "it runs $PAP_SHELL_INIT, which is gone: open a new shell, or check $line"
+  else
+    item ok "claude is pap's function" "$PAP_SHELL_INIT"
+  fi
+}
+
 cmd_doctor() {
   fix=false
   [ "${1:-}" != --fix ] || { fix=true; shift; }
@@ -808,6 +835,9 @@ EOF
 
   say "" "sign-ins (rule 23.4)"
   d_owner
+
+  say "" "shell"
+  d_shell
 
   say ""
   if [ "$d_bad" -eq 0 ]; then
@@ -1339,6 +1369,36 @@ cmd_claude() {
   exec claude "$@"
 }
 
+# The function's text is the same for bash and zsh; the shell names which rc
+# file the eval line goes in. One git call per launch, no pap probe unless
+# the recorded pap is gone.
+cmd_shell_init() {
+  [ $# -eq 1 ] || usage
+  case "$1" in bash | zsh) ;; *) usage ;; esac
+  p="$(printf '%s' "$root/bin/$(basename "$self")" | sed "s/'/'\\\\''/g")"
+  cat <<EOF
+# pap shell-init $1: claude starts through pap claude in a PAP repository.
+PAP_SHELL_INIT='$p'
+export PAP_SHELL_INIT
+claude() {
+  local pap_top pap_bin
+  pap_top="\$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [ -z "\$pap_top" ] || [ ! -x "\$pap_top/scripts/guard-branch.sh" ]; then
+    command claude "\$@"; return
+  fi
+  if [ -f "\$PAP_SHELL_INIT" ]; then
+    sh "\$PAP_SHELL_INIT" claude "\$@"; return
+  fi
+  pap_bin="\$(command -v pap 2>/dev/null)"
+  if [ -n "\$pap_bin" ] && "\$pap_bin" 2>&1 | grep -q 'pap claude'; then
+    "\$pap_bin" claude "\$@"; return
+  fi
+  echo "claude: this repository adopts PAP but \$PAP_SHELL_INIT is gone and no pap with 'pap claude' is on PATH; starting plain claude" >&2
+  command claude "\$@"
+}
+EOF
+}
+
 # revisits -------------------------------------------------------------------
 
 # field <file> <name>: the value of a record header line, "- **Name:** value".
@@ -1723,6 +1783,7 @@ case "$cmd" in
   agent-token) cmd_agent_token "$@" ;;
   agent-setup) cmd_agent_setup "$@" ;;
   claude) cmd_claude "$@" ;;
+  shell-init) cmd_shell_init "$@" ;;
   revisits) cmd_revisits "$@" || true ;;
   coverage) cmd_coverage "$@" || true ;;
   measure) cmd_measure "$@" || true ;;
