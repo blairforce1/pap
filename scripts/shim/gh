@@ -55,8 +55,6 @@ if [ -z "$real" ]; then
   exit 127
 fi
 
-[ -n "${CLAUDECODE:-}" ] || exec "$real" "$@"
-
 refuse() { printf 'gh (pap shim): %s. Not falling back to a stored sign-in (rule 23.1)\n' "$1" >&2; exit 1; }
 run_real() { [ -z "${PAP_SHIM_CHECK:-}" ] || exit 0; exec "$real" "$@"; }
 
@@ -68,6 +66,10 @@ else
 fi
 session=false
 [ "${GH_CONFIG_DIR:-}" != "$agentdir" ] || session=true
+# A person's terminal never has the agent directory, so a call with it and
+# CLAUDECODE unset (CLAUDECODE= gh, env -u CLAUDECODE gh) is still a
+# pap claude session's, and is handled as one.
+[ -n "${CLAUDECODE:-}" ] || [ "$session" = true ] || exec "$real" "$@"
 adopting=false
 if top="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -x "$top/scripts/guard-branch.sh" ]; then
   adopting=true
@@ -158,6 +160,8 @@ if [ "${1:-}" = auth ] && [ "${2:-}" = git-credential ]; then
       path=*) path="${line#path=}" ;;
     esac
   done
+  # Git LFS asks for <owner>/<name>.git/info/lfs: the same repository.
+  path="${path%%.git/*}"
   # quit=1 stops git asking any later helper, or the terminal.
   slug=""
   [ "$protocol" != https ] || [ "$host" != github.com ] || [ -z "$path" ] || slug="$(slug_of "github.com/$path")"
@@ -189,6 +193,8 @@ for a in "$@"; do
   esac
   if [ "$api" = true ] && [ -z "$repo" ]; then
     case "$a" in
+      # gh fills {owner}/{repo} from the repository the call runs in.
+      *"{"*) ;;
       repos/*/* | /repos/*/*)
         r="${a#/}"; r="${r#repos/}"; o="${r%%/*}"; r="${r#*/}"
         repo="$o/${r%%[/?]*}" ;;
@@ -205,7 +211,8 @@ else
   url="$(git remote get-url origin 2>/dev/null)" ||
     refuse "no repository to act for: not in a clone with an origin, and no -R <owner>/<name>; a pap-agent token is scoped to one repository"
   slug="$(slug_of "$url")"
-  [ -n "$slug" ] || refuse "origin ($url) is not on github.com, and no -R <owner>/<name>"
+  # Any user:password@ in the URL stays out of the message.
+  [ -n "$slug" ] || refuse "origin ($(printf '%s' "$url" | sed 's#//[^@/]*@#//#')) is not on github.com, and no -R <owner>/<name>"
 fi
 mint "$slug"
 GH_TOKEN="$token"

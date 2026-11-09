@@ -171,8 +171,9 @@ not carry.
   (`pap agent-token --repo`, new), answers git's credential requests
   itself, and refuses a call with no repository, a repository the
   installation does not cover (by name), or another host, never running
-  the real `gh` without a token. `pap claude` sets
-  `credential.https://github.com.useHttpPath`. The guard hook's `pap
+  the real `gh` without a token. `pap claude` makes the shim git's only
+  credential helper for github.com at command scope, past any helper in
+  your config, and sets `credential.https://github.com.useHttpPath`. The guard hook's `pap
   claude` check applies in any directory of a session whose project
   adopts PAP. `pap doctor` checks that the installation covers this
   repository. Install the app on every repository agents push to,

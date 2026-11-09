@@ -139,9 +139,10 @@
 #         stored GitHub account, and only the gh shim's pap-agent token
 #         works (rule 23.4). It puts this pap's own scripts/shim first
 #         on PATH, since Claude Code's non-interactive shells never get
-#         mise's [env], and sets credential.https://github.com.useHttpPath
-#         through GIT_CONFIG_COUNT so git names the repository to the
-#         shim. Start every Claude Code session with it.
+#         mise's [env]. Through GIT_CONFIG_COUNT it makes gh by name (the
+#         shim) git's only credential helper for github.com and sets
+#         credential.https://github.com.useHttpPath, so git names the
+#         repository to the shim. Start every Claude Code session with it.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -1009,9 +1010,10 @@ cmd_agent_token() {
   owner="" name=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --owner) [ $# -ge 2 ] || usage; owner="$2"; shift 2 ;;
+      --owner) [ $# -ge 2 ] && [ -z "$owner" ] || usage; owner="$2"; shift 2 ;;
       --repo)
         [ $# -ge 2 ] && [ -z "$owner" ] || usage
+        case "$2" in */*) ;; *) usage ;; esac
         owner="${2%%/*}" name="${2#*/}"; shift 2
         printf '%s' "$name" | grep -Eq '^[A-Za-z0-9._-]{1,100}$' && [ "$name" != . ] && [ "$name" != .. ] ||
           die "agent-token: '$owner/$name' is not a GitHub repository" ;;
@@ -1317,13 +1319,22 @@ cmd_claude() {
   # tool runs commands non-interactively, so mise's [env] never reaches them.
   [ -x "$root/scripts/shim/gh" ] || die "claude: no gh shim at $root/scripts/shim/gh"
   PATH="$root/scripts/shim:$PATH"
-  # git sends the repository's path to the credential helper, so the shim
-  # can scope the token to it; appended to any GIT_CONFIG_* already set.
+  # git's command-scope config, appended to any GIT_CONFIG_* already set
+  # and read after every config file: for github.com an empty helper
+  # clears every helper before it (a stored credential, gh by path from
+  # gh auth setup-git), so gh by name, the shim, is the only one asked; and
+  # git sends the repository's path, so the shim can scope the token to it.
   n="${GIT_CONFIG_COUNT:-0}"
   case "$n" in "" | *[!0-9]*) n=0 ;; esac
-  eval "GIT_CONFIG_KEY_$n=credential.https://github.com.useHttpPath GIT_CONFIG_VALUE_$n=true"
-  export "GIT_CONFIG_KEY_$n" "GIT_CONFIG_VALUE_$n"
-  GIT_CONFIG_COUNT=$((n + 1))
+  n="${n#"${n%%[!0]*}"}"; n="${n:-0}" # no leading zero for $(( ))
+  for kv in "credential.https://github.com.helper=" \
+    "credential.https://github.com.helper=!gh auth git-credential" \
+    "credential.https://github.com.useHttpPath=true"; do
+    eval "GIT_CONFIG_KEY_$n=\"\${kv%%=*}\" GIT_CONFIG_VALUE_$n=\"\${kv#*=}\""
+    export "GIT_CONFIG_KEY_$n" "GIT_CONFIG_VALUE_$n"
+    n=$((n + 1))
+  done
+  GIT_CONFIG_COUNT="$n"
   export GH_CONFIG_DIR PATH GIT_CONFIG_COUNT
   exec claude "$@"
 }

@@ -255,9 +255,9 @@ out="$(gh_run "$T/repo" CLAUDECODE=1)"; rc=$?
 [ "$rc" = 0 ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list' "$T/gh.log"
 result $? "shim: CLAUDECODE in an adopting repository runs the real gh with GH_TOKEN" "$out $(cat "$T/gh.log")"
 
-out="$(gh_run "$T/repo")"
+out="$(gh_run "$T/repo" GH_CONFIG_DIR="$T/xdg/gh")"
 grep -qx 'GH_TOKEN=<unset> args=pr list' "$T/gh.log"
-result $? "shim: without CLAUDECODE, gh unchanged" "$(cat "$T/gh.log")"
+result $? "shim: a person's terminal (no CLAUDECODE, gh's own directory), gh unchanged" "$(cat "$T/gh.log")"
 
 out="$(gh_run "$T/plain" CLAUDECODE=1)"; rc=$?
 [ "$rc" = 0 ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list' "$T/gh.log" &&
@@ -405,6 +405,27 @@ out="$(cd "$T/norepo" && env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE=1 REMOTE
 [ "$rc" = 0 ] && grep -qx 'GH_TOKEN=<unset> args=api /user' "$T/gh.log"
 result $? "shim: a dev container with no key steps aside in any directory" "rc=$rc $out"
 mv "$T/keyring.away" "$FAKE_KEYRING"
+
+out="$(cd "$T/plain" && env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE= gh pr list 2>&1)"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list' "$T/gh.log"
+result $? "shim: CLAUDECODE unset with the agent directory is still a pap claude session, minted" "rc=$rc $out $(cat "$T/gh.log")"
+out="$(ghx "$T/plain" api 'repos/{owner}/{repo}/pulls')"; rc=$?
+[ "$rc" = 0 ] && [ "$(lastrepo)" = plain ]
+result $? "shim: gh api repos/{owner}/{repo} placeholders fall back to origin" "rc=$rc $out $(lastrepo)"
+out="$(credreq "$T/plain" "protocol=https\nhost=github.com\npath=example-owner/lfsrepo.git/info/lfs\n")"; rc=$?
+[ "$rc" = 0 ] && [ "$(lastrepo)" = lfsrepo ]
+result $? "shim: a Git LFS credential path is scoped to its repository" "rc=$rc $out $(cat "$T/cred.err")"
+git -C "$T/plain" remote set-url origin https://someone:s3cret@git.example.com/x.git
+out="$(ghx "$T/plain" pr list)"; rc=$?
+[ "$rc" = 1 ] && ! printf '%s\n' "$out" | grep -q s3cret && printf '%s\n' "$out" | grep -qF 'origin (https://git.example.com/x.git)'
+result $? "shim: a refused origin is named without its userinfo" "rc=$rc $out"
+git -C "$T/plain" remote set-url origin https://github.com/example-owner/plain.git
+for args in "--repo justname" "--repo example-owner/a --owner other-owner" "--owner other-owner --repo example-owner/a"; do
+  # shellcheck disable=SC2086 # split on purpose
+  out="$(p agent-token $args 2>&1)"; rc=$?
+  [ "$rc" = 64 ]
+  result $? "agent-token: $args is a usage error" "rc=$rc $out"
+done
 
 # The hook's question: a session not started by pap claude fails the check
 # in any directory, so the hook can refuse outside adopting repositories.

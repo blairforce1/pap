@@ -54,13 +54,20 @@ warns if the token is in `hosts.yml` in plain text instead.
   `repos/<owner>/<name>` endpoint for `gh api`, else `origin`) and runs
   the real `gh` with it as `GH_TOKEN`. For git's credential request
   (`gh auth git-credential get`, which git runs for every HTTPS push and
-  fetch) it answers itself, for the repository in the request's path;
-  `pap claude` sets `credential.https://github.com.useHttpPath` so git
-  sends one. A call with no repository (`gh api /user` outside a clone),
+  fetch) it answers itself, for the repository in the request's path.
+  `pap claude` gives git, at command scope, an empty github.com helper
+  followed by `!gh auth git-credential`, which clears every helper your
+  config files set before it (a stored credential, or gh by path as `gh
+  auth setup-git` writes it), so the shim is the only one asked; and it
+  sets `credential.https://github.com.useHttpPath` so git sends the
+  path. A call with no repository (`gh api /user` outside a clone),
   a repository the installation does not cover, another host, or any
   failed mint is refused with the reason, and a refused credential tells
   git `quit=1` so no other helper or prompt answers. The real `gh` never
-  runs in a `pap claude` session without a token. The shim also refuses
+  runs from the shim in a `pap claude` session without a token, and a
+  call with the agent directory but `CLAUDECODE` unset still counts as
+  that session (a person's terminal never has that directory). The shim
+  also refuses
   when that directory holds a sign-in (any non-empty `hosts.yml`). In an
   agent session not started by `pap claude`, it refuses in an adopting
   repository and runs the real `gh` unchanged elsewhere.
@@ -125,10 +132,14 @@ your token even with an empty config directory:
 So an empty agent directory was never enough on its own: any real `gh`
 in an agent shell could reach your token. What changed:
 
-- In a `pap claude` session the shim handles every `gh` call in every
-  directory and never runs the real `gh` without a `pap-agent` token,
-  so gh's keyring fallback is never reached. It answers git's
-  credential requests itself.
+- In a `pap claude` session the shim handles every `gh` call by name in
+  every directory and never runs the real `gh` without a `pap-agent`
+  token, so gh's keyring fallback is not reached through it. It answers
+  git's credential requests itself, and `pap claude` makes it git's only
+  credential helper for github.com, whatever your git config says.
+- What is left is a real `gh` reached past the shim (a path the hook
+  cannot parse, a renamed link, a script), which the threat model below
+  lists.
 - Tokens are scoped to one repository, so a repository the installation
   does not cover is refused by name before git or gh reach GitHub.
 - The hook's `pap claude` check applies in every directory of a session
@@ -158,7 +169,7 @@ process sees; it is not isolation. Every known way round it:
 | `GH_CONFIG_DIR`, `HOME` or `XDG_CONFIG_HOME` changed in a way the hook cannot parse                         | The shim refuses anything but the agent directory in an adopting repository                                                                                                                                                         | Outside one, gh can reach your directory                                                                                                                                                                                            |
 | `reviewed.sh` or `accept.sh` run through `bash -c`, `eval`, a copy or a link under another name             | The hook refuses them by name and path                                                                                                                                                                                              | Those forms pass                                                                                                                                                                                                                    |
 | Writing a `hosts.yml` into the agent directory, or a `gh auth login` there, by a form the hook cannot parse | The hook refuses commands naming the directory or `$GH_CONFIG_DIR` and `gh auth login`; the shim refuses a non-empty `hosts.yml` in every directory of a `pap claude` session; `pap doctor` reports it                              | A `gh` reached past the shim (`bash -c`, a script, a path) would fetch your token from the keyring                                                                                                                                  |
-| `command env -i gh`, `sudo`, `xargs` or `find -exec` forms                                                  | The hook reads only the first word of a command                                                                                                                                                                                     | They pass; the shim still runs if `gh` is found by name, but `env -i` drops `CLAUDECODE`, so the shim runs the real `gh`, which can reach your keyring token                                                                        |
+| `command env -i gh`, `sudo`, `xargs` or `find -exec` forms                                                  | The hook reads only the first word of a command                                                                                                                                                                                     | They pass; the shim still runs if `gh` is found by name, but `env -i` drops `GH_CONFIG_DIR` too, so the shim runs the real `gh`, which can reach your keyring token                                                                 |
 | A `gh` found past the shim: by a path the hook cannot parse, a renamed link, or `bash -c`                   | The hook refuses `gh` by a path it can parse, and with `PATH=` changed                                                                                                                                                              | gh's keyring fallback (above) answers it with your token                                                                                                                                                                            |
 | A git hook during your `/pap:accept` push                                                                   | The push keeps the caller's environment; only its credential helper is gh as you                                                                                                                                                    | The hook can read that helper from `GIT_CONFIG_PARAMETERS`                                                                                                                                                                          |
 | An agent merging a pull request                                                                             | The hook refuses `gh pr merge` and the API merge                                                                                                                                                                                    | GitHub allows it; slice (c) reports it                                                                                                                                                                                              |

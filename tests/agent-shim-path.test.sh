@@ -23,6 +23,10 @@ T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
 export GIT_CEILING_DIRECTORIES="$T" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL="$T/gitconfig"
 : > "$GIT_CONFIG_GLOBAL"
+# What gh auth setup-git writes: the real gh by path, which skips the shim,
+# after a store helper that would answer first.
+git config --file "$GIT_CONFIG_GLOBAL" credential.helper store
+git config --file "$GIT_CONFIG_GLOBAL" credential.https://github.com.helper "!$T/realgh/gh auth git-credential"
 
 n=0
 failed=0
@@ -51,14 +55,19 @@ EOF
 chmod +x "$I/bin/pap" "$I/scripts/shim/gh"
 
 mkdir -p "$T/home" "$T/xdg" "$T/fake" "$T/realgh" "$T/repo/scripts"
+# Asked by git for a credential, the real gh answers with the owner's
+# token, as gh's keyring fallback does with an empty config directory.
 cat > "$T/realgh/gh" <<'EOF'
 #!/bin/sh
+if [ "$1 $2" = "auth git-credential" ]; then
+  cat >/dev/null; printf 'username=x-access-token\npassword=gho_OWNER_FROM_KEYRING\n'; exit 0
+fi
 echo "real gh GH_TOKEN=${GH_TOKEN:-<unset>} $*"
 EOF
 # What Claude Code's Bash tool does: CLAUDECODE set, a plain sh -c.
 cat > "$T/fake/claude" <<'EOF'
 #!/bin/sh
-cd "$FAKE_REPO" && CLAUDECODE=1 sh -c 'command -v gh; gh api user; git config --get credential.https://github.com.useHttpPath' > "$FAKE_CLAUDE" 2>&1
+cd "$FAKE_REPO" && CLAUDECODE=1 GIT_TERMINAL_PROMPT=0 sh -c 'command -v gh; gh api user; git config --get credential.https://github.com.useHttpPath; printf "url=https://github.com/example-owner/companion.git\n\n" | git credential fill | grep "^password="' > "$FAKE_CLAUDE" 2>&1
 EOF
 printf '#!/bin/sh\nexit 0\n' > "$T/repo/scripts/guard-branch.sh"
 chmod +x "$T/realgh/gh" "$T/fake/claude" "$T/repo/scripts/guard-branch.sh"
@@ -90,5 +99,7 @@ printf '%s\n' "$out" | grep -qx 'real gh GH_TOKEN=ghs_faketoken api user'
 result $? "pap claude: gh runs the shim, which sets GH_TOKEN from pap agent-token and runs the real gh" "$out"
 [ "$(printf '%s\n' "$out" | sed -n 3p)" = true ]
 result $? "pap claude: git sends the repository path to the credential helper (useHttpPath)" "$out"
+[ "$(printf '%s\n' "$out" | sed -n 4p)" = password=ghs_faketoken ]
+result $? "pap claude: git's credential comes from the shim, past a store helper and gh by path in the global config" "$out"
 
 [ "$failed" = 0 ] || exit 1
