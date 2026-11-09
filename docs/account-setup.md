@@ -234,8 +234,22 @@ has each message the shim prints.
 Your `gh` sign-in stays where `gh auth login` puts it, gh's default
 directory with the token in the keyring; nothing moves. What changes is
 how you start Claude Code: **always with `pap claude`** (any `claude`
-arguments pass through; `alias claude='pap claude'` saves remembering). It
-sets `GH_CONFIG_DIR` to an empty agent directory and unsets the GitHub
+arguments pass through). To have plain `claude` do that for you, add
+pap's shell function to your shell's startup file:
+
+```sh
+eval "$(pap shell-init bash)"   # ~/.bashrc
+eval "$(pap shell-init zsh)"    # ~/.zshrc
+```
+
+With home-manager, the same line goes in
+`programs.bash.initExtra = ''eval "$(pap shell-init bash)"'';` (or
+`programs.zsh.initContent` for zsh). `pap` must be on `PATH` when that
+runs, for example from a global mise install (`mise use -g`); a pap that
+is only on `PATH` inside a project's directory is not. In a repository
+with an executable `scripts/guard-branch.sh` the function runs `pap
+claude` through the pap that printed it; anywhere else it runs `claude`
+unchanged. `pap claude` itself sets `GH_CONFIG_DIR` to an empty agent directory and unsets the GitHub
 token variables, so an agent shell finds no stored account and only the
 shim's `pap-agent` token works (rule 23.4). In an adopting repository the
 shim refuses every `gh` in a session started any other way.
@@ -243,7 +257,9 @@ shim refuses every `gh` in a session started any other way.
 Then run `pap doctor`. Its "sign-ins" section checks your sign-in and that
 its token is in the keyring (sign in again without `--insecure-storage` if
 it warns), the agent directory, and whether the shell it runs in is an
-agent shell started by `pap claude`. `/pap:reviewed` and `/pap:accept`
+agent shell started by `pap claude`. Its "shell" section, in your own
+terminal, warns with the eval line when `claude` is not pap's function in
+that shell. `/pap:reviewed` and `/pap:accept`
 act as you from gh's default directory; only you can invoke them.
 [Agent identity and its security](agent-identity-security.md) says what
 this protects and what it does not.

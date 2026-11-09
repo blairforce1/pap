@@ -47,6 +47,12 @@ warns if the token is in `hosts.yml` in plain text instead.
   Claude Code's Bash tool runs commands non-interactively, so the base
   layer's mise `[env]` path, which only shells mise activates and
   `mise exec`/`mise run` get, never reaches an agent.
+- **`pap shell-init`** prints a `claude` shell function that runs `pap
+  claude` in an adopting repository. It is a convenience, not a control:
+  a session started from a desktop app, an IDE or anything else that does
+  not go through your shell skips it, and the shim and the guard hook
+  then refuse its GitHub calls in an adopting repository. That is the
+  safe failure; start such a session with `pap claude` instead.
 - **The `gh` shim**, first on `PATH` in every shell `pap claude` starts,
   handles every `gh` call in that session, in every directory, adopting
   repository or not. It mints a `pap-agent` token scoped to the one

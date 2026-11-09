@@ -183,6 +183,14 @@ not carry.
 
 #### Added
 
+- `pap shell-init bash|zsh` prints a `claude` function for an `eval` line
+  in `~/.bashrc` or `~/.zshrc`: in a repository with an executable
+  `scripts/guard-branch.sh` it runs `pap claude` through the absolute path
+  of the pap that printed it (a pap on `PATH` with `pap claude` if that
+  path is gone, else a warning and plain `claude`); elsewhere plain
+  `claude`. `pap doctor` warns, in your own terminal, when this shell has
+  not run it.
+
 - Decision 0023's second slice (rule 23.4): `pap claude` starts Claude
   Code with `GH_CONFIG_DIR` set to an empty agent directory and the GitHub
   token variables unset, so agent shells find no stored account; your own
@@ -217,6 +225,10 @@ not carry.
 
 #### Fixed
 
+- The test suites unset the variables a `pap claude` session exports
+  (`GIT_CONFIG_COUNT` and its keys, `GH_CONFIG_DIR`, the GitHub tokens,
+  `CLAUDECODE`), so `mise run test` passes inside an agent session as in
+  CI; `tests/accept.test.sh` case 18 failed there.
 - The guard hook refuses, in an adopting repository, an agent's `gh` and
   git's `push`, `fetch`, `pull`, `clone`, `ls-remote` and `remote update` to
   a GitHub HTTPS remote unless the session was started by `pap claude`,

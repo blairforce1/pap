@@ -259,7 +259,10 @@ started by pap claude, so it could act as your own GitHub sign-in`** (or
 the same thing, made before the command runs: the `gh` first on the
 session's `PATH` is not the pap shim, or the shim does not accept the
 session. Quit and start it with `pap claude` (`pap claude --resume` keeps
-the conversation). A project-manager session started as plain `claude`
+the conversation). To make plain `claude` do this in every PAP
+repository, add `eval "$(pap shell-init bash)"` (or `zsh`) to your shell's
+startup file; `pap doctor` says whether this shell has it ([Account
+setup](account-setup.md#your-own-sign-in-and-pap-claude)). A project-manager session started as plain `claude`
 passes this to every cycle it starts, since they inherit its environment:
 restart the PM session with `pap claude`.
 
