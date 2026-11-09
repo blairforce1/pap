@@ -21,6 +21,8 @@ Anything missing or invalid: ask once, in one question, then proceed.
 
 Always a worktree; never switch the main checkout's branch, because parallel sessions share it.
 
+worktree.sh takes the repository from the current directory, which for a launched cycle may be its launcher's. First check `git rev-parse --show-toplevel` against the repository the brief names; if they differ, `cd` there before running it.
+
 ```sh
 sh "${CLAUDE_PLUGIN_ROOT}/skills/change/worktree.sh" <slug>
 ```

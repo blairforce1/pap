@@ -159,6 +159,14 @@ not carry.
 
 ### [Unreleased]
 
+#### Fixed
+
+- A cycle started in its launcher's directory no longer makes its
+  worktree in the launcher's repository: `pap:cycle` and
+  `pap:cycle-mechanical` first `cd` to the repository the brief names (or
+  ask), and `/change` step 1 checks `git rev-parse --show-toplevel`
+  against it before running `worktree.sh`.
+
 ### [0.16.0] - 2026-11-09
 
 #### Added
