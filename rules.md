@@ -242,7 +242,7 @@ In a repository that adopts PAP, every push, pull request, label and comment an 
 A `risk:high` pull request passes only when the latest `labeled` event for `owner-reviewed`, after any `unlabeled`, has an actor of type `User` whose login is an owner in the base branch's `.github/CODEOWNERS`; a label added by a Bot actor, the agent app included, or by any other user, is as if absent and is removed.
 
 - Decision: [0023](decisions/0023-agents-act-on-github-as-their-own-app.md); narrows [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)'s rule 16.1
-- Enforced by: Nothing yet. Planned: the reusable `pr-checks` workflow reads the pull request's issue events and judges the gate on the actor's type and login against the `CODEOWNERS` it already reads, removing any other label and saying why; on the `closed` event it reports a pull request whose `merged_by` is a Bot.
+- Enforced by: The reusable `pr-checks` workflow in `blairforce1/.github` (blairforce1/.github#17) reads the pull request's issue events and judges the gate on the latest `owner-reviewed` `labeled` event's actor type and login against the base branch's `CODEOWNERS`, removing any other label and saying why; its `merge-report` job, on the `closed` event the callers trigger on, warns and comments when the pull request's `merged_by` is a Bot.
 
 ### 23.3 The owner bypasses the `all-branches` ruleset; the app never does
 
