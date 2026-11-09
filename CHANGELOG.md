@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.16.0] - 2026-11-09
+
 #### Added
 
 - Three agents in `plugins/pap/agents/` (decision 0024): `pap:cycle`, the
