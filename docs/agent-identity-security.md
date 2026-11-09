@@ -34,7 +34,8 @@ Actions read lets a session read its own CI: the workflow runs, the job
 logs, the artifacts and the caches of the repositories the app is
 installed on (`gh run view --log-failed`, and `gh pr checks`' lookup of
 the workflow run). It does not let it re-run, cancel or dispatch a
-workflow, or change Actions settings: those need Actions write. It does
+workflow (those need Actions write), or change Actions settings (that
+needs Administration). It does
 not reach secrets: GitHub exposes no secret value through the API, and
 listing a repository's secret names needs the Secrets permission, which
 the app does not have. The risk is what a workflow leaves behind: a log

@@ -235,7 +235,8 @@ An app registered before a permission was added to
 `scripts/pap-agent-manifest.json` (Actions read, for one) lacks it,
 and `pap agent-setup` does not change an app that exists. Add it by hand:
 
-1. On GitHub: Settings, Developer settings, GitHub Apps, the app, Edit,
+1. On GitHub: Settings (the organisation's, if it owns the app),
+   Developer settings, GitHub Apps, the app, Edit,
    **Permissions & events**. Under Repository permissions set **Actions**
    to **Read-only**, and save.
 2. GitHub then asks each installation's owner to accept the new
