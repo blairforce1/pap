@@ -9,7 +9,7 @@
 go = "1.27.3"
 # Built with go1.27.0; golangci-lint refuses a module whose go directive is
 # newer than the Go it was built with, so raise it with go.
-golangci-lint = "2.14.0"
+golangci-lint = "2.15.0"
 # Not in mise's registry; built from source by the go backend.
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
 

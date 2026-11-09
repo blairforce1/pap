@@ -12,8 +12,8 @@
 # own.
 
 [tools]
-lefthook = "2.1.14"
-dprint = "0.57.4"
+lefthook = "2.2.2"
+dprint = "0.64.3"
 gitleaks = "8.30.1"
 shellcheck = "0.11.0"
 # ubi, not aqua or github: the aqua entry asks for an asset the release does
@@ -24,7 +24,7 @@ shellcheck = "0.11.0"
 # .github/labels.yml with. Not a hook's tool: it is here because pap runs in
 # every repository that adopts this layer, and the yq a distribution
 # packages is often the Python one, which pap refuses.
-yq = "4.53.6"
+yq = "4.54.1"
 # gh and jq, which `pap repo` drives the GitHub API with and the Claude
 # Code hooks parse tool calls with. Pinned here so `mise install` provides
 # them on every machine and in the devcontainer, and Renovate moves them
