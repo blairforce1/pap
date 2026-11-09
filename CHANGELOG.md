@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.16.1] - 2026-11-09
+
 #### Fixed
 
 - A cycle started in its launcher's directory no longer makes its
