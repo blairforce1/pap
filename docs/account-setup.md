@@ -91,8 +91,13 @@ named `<owner>-pap-agent` (for example `blairforce1-pap-agent`; app names
 are global, so each adopter registers its own), so a push, pull request,
 label or comment an agent makes shows as `<owner>-pap-agent[bot]` and not
 as you. You register it once, under
-your personal account, and install it wherever PAP is adopted. It costs
-nothing on GitHub's side.
+your personal account, and install it on every repository agents push
+to or call `gh` for, adopting PAP or not: an organisation's private
+companion repository and its `.github` repository count too. In a `pap
+claude` session the gh shim mints a token scoped to the one repository a
+call names, and refuses a repository the installation does not cover, by
+name (`pap doctor` checks this clone's). It costs nothing on GitHub's
+side.
 
 ### With `pap agent-setup`
 
@@ -118,8 +123,9 @@ and [the conversion endpoint](https://docs.github.com/en/rest/apps/apps?apiVersi
    private key straight into the keyring and the client id into pap's
    config. The key, the client secret and the webhook secret are never
    written to disk or printed.
-3. It opens the app's install page. Install it on the owner with the
-   adopting repositories selected, then press Enter; pap confirms the
+3. It opens the app's install page. Install it on the owner with every
+   repository agents push to selected (adopting ones, and others such as
+   a private companion repository or `.github`), then press Enter; pap confirms the
    installation with the app's own token. It adds no repositories to an
    installation itself: that endpoint needs a user token from the app,
    which your `gh` sign-in is not, so a repository added later is

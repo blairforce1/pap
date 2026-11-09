@@ -590,8 +590,8 @@ out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
 [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -qF "drift    gh is git's credential helper for github.com  (other helpers are asked too"
 result $? "doctor, agent app: another helper beside gh is drift, a stored credential could answer first" "$out"
 # A general helper first, then github.com's reset and gh, as gh auth
-# setup-git writes them. A helper after gh would still be asked when the
-# shim refuses, so order matters.
+# setup-git writes them. The shim's refusal says quit=1, so a helper after
+# gh is not asked then; doctor still wants gh alone.
 cat > "$GIT_CONFIG_GLOBAL" <<'EOF'
 [credential]
   helper = store
