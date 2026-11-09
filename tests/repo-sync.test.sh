@@ -118,6 +118,7 @@ case "$path" in
   */rulesets\?*) f=rulesets ;;
   */rulesets/*) f="ruleset-${path##*/}" ;;
   */codeowners/errors) f=codeowners ;;
+  */actions/policies\?*) f=policies ;;
   */contents/*) f="contents/${path#*/contents/}" ;;
   *) f=none ;;
 esac
@@ -190,6 +191,60 @@ out="$(status)"; rc=$?
   printf '%s\n' "$out" | grep -q '1 error(s); name the owner on an Owner: line in product/invariants.md' &&
   printf '%s\n' "$out" | grep -qx '      line 5: Unknown owner: /product/\*\* @acme'
 result $? "status: an owner GitHub does not accept is drift, named by line; exits 1" "exit $rc; $out"
+
+# --- the Actions event policy for pr-checks (public repositories) ------------
+
+# policy: the pull_request_target line of the report, state first.
+policy() { printf '%s\n' "$out" | sed -n 's/^  \([a-z-]*\) *Actions policy allows pull_request_target for pr-checks.*/\1/p'; }
+# policies <enforcement> <events> <workflow_path json>: one live policy.
+policies() {
+  jq -n --arg e "$1" --argjson ev "$2" --argjson w "$3" '{total_count: 1, policies: [{id: 1, name: "pr-checks",
+    target: "actions", source_type: "Repository", enforcement: $e, conditions: {workflow_path: $w},
+    rules: [{type: "restrict_action_events", parameters: {allowed_events: $ev}}]}]}' > "$T/fix/policies.json"
+}
+scoped='{"include": [".github/workflows/pr-checks.yml"], "exclude": []}'
+
+out="$(status)"
+[ "$(policy)" = skipped ] && printf '%s\n' "$out" | grep -q 'private repository; the default policy blocks it in public ones only'
+result $? "status: a private repository skips the pull_request_target policy" "$out"
+
+echo '{"visibility": "public"}' > "$T/fix/repo.json"
+out="$(status)"
+[ "$(policy)" = skipped ] && printf '%s\n' "$out" | grep -q 'policies unavailable (HTTP 404)'
+result $? "status: policies the API will not serve are skipped as unavailable" "$out"
+
+echo '{"total_count": 0, "policies": []}' > "$T/fix/policies.json"
+out="$(status)"
+[ "$(policy)" = missing ]
+result $? "status: a public repository with no policy is missing" "$out"
+
+policies active '["pull_request_target"]' "$scoped"
+out="$(status)"
+[ "$(policy)" = ok ]
+result $? "status: an active policy allowing it for the pr-checks path is ok" "$out"
+
+policies disabled '["pull_request_target"]' "$scoped"
+out="$(status)"
+[ "$(policy)" = missing ]
+result $? "status: a disabled policy does not count" "$out"
+
+policies active '["pull_request"]' "$scoped"
+out="$(status)"
+[ "$(policy)" = missing ]
+result $? "status: a policy that allows other events only is missing" "$out"
+
+policies active '["pull_request_target"]' '{"include": [".github/workflows/other.yml"], "exclude": []}'
+out="$(status)"
+[ "$(policy)" = missing ]
+result $? "status: a policy scoped to another workflow is missing" "$out"
+
+policies active '["pull_request_target"]' '{"include": ["~ALL"], "exclude": []}'
+out="$(status)"
+[ "$(policy)" = drift ] && printf '%s\n' "$out" | grep -q 'scope it to .github/workflows/pr-checks.yml'
+result $? "status: a policy allowing it for every workflow is drift" "$out"
+
+rm -f "$T/fix/policies.json"
+echo '{"visibility": "private"}' > "$T/fix/repo.json"
 
 # --- apply: required checks kept, added, removed -----------------------------
 

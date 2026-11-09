@@ -24,7 +24,9 @@
 #         rulesets (main, with each required status check by name, and
 #         all-branches), enforcement layers (decision 0002, each ruleset
 #         active, and whether GitHub accepts the owners in
-#         .github/CODEOWNERS, decision 0014) and labels. Two more
+#         .github/CODEOWNERS, decision 0014; in a public repository, an
+#         Actions policy allowing pull_request_target for pr-checks) and
+#         labels. Two more
 #         states cover what the four cannot: skipped (the check cannot run
 #         from here) and error (the API call itself failed). Exits 1 unless
 #         every item is ok, unavailable-on-plan or skipped.
@@ -452,6 +454,37 @@ case "$code" in
   404) record enforcement skipped "$item" "no CODEOWNERS on the default branch" ;;
   *) record enforcement error "$item" "HTTP $code" ;;
 esac
+
+# GitHub's default Actions event policy blocks pull_request_target in public
+# repositories (enforced from 2026-12-02), and the pr-checks caller runs on
+# it. An active policy, here or inherited, must allow the event for the
+# caller's path; docs/adopt-a-repo.md says how and why it is safe.
+item="Actions policy allows pull_request_target for pr-checks"
+pr_checks_path=".github/workflows/pr-checks.yml"
+if [ "$visibility" != public ]; then
+  record enforcement skipped "$item" "$visibility repository; the default policy blocks it in public ones only"
+else
+  api_get "repos/$repo/actions/policies?has_parents=true&per_page=100"
+  if [ "$code" = 200 ]; then
+    allowed="$(jq -r --arg p "$pr_checks_path" '
+      [.policies[]? | select(.enforcement == "active")
+        | select(any(.rules[]?; .type == "restrict_action_events"
+            and ((.parameters.allowed_events // []) | index("pull_request_target"))))
+        | (.conditions.workflow_path // {include: [], exclude: []}) as $w
+        | select(($w.exclude // []) | index($p) | not)
+        | if (($w.include // []) | length) == 0 or (($w.include // []) | index("~ALL")) then "all"
+          elif ($w.include | index($p)) then "scoped"
+          else empty end]
+      | if index("scoped") then "scoped" elif index("all") then "all" else "none" end' <<<"$body")"
+    case "$allowed" in
+      scoped) record enforcement ok "$item" ;;
+      all) record enforcement drift "$item" "a policy allows it for every workflow; scope it to $pr_checks_path" ;;
+      *) record enforcement missing "$item" "Settings > Actions > Policies; see docs/adopt-a-repo.md" ;;
+    esac
+  else
+    record enforcement skipped "$item" "policies unavailable (HTTP $code)"
+  fi
+fi
 
 item="lefthook pre-push hook installed locally"
 if [ "$is_local" = true ]; then
