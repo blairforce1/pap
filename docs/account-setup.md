@@ -249,7 +249,9 @@ runs, for example from a global mise install (`mise use -g`); a pap that
 is only on `PATH` inside a project's directory is not. In a repository
 with an executable `scripts/guard-branch.sh` the function runs `pap
 claude` through the pap that printed it; anywhere else it runs `claude`
-unchanged. `pap claude` itself sets `GH_CONFIG_DIR` to an empty agent directory and unsets the GitHub
+unchanged. Remove any `alias claude='pap claude'` first: bash expands it
+inside the function's definition. `pap claude` itself sets `GH_CONFIG_DIR`
+to an empty agent directory and unsets the GitHub
 token variables, so an agent shell finds no stored account and only the
 shim's `pap-agent` token works (rule 23.4). In an adopting repository the
 shim refuses every `gh` in a session started any other way.

@@ -262,7 +262,8 @@ session. Quit and start it with `pap claude` (`pap claude --resume` keeps
 the conversation). To make plain `claude` do this in every PAP
 repository, add `eval "$(pap shell-init bash)"` (or `zsh`) to your shell's
 startup file; `pap doctor` says whether this shell has it ([Account
-setup](account-setup.md#your-own-sign-in-and-pap-claude)). A project-manager session started as plain `claude`
+setup](account-setup.md#your-own-sign-in-and-pap-claude)). A project-manager
+session started as plain `claude`
 passes this to every cycle it starts, since they inherit its environment:
 restart the PM session with `pap claude`.
 
