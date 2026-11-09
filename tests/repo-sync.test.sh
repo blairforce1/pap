@@ -109,6 +109,11 @@ done
 if [ "$method" != GET ]; then
   printf '%s %s%s\n' "$method" "$path" "$fields" >> "$LOG"
   [ -z "$input" ] || cp "$input" "$FIX/../input-$(jq -r .name "$input").json"
+  if [ -f "$FIX/refuse-user" ] && [ -n "$input" ] &&
+    jq -e 'any(.bypass_actors[]?; .actor_type == "User")' "$input" >/dev/null; then
+    echo 'gh: Validation Failed (HTTP 422)' >&2
+    exit 1
+  fi
   echo '{}'
   exit 0
 fi
@@ -118,12 +123,17 @@ case "$path" in
   */rulesets\?*) f=rulesets ;;
   */rulesets/*) f="ruleset-${path##*/}" ;;
   */codeowners/errors) f=codeowners ;;
+  */vulnerability-alerts) f=alerts ;;
+  */automated-security-fixes) f=fixes ;;
   */actions/policies\?*) f=policies ;;
   */actions/policies/*) f="policy-${path##*/}" ;;
   */contents/*) f="contents/${path#*/contents/}" ;;
   *) f=none ;;
 esac
-if [ -f "$FIX/$f.json" ]; then
+if [ -f "$FIX/$f.code" ]; then
+  printf 'HTTP/2.0 %s Status\r\n\r\n{}' "$(cat "$FIX/$f.code")"
+  exit 1
+elif [ -f "$FIX/$f.json" ]; then
   printf 'HTTP/2.0 200 OK\r\n\r\n'
   cat "$FIX/$f.json"
 else
@@ -132,7 +142,7 @@ else
 fi
 EOF
 chmod +x "$T/stub/gh"
-echo '{"visibility": "private"}' > "$T/fix/repo.json"
+echo '{"visibility": "private", "owner": {"login": "blairforce1", "id": 1001, "type": "User"}, "permissions": {"admin": true}}' > "$T/fix/repo.json"
 export FIX="$T/fix" LOG="$T/log"
 
 status() { (cd "$T" && PATH="$T/stub:$PATH" bash "$sync" status --repo blairforce1/demo 2>&1); }
@@ -140,12 +150,14 @@ status() { (cd "$T" && PATH="$T/stub:$PATH" bash "$sync" status --repo blairforc
 lines() { printf '%s\n' "$out" | sed -n "s/^  $1 *required check '\(.*\)'\$/\1/p"; }
 
 # live <jq filter>: the live ruleset is main.json with an id and the filter
-# applied, beside all-branches.json as id 8, unchanged.
+# applied, beside all-branches.json as id 8 with the owner's User actor, as
+# apply writes it for the fixture's personal repository.
 live() {
   echo '[{"id": 7, "name": "main", "source_type": "Repository"},
          {"id": 8, "name": "all-branches", "source_type": "Repository"}]' > "$T/fix/rulesets.json"
   jq ".id = 7 | $1" "$ruleset" > "$T/fix/ruleset-7.json"
-  jq ".id = 8" "$branches" > "$T/fix/ruleset-8.json"
+  jq '.id = 8 | .bypass_actors = [{"actor_id": 1001, "actor_type": "User", "bypass_mode": "always"}]' \
+    "$branches" > "$T/fix/ruleset-8.json"
 }
 
 live '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks)
@@ -213,7 +225,7 @@ out="$(status)"
 [ "$(policy)" = skipped ] && printf '%s\n' "$out" | grep -q 'private repository; the default policy blocks it in public ones only'
 result $? "status: a private repository skips the pull_request_target policy" "$out"
 
-echo '{"visibility": "public"}' > "$T/fix/repo.json"
+echo '{"visibility": "public", "owner": {"login": "blairforce1", "id": 1001, "type": "User"}, "permissions": {"admin": true}}' > "$T/fix/repo.json"
 out="$(status)"
 [ "$(policy)" = skipped ] && printf '%s\n' "$out" | grep -q 'policies unavailable (HTTP 404)'
 result $? "status: policies the API will not serve are skipped as unavailable" "$out"
@@ -255,7 +267,7 @@ out="$(status)"
 result $? "status: a policy whose detail the API will not serve is skipped, not missing" "$out"
 
 rm -f "$T/fix/policies.json" "$T/fix/policy-1.json"
-echo '{"visibility": "private"}' > "$T/fix/repo.json"
+echo '{"visibility": "private", "owner": {"login": "blairforce1", "id": 1001, "type": "User"}, "permissions": {"admin": true}}' > "$T/fix/repo.json"
 
 # --- apply: required checks kept, added, removed -----------------------------
 
@@ -335,51 +347,141 @@ out="$(apply)"; rc=$?
 result $? "apply: a required-checks.yml that is not a list is refused" "exit $rc; $out"
 rm -r "$T/fix/contents/.github"
 
-# --- the all-branches ruleset (decision 0022) ---------------------------------
+# --- the all-branches ruleset (decisions 0022, 0023) --------------------------
 
 jq -e '.target == "branch" and .enforcement == "active"
   and .conditions.ref_name.include == ["~ALL"]
   and .bypass_actors == [] and [.rules[].type] == ["non_fast_forward"]' "$branches" >/dev/null
-result $? "all-branches: every branch, active, no bypass actors, only non_fast_forward (creation and deletion allowed)"
+result $? "all-branches: every branch, active, no id in the template's bypass list, only non_fast_forward"
 
 # state <item>: the state status reports for that item.
 state() { printf '%s\n' "$out" | sed -n "s/^  \([a-z-]*\) *$1\$/\1/p; s/^  \([a-z-]*\) *$1  (.*/\1/p"; }
+ab="ruleset 'all-branches'"
+# actors <jq array>: replace all-branches' live bypass actors.
+actors() { jq --argjson a "$1" '.bypass_actors = $a' "$T/fix/ruleset-8.json" > "$T/r8" && mv "$T/r8" "$T/fix/ruleset-8.json"; }
+# repo_as <type> <admin>: the repository's owner type and the caller's admin flag.
+repo_as() {
+  jq --arg t "$1" --argjson a "$2" '.owner.type = $t | .permissions.admin = $a' "$T/fix/repo.json" > "$T/rj" &&
+    mv "$T/rj" "$T/fix/repo.json"
+}
+user_actor='{"actor_id": 1001, "actor_type": "User", "bypass_mode": "always"}'
 
 live '.'
-out="$(status)"
-[ "$(state "ruleset 'all-branches'")" = ok ] && [ "$(state "ruleset 'all-branches' active on GitHub")" = ok ]
-result $? "status: a live all-branches matching the file is ok, and active" "$out"
+out="$(status)"; rc=$?
+[ "$(state "$ab")" = ok ] && [ "$(state "$ab active on GitHub")" = ok ] &&
+  [ "$(state "$ab bypass actors")" = ok ] && [ "$(state "ruleset 'main' bypass actors")" = ok ]
+result $? "status: all-branches with the owner's User actor is ok, and active; main with none is ok" "$out"
 
-# The deliberate override: the human disabled it to force-push.
+live '.'
+actors "[$user_actor, {\"actor_id\": 424242, \"actor_type\": \"Integration\", \"bypass_mode\": \"always\"}]"
+out="$(status)"; rc=$?
+[ "$rc" = 1 ] && [ "$(state "$ab bypass actors")" = drift ] && [ "$(state "$ab")" = ok ] &&
+  printf '%s\n' "$out" | grep -q 'an Integration (GitHub App) is listed and must never bypass'
+result $? "status: an Integration beside the owner is drift on the bypass item alone; exits 1" "exit $rc; $out"
+
+actors '[]'
+out="$(status)"; rc=$?
+[ "$rc" = 1 ] && [ "$(state "$ab bypass actors")" = drift ] && printf '%s\n' "$out" | grep -q 'the owner is not listed'
+result $? "status: an admin token seeing an empty list reports the missing owner as drift" "exit $rc; $out"
+
+actors '[{"actor_id": 1001, "actor_type": "User", "bypass_mode": "pull_request"}]'
+out="$(status)"
+[ "$(state "$ab bypass actors")" = drift ]
+result $? "status: the owner in pull_request mode, not always, is drift" "$out"
+
+actors '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]'
+out="$(status)"
+[ "$(state "$ab bypass actors")" = ok ]
+result $? "status: on a personal repository the admin-role fallback counts as the owner" "$out"
+
+# A token without administration (an agent app's) sees the list empty.
+live '.'
+actors '[]'
+jq 'del(.bypass_actors)' "$T/fix/ruleset-7.json" > "$T/r7" && mv "$T/r7" "$T/fix/ruleset-7.json"
+repo_as User false
+echo 403 > "$T/fix/alerts.code"
+echo 403 > "$T/fix/fixes.code"
+out="$(status)"; rc=$?
+printf '%s\n' "$out" | grep -q ', 0 error$' && [ "$(state "$ab bypass actors")" = skipped ] && [ "$(state "$ab")" = ok ] &&
+  [ "$(state "ruleset 'main' bypass actors")" = skipped ] && [ "$(state "ruleset 'main'")" = ok ] &&
+  [ "$(state "Dependabot alerts")" = skipped ] && [ "$(state "Dependabot security updates")" = skipped ] &&
+  printf '%s\n' "$out" | grep -q "bypass actors not visible to this token (needs administration; run from the owner's terminal)"
+result $? "status: without administration, hidden bypass actors and Dependabot 403s are skipped, the rest compared" "exit $rc; $out"
+
 jq '.enforcement = "disabled"' "$T/fix/ruleset-8.json" > "$T/r8" && mv "$T/r8" "$T/fix/ruleset-8.json"
 out="$(status)"; rc=$?
-[ "$rc" = 1 ] && [ "$(state "ruleset 'all-branches'")" = drift ] &&
-  [ "$(state "ruleset 'all-branches' active on GitHub")" = drift ] &&
+[ "$rc" = 1 ] && [ "$(state "$ab")" = drift ] && [ "$(state "$ab bypass actors")" = skipped ]
+result $? "status: without administration, drift in the rest of the ruleset still shows" "exit $rc; $out"
+
+out="$(apply)"; rc=$?
+[ "$rc" = 1 ] && [ ! -f "$LOG" ] && printf '%s\n' "$out" | grep -q 'apply needs administration on blairforce1/demo and this token has none'
+result $? "apply: refused up front without administration, nothing written" "exit $rc; $out"
+
+repo_as User true
+out="$(status)"; rc=$?
+[ "$(state "Dependabot alerts")" = error ] && [ "$(state "$ab bypass actors")" = drift ]
+result $? "status: with administration, a 403 is an error and an empty list drift, never skipped" "exit $rc; $out"
+rm "$T/fix/alerts.code" "$T/fix/fixes.code"
+
+# The deliberate override before 0023: the ruleset disabled by hand.
+live '.'
+jq '.enforcement = "disabled"' "$T/fix/ruleset-8.json" > "$T/r8" && mv "$T/r8" "$T/fix/ruleset-8.json"
+out="$(status)"; rc=$?
+[ "$rc" = 1 ] && [ "$(state "$ab")" = drift ] &&
+  [ "$(state "$ab active on GitHub")" = drift ] &&
   printf '%s\n' "$out" | grep -q 'enforcement disabled; pap repo apply restores it' &&
   printf '%s\n' "$out" | grep -q '^ *+ *"enforcement": "active",$'
 result $? "status: a disabled all-branches is drift twice, with the diff; exits 1" "exit $rc; $out"
 
+# one_owner <file> <type>: the body's bypass list is exactly one <type> actor, always, no Integration.
+one_owner() {
+  jq -e --arg t "$2" '.bypass_actors | length == 1 and .[0].actor_type == $t and .[0].bypass_mode == "always"
+    and all(.[]; .actor_type != "Integration")' "$1" >/dev/null
+}
+
 out="$(apply)"; rc=$?
 [ "$rc" = 0 ] && grep -q '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG" &&
-  jq -e '.enforcement == "active" and .bypass_actors == []' "$T/input-all-branches.json" >/dev/null
-result $? "apply: restores a disabled all-branches, active, by id" "exit $rc; $out"
+  jq -e '.enforcement == "active" and .bypass_actors == [{"actor_id": 1001, "actor_type": "User", "bypass_mode": "always"}]' \
+    "$T/input-all-branches.json" >/dev/null && one_owner "$T/input-all-branches.json" User
+result $? "apply: restores a disabled all-branches, active, by id, with the owner's User actor" "exit $rc; $out"
 
-# A bypass actor added by hand is drift too: agents push as the human.
 live '.'
-jq '.bypass_actors = [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]' \
-  "$T/fix/ruleset-8.json" > "$T/r8" && mv "$T/r8" "$T/fix/ruleset-8.json"
+actors "[$user_actor, {\"actor_id\": 424242, \"actor_type\": \"Integration\", \"bypass_mode\": \"always\"}]"
+out="$(apply)"; rc=$?
+[ "$rc" = 0 ] && grep -q '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG" && one_owner "$T/input-all-branches.json" User
+result $? "apply: an Integration in the list is replaced by the owner alone" "exit $rc; $out"
+
+touch "$T/fix/refuse-user"
+out="$(apply)"; rc=$?
+[ "$rc" = 0 ] && [ "$(grep -c '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG")" = 2 ] &&
+  one_owner "$T/input-all-branches.json" RepositoryRole && jq -e '.bypass_actors[0].actor_id == 5' "$T/input-all-branches.json" >/dev/null &&
+  printf '%s\n' "$out" | grep -q 'GitHub refused a User bypass actor (gh: Validation Failed (HTTP 422)); writing RepositoryRole admin instead'
+result $? "apply: a refused User actor falls back to RepositoryRole admin, and says so" "exit $rc; $out"
+rm "$T/fix/refuse-user"
+
+repo_as Organization true
 out="$(status)"
-[ "$(state "ruleset 'all-branches'")" = drift ]
-result $? "status: an all-branches with a bypass actor is drift" "$out"
+[ "$(state "$ab bypass actors")" = drift ]
+result $? "status: on an organisation's repository a User actor is not the owner's bypass" "$out"
+out="$(apply)"; rc=$?
+[ "$rc" = 0 ] && one_owner "$T/input-all-branches.json" OrganizationAdmin
+result $? "apply: an organisation's repository gets OrganizationAdmin" "exit $rc; $out"
+actors '[{"actor_id": null, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}]'
+out="$(status)"
+[ "$(state "$ab bypass actors")" = ok ]
+result $? "status: an organisation's repository with OrganizationAdmin is ok" "$out"
+repo_as User true
 
 echo '[{"id": 7, "name": "main", "source_type": "Repository"}]' > "$T/fix/rulesets.json"
 out="$(status)"
-[ "$(state "ruleset 'all-branches'")" = missing ] && [ "$(state "ruleset 'all-branches' active on GitHub")" = missing ]
+[ "$(state "$ab")" = missing ] && [ "$(state "$ab active on GitHub")" = missing ]
 result $? "status: no all-branches is missing" "$out"
 out="$(apply)"
-grep -q '^POST repos/blairforce1/demo/rulesets$' "$LOG" && cmp -s "$T/input-all-branches.json" "$branches" &&
+grep -q '^POST repos/blairforce1/demo/rulesets$' "$LOG" &&
+  [ "$(jq -S 'del(.bypass_actors)' "$T/input-all-branches.json")" = "$(jq -S 'del(.bypass_actors)' "$branches")" ] &&
+  one_owner "$T/input-all-branches.json" User &&
   ! grep -q '^PUT repos/blairforce1/demo/rulesets/8$' "$LOG"
-result $? "apply: creates all-branches from the file, as it stands" "$out"
+result $? "apply: creates all-branches from the file, with the owner's actor" "$out"
 
 # --- apply: the risk layer's labels -------------------------------------------
 
