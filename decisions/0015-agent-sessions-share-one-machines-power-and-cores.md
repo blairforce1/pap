@@ -7,7 +7,7 @@
 - **PIP:** the 2026-10-16 measurement on a Framework 16 (Fedora, AMD) on battery: 53 W drawn against 8 to 15 W in light use, load average 9.7, from several Claude Code sessions building at once (one running `dotnet build -f net10.0-android -c Release` in an agent loop), an Android emulator (`-gpu swangle`, software rendering) left at about 9% CPU between uses, and two .NET SDKs (nix 10.0.302, mise 10.0.401) each with its own MSBuild nodes and VBCSCompiler; the battery itself at 94.5% capacity after 40 cycles
 - **Expected effect:** heavy builds running at once on one machine at most 1 (the baseline was not counted; one was seen, beside other sessions' builds); .NET SDKs with live build servers ↓ from 2 to 1; battery draw with two agent sessions building ↓ from 53 W to under 30 W
 - **Introduced in:** v0.8.0
-- **Revisit:** when two agent sessions next build at once on one machine on battery: the draw re-measured against 53 W and the 30 W target, the .NET SDKs with live build servers counted, and, once heavy builds are logged, any run outside `scripts/heavy-build.sh`
+- **Revisit:** when two agent sessions next build at once on one machine on battery: the draw re-measured against 53 W and the 30 W target, the .NET SDKs with live build servers counted, and the heavy builds in each machine's `${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log` counted since the first logged line: how many, how many overlapped another (start plus duration), and how many ran on battery
 
 ## Context
 
@@ -52,7 +52,12 @@ starts is stopped when it ends.
    the machine is on battery when it has one and none is online; on macOS
    `pmset -g batt` says "Battery Power"; where neither answers, mains is
    assumed. `flock` is util-linux; without it the build runs unlocked and
-   says so.
+   says so. Each build the script runs appends one line, its UTC start,
+   the dotnet command, battery or mains and its duration in seconds, to
+   `${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log`: per user
+   and per machine, never in a repository (a relative `XDG_STATE_HOME` is
+   ignored), and a log it cannot write never fails the build. The log is
+   what the revisit counts (amended 2026-11-09).
 2. **Agents build Debug unless the change concerns Release behaviour.**
    The `/change` skill says so, and sends a heavy build through the
    script.
@@ -133,6 +138,13 @@ needs the conditions, not a count.
 
 Recommendation: amend (have `scripts/heavy-build.sh` log each heavy build
 it runs, so the first Revisit question is countable without transcripts)
+
+### Amended 2026-11-09
+
+The Project Lead said yes to the amendment. Point 1 now logs each heavy
+build the script runs to the user's state directory, and the Revisit line
+counts from that log. A heavy build run outside the script is still not
+logged; the planned hook is what would count it. Status stays `proposed`.
 
 ## Considered options
 
