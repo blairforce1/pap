@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.15.0] - 2026-11-09
+
 #### Added
 
 - `pap repo status` reports, in a public repository, whether an active
