@@ -37,8 +37,10 @@ which has no caller yet. One-time ruleset bypass; see
 due to a scheduled brownout of the default `pull_request_target`
 protection".** The repository is public, and GitHub's default event policy
 blocks `pull_request_target` there (brownouts now, enforced from
-2026-12-02). Create an Actions policy that permits `pull_request_target`
-for `.github/workflows/pr-checks.yml` only, then re-run the check; see
+2026-12-02). In the repository's Settings > Actions > Policies, create
+an Active policy for the workflow path `.github/workflows/pr-checks.yml`
+whose allowed events are `pull_request_target` only, then push or re-run
+the check; see
 [Adopt a repository](adopt-a-repo.md#public-repositories-allow-pull_request_target).
 `pap repo status` shows whether one applies. During a brownout window
 with no policy, the failure is GitHub's, not the pull request's.

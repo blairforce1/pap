@@ -178,15 +178,31 @@ ends in `startup_failure`, with "Workflows are being blocked due to a
 scheduled brownout of the default `pull_request_target` protection" (or,
 after enforcement, a block by the default policy).
 
-The fix, once per public repository or once for the organisation: in
-Settings > Actions > Policies, create a policy whose event rule permits
-`pull_request_target`, targeted at the workflow path
-`.github/workflows/pr-checks.yml` only, and set it active. An
-organisation policy also targets the repositories it covers. Do not allow
-the event for every workflow: any other workflow on it would get the same
-privileged run without the same care. `pap repo status` reports the item
-as ok, missing, drift (allowed for every workflow) or skipped (the
-policies API did not answer).
+A repository needs this only if one of its own workflows triggers on
+`pull_request_target`: every adopting repository's `pr-checks` caller
+does; `blairforce1/.github`, which hosts the reusable workflow and runs
+its own CI on `pull_request`, needs none.
+
+The fix: an Actions policy. A personal account has no account-level
+Actions settings page, so set it on each repository (the repository's
+Settings > Actions > Policies); an organisation can set it once under its
+own Settings > Actions > Policies, targeting the repositories it covers.
+Create a policy with, in order:
+
+- **Name**: for example `pr-checks pull_request_target`.
+- **Enforcement status**: Active. Disabled does nothing, and Evaluate
+  (Enterprise only) only reports.
+- **Target**: Include by pattern, workflow path pattern
+  `.github/workflows/pr-checks.yml`.
+- **Restrict events**: ticked, with Allowed events trimmed to
+  `pull_request_target` only. The list is an allowlist that starts with
+  every event: use Deselect all, then Add values.
+
+Do not allow the event for every workflow: any other workflow on it would
+get the same privileged run without the same care. `pap repo status`
+reports the item as ok, missing, drift (allowed for every workflow) or
+skipped (the policies API did not answer; reading it needs administration
+access).
 
 Why that is safe for `pr-checks`: GitHub runs the base branch's copy of
 the caller, so a pull request cannot edit its own required check; the
