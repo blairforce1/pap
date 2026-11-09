@@ -175,6 +175,22 @@ not carry.
   protection and CodeQL default setup `skipped`, "not visible to this token", instead of drift and error, and
   still compares the rest of each ruleset; `pap repo apply` from such a
   token refuses before writing anything.
+#### Added
+
+- Three agents in `plugins/pap/agents/` (decision 0024): `pap:cycle`, the
+  agent a PM launches a cycle as, with only Bash, Read, Edit, Write, Grep,
+  Glob, Skill and Agent, so it starts without the session's MCP tool
+  schemas; `pap:cycle-mechanical`, the same on Haiku, for version bumps
+  and syncs; and `pap:reviewer`, read-only on Sonnet, for the cold review.
+- `tests/plugin-agents.test.sh` checks each agent file has frontmatter
+  with `name`, `tools` and `model`.
+
+#### Changed
+
+- `/change` step 5 spawns the cold reviewer as `pap:reviewer`, falling
+  back to a general-purpose subagent where the session cannot load it,
+  and skips it for a mechanical change: only version strings, unedited
+  sync output and changelog moves (decision 0024).
 
 ### [0.15.0] - 2026-11-09
 

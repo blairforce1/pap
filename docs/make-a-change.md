@@ -123,7 +123,10 @@ return to spec, not a fix.
 Before the pull request it runs `mise run check` and `mise run test`, and
 has the branch reviewed cold (decision 0019): a read-only subagent given
 only the brief and the diff, running `/code-review low` where that skill
-exists. Each finding is fixed or answered in the pull request.
+exists. The subagent is `pap:reviewer` (decision 0024), or a
+general-purpose one told to edit nothing where the session cannot load
+it. A mechanical change (version strings, unedited sync output,
+changelog moves) skips the review, and Verification says so. Each finding is fixed or answered in the pull request.
 
 Then it pushes and opens the draft pull request with the `class:<class>`
 label and a body in the template's order: `Change:` and `Record:` lines,

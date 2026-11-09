@@ -151,7 +151,7 @@ The spec of a feature, security-sensitive or bugfix change adds or changes at le
 A session that launches cycles opens no change pull request (process housekeeping the human asks for excepted), adds no `owner-reviewed`, writes no `Approved-by:`, merges nothing, writes no GitHub or repository settings, and does no act a hook refused a cycle.
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md) and [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
-- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:member` agent is the only route to `/change` under it.
+- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:cycle` and `pap:cycle-mechanical` agents (decision 0024) are the only routes to `/change` under it.
 
 ### 18.2 A cycle is launched after a restated yes
 
@@ -186,20 +186,20 @@ Every rule an audit writes is classified as project or general. A general one go
 After the third message asking for changes since its first report, a cycle stops and starts its reply with `ASK:`, and the event log carries the return to the human. A fix round re-checks the diff since the last report only and repeats no earlier finding.
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
-- Enforced by: Nothing yet. Planned: `/pap:pm event` counts the messages to a cycle after its first report and refuses to log a fourth without a decision event beside it; the `pap:member` agent definition carries the `ASK:` line and the diff-since-last-report rule.
+- Enforced by: Nothing yet. Planned: `/pap:pm event` counts the messages to a cycle after its first report and refuses to log a fourth without a decision event beside it; the `pap:cycle` agent definition carries the `ASK:` line and the diff-since-last-report rule.
 
 ### 18.7 Every brief carries a budget
 
 A cycle's brief names its budget in tokens or wall time, set from the last audit's medians; at the cap the cycle stops at its nearest safe point and ends with `PAUSED:` and what is left.
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
-- Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses a brief without a budget line; `/pap:pm audit` reports the medians the next budgets are set from; the `pap:member` agent definition carries the stop at the cap.
+- Enforced by: Partly: the `pap:cycle` agent definition carries the stop at the cap (decision 0024). Planned: `/pap:pm launch` refuses a brief without a budget line; `/pap:pm audit` reports the medians the next budgets are set from.
 
 ### 19.1 A cold review runs before a draft pull request
 
-Before `/change` opens its draft pull request, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` against the worktree where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
+Before `/change` opens its draft pull request, unless the change is mechanical as decision 0024 defines it, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` against the worktree where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
 
-- Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md)
+- Decision: [0019](decisions/0019-a-cold-review-runs-before-every-draft-pr.md), amended by [0024](decisions/0024-cycles-run-as-slim-plugin-agents.md)
 - Enforced by: Nothing yet. Taught by the `/change` skill ([`plugins/pap/skills/change/SKILL.md`](plugins/pap/skills/change/SKILL.md), step 5); nothing refuses a pull request whose Verification lacks the row.
 
 ### 20.1 Intent is accepted by a recorded yes, before the spec and the code
