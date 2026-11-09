@@ -58,11 +58,12 @@ EOF
 # What Claude Code's Bash tool does: CLAUDECODE set, a plain sh -c.
 cat > "$T/fake/claude" <<'EOF'
 #!/bin/sh
-cd "$FAKE_REPO" && CLAUDECODE=1 sh -c 'command -v gh; gh api user' > "$FAKE_CLAUDE" 2>&1
+cd "$FAKE_REPO" && CLAUDECODE=1 sh -c 'command -v gh; gh api user; git config --get credential.https://github.com.useHttpPath' > "$FAKE_CLAUDE" 2>&1
 EOF
 printf '#!/bin/sh\nexit 0\n' > "$T/repo/scripts/guard-branch.sh"
 chmod +x "$T/realgh/gh" "$T/fake/claude" "$T/repo/scripts/guard-branch.sh"
 git -C "$T/repo" init -q
+git -C "$T/repo" remote add origin https://github.com/example-owner/repo.git
 
 # PATH without any copy of the shim: under `mise run test` pap's own
 # scripts/shim is on PATH, and must not stand in for pap claude's. The fake
@@ -87,5 +88,7 @@ out="$(cat "$FAKE_CLAUDE" 2>&1)"
 result $? "pap claude: in a non-interactive agent shell, command -v gh is this pap's shim" "rc=$rc $out"
 printf '%s\n' "$out" | grep -qx 'real gh GH_TOKEN=ghs_faketoken api user'
 result $? "pap claude: gh runs the shim, which sets GH_TOKEN from pap agent-token and runs the real gh" "$out"
+[ "$(printf '%s\n' "$out" | sed -n 3p)" = true ]
+result $? "pap claude: git sends the repository path to the credential helper (useHttpPath)" "$out"
 
 [ "$failed" = 0 ] || exit 1

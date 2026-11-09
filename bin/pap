@@ -11,7 +11,7 @@
 #        pap coverage
 #        pap measure <record> [--from #<pr>] [--verdict <column> <direction>]
 #        pap agent-key import <pem> [--client-id <id>] | status
-#        pap agent-token [--owner <login>]
+#        pap agent-token [--owner <login> | --repo <owner>/<name>]
 #        pap agent-setup [--owner <login>] [--name <app-name>]
 #        pap claude [<claude args>...]
 #        pap version
@@ -105,6 +105,10 @@
 # agent-token
 #         Decision 0023: prints an installation token of pap-agent for the
 #         repository owner (--owner, else the owner in origin's GitHub URL).
+#         With --repo the token is scoped to that one repository, and a
+#         repository the installation does not cover fails by name; the gh
+#         shim mints this way, so an uncovered repository is refused before
+#         git or gh talks to GitHub.
 #         Signs a JWT (RS256, iss the client id, ten minutes) with openssl,
 #         the machine's, which the base layer does not pin, and exchanges it
 #         through curl. Caches token and expiry at mode 0600 in
@@ -135,7 +139,9 @@
 #         stored GitHub account, and only the gh shim's pap-agent token
 #         works (rule 23.4). It puts this pap's own scripts/shim first
 #         on PATH, since Claude Code's non-interactive shells never get
-#         mise's [env]. Start every Claude Code session with it.
+#         mise's [env], and sets credential.https://github.com.useHttpPath
+#         through GIT_CONFIG_COUNT so git names the repository to the
+#         shim. Start every Claude Code session with it.
 #
 # <v> defaults to this pap's own version: the VERSION file a release
 # carries or, run from a git checkout of pap, the v<x.y.z> tag on the
@@ -571,13 +577,16 @@ d_agent() {
       esac
       if [ "$a_key" = true ] && [ -n "$cid" ] && [ "$a_tools" = true ]; then
         workdir
-        if err="$( (cmd_agent_token --owner "$owner") 2>&1 >/dev/null)"; then
-          item ok "pap-agent installed on $owner" "a token mints"
+        # Scoped to this repository, as the shim mints: an installation on
+        # the owner that was not given this repository fails by name. The
+        # token goes to /dev/null, never the screen.
+        if err="$( (cmd_agent_token --repo "$slug") 2>&1 >/dev/null)"; then
+          item ok "pap-agent installation covers $slug" "a token scoped to it mints"
         else
-          item missing "pap-agent installed on $owner" "${err#pap: agent-token: }"
+          item missing "pap-agent installation covers $slug" "${err#pap: agent-token: }"
         fi
       elif [ "$in_box" = false ]; then
-        item skipped "pap-agent installed on $owner" "needs the key, the client id, openssl and curl"
+        item skipped "pap-agent installation covers $slug" "needs the key, the client id, openssl and curl"
       fi
     fi
   fi
@@ -908,13 +917,13 @@ a_jwt() {
   printf '%s.%s.%s\n' "$h" "$p" "$sig"
 }
 
-# a_call <method> <path> <jwt>: sets a_code and leaves the body in
-# $work/resp. The JWT goes to curl on stdin, never in argv. Dies when
-# GitHub cannot be reached.
+# a_call <method> <path> <jwt> [<json body>]: sets a_code and leaves the
+# body in $work/resp. The JWT goes to curl on stdin, never in argv. Dies
+# when GitHub cannot be reached.
 a_call() {
   workdir
   if ! a_code="$(printf 'header = "Authorization: Bearer %s"\n' "$3" |
-    curl -sS -X "$1" -o "$work/resp" -w '%{http_code}' --config - \
+    curl -sS -X "$1" -o "$work/resp" -w '%{http_code}' --config - ${4:+-d "$4"} \
       -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
       --connect-timeout 10 --max-time 30 "$a_api$2" 2>/dev/null)"; then
     die "agent-token: GitHub unreachable at $a_api; check the network and try again"
@@ -934,7 +943,7 @@ a_installation() {
       a_call GET "/$kind/$1/installation" "$2"
       [ "$a_code" = 404 ] || break
     done
-    [ "$a_code" != 404 ] || die "agent-token: pap-agent is not installed on $1; install it there with this repository selected"
+    [ "$a_code" != 404 ] || die "agent-token: pap-agent is not installed on $1; install it there with this repository selected (pap agent-setup)"
     [ "$a_code" = 200 ] || a_refused "the installation lookup for $1"
     id="$(jq -r '.id // empty' "$work/resp")"
     [ -n "$id" ] || die "agent-token: GitHub's installation answer for $1 had no id"
@@ -997,10 +1006,15 @@ cmd_agent_key() {
 
 cmd_agent_token() {
   a_cf="$(a_config)"
-  owner=""
+  owner="" name=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --owner) [ $# -ge 2 ] || usage; owner="$2"; shift 2 ;;
+      --repo)
+        [ $# -ge 2 ] && [ -z "$owner" ] || usage
+        owner="${2%%/*}" name="${2#*/}"; shift 2
+        printf '%s' "$name" | grep -Eq '^[A-Za-z0-9._-]{1,100}$' && [ "$name" != . ] && [ "$name" != .. ] ||
+          die "agent-token: '$owner/$name' is not a GitHub repository" ;;
       *) usage ;;
     esac
   done
@@ -1017,7 +1031,8 @@ cmd_agent_token() {
   # shellcheck disable=SC2012 # one known directory, only its owner column
   [ ! -L "$dir" ] && [ "$(ls -ldn "$dir" | awk '{ print $3 }')" = "$(id -u)" ] || die "agent-token: $dir is not this user's own directory; remove it"
   chmod 700 "$dir"
-  cache="$dir/token-$owner"
+  # A login has no dot, so token-<owner>.<name> never meets token-<owner>.
+  cache="$dir/token-$owner${name:+.$name}"
   now="$(date +%s)"
   c_exp="" c_tok=""
   [ ! -f "$cache" ] || [ -L "$cache" ] || read -r c_exp c_tok < "$cache" || true
@@ -1035,15 +1050,20 @@ cmd_agent_token() {
   [ -n "$cid" ] || die "agent-token: no client id in $a_cf; run pap agent-key import <pem> --client-id <id>"
   jwt="$(a_jwt "$cid")" || die "agent-token: openssl could not sign with the key in the keyring; re-import it"
   inst="$(a_installation "$owner" "$jwt")" || exit 1
-  a_call POST "/app/installations/$inst/access_tokens" "$jwt"
+  body=""
+  [ -z "$name" ] || body="$(jq -cn --arg r "$name" '{repositories: [$r]}')"
+  a_call POST "/app/installations/$inst/access_tokens" "$jwt" "$body"
   if [ "$a_code" = 404 ]; then
     # The cached installation is gone (uninstalled, or reinstalled under a
     # new id): look it up once more.
     conf_unset "installation.$owner"
     inst="$(a_installation "$owner" "$jwt")" || exit 1
-    a_call POST "/app/installations/$inst/access_tokens" "$jwt"
+    a_call POST "/app/installations/$inst/access_tokens" "$jwt" "$body"
   fi
-  [ "$a_code" = 201 ] || a_refused "an installation token for $owner"
+  # 422: the repository is not one the installation was given.
+  [ -z "$name" ] || [ "$a_code" != 422 ] ||
+    die "agent-token: pap-agent's installation on $owner does not cover $owner/$name; add the repository on the installation's page (pap agent-setup opens it)"
+  [ "$a_code" = 201 ] || a_refused "an installation token for $owner${name:+/$name}"
   tok="$(jq -r '.token // empty' "$work/resp")"
   t_exp="$(jq -r '.expires_at // empty | fromdateiso8601' "$work/resp" 2>/dev/null || true)"
   [ -n "$tok" ] && [ -n "$t_exp" ] || die "agent-token: GitHub's token answer had no token or expiry"
@@ -1297,7 +1317,14 @@ cmd_claude() {
   # tool runs commands non-interactively, so mise's [env] never reaches them.
   [ -x "$root/scripts/shim/gh" ] || die "claude: no gh shim at $root/scripts/shim/gh"
   PATH="$root/scripts/shim:$PATH"
-  export GH_CONFIG_DIR PATH
+  # git sends the repository's path to the credential helper, so the shim
+  # can scope the token to it; appended to any GIT_CONFIG_* already set.
+  n="${GIT_CONFIG_COUNT:-0}"
+  case "$n" in "" | *[!0-9]*) n=0 ;; esac
+  eval "GIT_CONFIG_KEY_$n=credential.https://github.com.useHttpPath GIT_CONFIG_VALUE_$n=true"
+  export "GIT_CONFIG_KEY_$n" "GIT_CONFIG_VALUE_$n"
+  GIT_CONFIG_COUNT=$((n + 1))
+  export GH_CONFIG_DIR PATH GIT_CONFIG_COUNT
   exec claude "$@"
 }
 

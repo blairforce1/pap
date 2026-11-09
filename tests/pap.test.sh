@@ -527,16 +527,20 @@ ln -s "$(command -v jq)" "$T/agent/jq"
 cat > "$T/agent/curl" <<'EOF'
 #!/bin/sh
 cat >/dev/null
-out="" url=""
+out="" url="" data=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) out="$2"; shift 2 ;;
+    -d) data="$2"; shift 2 ;;
     -X | -w | -H | --connect-timeout | --max-time | --config) shift 2 ;;
     -*) shift ;;
     *) url="$1"; shift ;;
   esac
 done
 f="$FAKE_GH/$(printf '%s' "${url#http://github.invalid/}" | tr '/' '_')"
+# A scoped mint for a repository listed in deny-<name>: not in the installation.
+r="$(printf '%s' "$data" | jq -r '.repositories[0]? // empty' 2>/dev/null)"
+[ -z "$r" ] || [ ! -f "$FAKE_GH/deny-$r" ] || f="$FAKE_GH/deny-$r"
 if [ -f "$f" ]; then head -n 1 "$f" | tr -d '\n'; tail -n +2 "$f" > "$out"
 else printf 404; echo '{"message":"Not Found"}' > "$out"; fi
 EOF
@@ -559,8 +563,16 @@ out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
 [ "$rc" = 1 ] &&
   printf '%s\n' "$out" | grep -qF 'missing  origin is HTTPS  (git remote set-url origin https://github.com/example-owner/app.git)' &&
   printf '%s\n' "$out" | grep -qF "drift    gh is git's credential helper for github.com  (it calls !/opt/gh/bin/gh by path, past the shim" &&
-  printf '%s\n' "$out" | grep -qF 'ok       pap-agent installed on example-owner  (a token mints)'
+  printf '%s\n' "$out" | grep -qF 'ok       pap-agent installation covers example-owner/app  (a token scoped to it mints)'
 result $? "doctor, agent app: an SSH origin with the set-url fix, a helper by path, the installation" "$out"
+printf '422\n{"message":"There is at least one repository that does not exist or is not accessible to the parent installation."}\n' > "$FAKE_GH/deny-app"
+rm -rf "$T/run" && mkdir "$T/run"
+out="$(doctor MISE_SHELL=bash PATH="$apath")"; rc=$?
+[ "$rc" = 1 ] &&
+  printf '%s\n' "$out" | grep -qF "missing  pap-agent installation covers example-owner/app  (pap-agent's installation on example-owner does not cover example-owner/app; add the repository on the installation's page" &&
+  ! printf '%s\n' "$out" | grep -q ghs_
+result $? "doctor, agent app: an installation that does not cover this repository names it, and no token is printed" "$out"
+rm "$FAKE_GH/deny-app"
 out="$(fixdoctor MISE_SHELL=bash PATH="$apath")"
 [ "$(git -C "$T/app" remote get-url origin)" = git@github.com:example-owner/app.git ] &&
   ! grep -qi insteadof "$GIT_CONFIG_GLOBAL" &&
@@ -594,7 +606,7 @@ result $? "doctor, agent app: an empty helper before gh clears the others, as gh
 rm -rf "$T/run" && mkdir "$T/run"
 git -C "$T/app" remote set-url origin https://github.com/other-owner/app.git
 missing "doctor, agent app: no installation for the owner names it" \
-  'missing  pap-agent installed on other-owner  (pap-agent is not installed on other-owner' PATH="$apath"
+  'missing  pap-agent installation covers other-owner/app  (pap-agent is not installed on other-owner' PATH="$apath"
 
 : > "$FAKE_KEYRING"
 missing "doctor, agent app: a missing key names the import" \

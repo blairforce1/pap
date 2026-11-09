@@ -63,10 +63,11 @@ cat > "$T/fake/curl" <<'EOF'
 #!/bin/sh
 # Records "<argv>" and the stdin config; answers from $FAKE_GH/<METHOD>_<path>.
 [ -z "${FAKE_GH_DOWN:-}" ] || { cat >/dev/null; exit 7; }
-out="" url="" method=GET argv="$*"
+out="" url="" method=GET argv="$*" data=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) out="$2"; shift 2 ;;
+    -d) data="$2"; shift 2 ;;
     -X) method="$2"; shift 2 ;;
     -w | -H | --connect-timeout | --max-time | --config) shift 2 ;;
     -*) shift ;;
@@ -75,8 +76,11 @@ while [ $# -gt 0 ]; do
 done
 cfg="$(cat)"
 path="/${url#http://github.invalid/}"
-printf 'ARGV %s\nREQ %s %s\nCFG %s\n' "$argv" "$method" "$path" "$cfg" >> "$FAKE_GH/log"
+printf 'ARGV %s\nREQ %s %s\nCFG %s\nDATA %s\n' "$argv" "$method" "$path" "$cfg" "$data" >> "$FAKE_GH/log"
 f="$FAKE_GH/$(printf '%s_%s' "$method" "$path" | tr '/' '_')"
+# A scoped mint for a repository with a deny-<name> file: not in the installation.
+r="$(printf '%s' "$data" | jq -r '.repositories[0]? // empty' 2>/dev/null)"
+[ -z "$r" ] || [ ! -f "$FAKE_GH/deny-$r" ] || f="$FAKE_GH/deny-$r"
 if [ -f "$f" ]; then code="$(head -n 1 "$f")"; body="$(tail -n +2 "$f")"
 else code=404; body='{"message":"Not Found"}'; fi
 # -o names the body's file; without it the body goes to stdout before the code.
@@ -86,9 +90,18 @@ EOF
 # pap on PATH, as mise provides it in an adopting repository.
 # shellcheck disable=SC2016 # expands in the stub, not here
 printf '#!/bin/sh\nexec sh "%s" "$@"\n' "$pap" > "$T/fake/pap"
-# The real gh: logs the token it was given and its arguments.
-# shellcheck disable=SC2016 # expands in the stub, not here
-printf '#!/bin/sh\nprintf "GH_TOKEN=%%s args=%%s\\n" "${GH_TOKEN-<unset>}" "$*" >> "%s/gh.log"\n' "$T" > "$T/realgh/gh"
+# The real gh: logs the token it was given and its arguments. Asked by git
+# for a credential with no GH_TOKEN, it answers with the owner's token, as
+# gh 2.97 does from the keyring with an empty config directory
+# (docs/agent-identity-security.md); with GH_TOKEN, it answers with that.
+cat > "$T/realgh/gh" <<EOF
+#!/bin/sh
+printf 'GH_TOKEN=%s args=%s\\n' "\${GH_TOKEN-<unset>}" "\$*" >> "$T/gh.log"
+if [ "\$1 \$2" = "auth git-credential" ]; then
+  cat >/dev/null
+  printf 'protocol=https\\nhost=github.com\\nusername=x-access-token\\npassword=%s\\n' "\${GH_TOKEN:-gho_OWNER_FROM_KEYRING}"
+fi
+EOF
 chmod +x "$T"/fake/* "$T/realgh/gh"
 
 export PATH="$T/fake:$T/realgh:$PATH"
@@ -205,7 +218,7 @@ result $? "agent-token: GitHub unreachable, one line, exits 1" "$out"
 
 fresh
 out="$(p agent-token --owner other-owner 2>&1)"; rc=$?
-[ "$rc" = 1 ] && [ "$out" = "pap: agent-token: pap-agent is not installed on other-owner; install it there with this repository selected" ]
+[ "$rc" = 1 ] && [ "$out" = "pap: agent-token: pap-agent is not installed on other-owner; install it there with this repository selected (pap agent-setup)" ]
 result $? "agent-token: no installation for the owner, one line, exits 1" "$out"
 
 fresh
@@ -246,9 +259,10 @@ out="$(gh_run "$T/repo")"
 grep -qx 'GH_TOKEN=<unset> args=pr list' "$T/gh.log"
 result $? "shim: without CLAUDECODE, gh unchanged" "$(cat "$T/gh.log")"
 
-out="$(gh_run "$T/plain" CLAUDECODE=1)"
-grep -qx 'GH_TOKEN=<unset> args=pr list' "$T/gh.log"
-result $? "shim: CLAUDECODE in a repository that does not adopt PAP, gh unchanged" "$(cat "$T/gh.log")"
+out="$(gh_run "$T/plain" CLAUDECODE=1)"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list' "$T/gh.log" &&
+  grep '^DATA' "$FAKE_GH/log" | tail -n 1 | grep -qx 'DATA {"repositories":\["plain"\]}'
+result $? "shim: a pap claude session in a repository that does not adopt PAP mints too, scoped to origin's repository" "$out $(cat "$T/gh.log")"
 
 # Rule 23.4: an agent session not started by pap claude is refused.
 for v in '' "$T/xdg/gh"; do
@@ -311,6 +325,93 @@ mkdir "$T/empty"
 out="$(cd "$T/repo" && env PATH="$T/repo/scripts/shim:$T/empty" $to gh pr list 2>&1)"; rc=$?
 [ "$rc" = 127 ] && printf '%s\n' "$out" | grep -q 'no gh on PATH besides this shim'
 result $? "shim: no real gh, exits 127 naming it" "rc=$rc $out"
+
+# --- the shim in every directory (the owner-token finding) -------------------
+# Before this, a pap claude shell outside an adopting repository ran the real
+# gh unchanged, and gh's git-credential answered with the owner's keyring
+# token (the fake real gh above models it). Every case here is a pap claude
+# session: CLAUDECODE set and GH_CONFIG_DIR the agent directory.
+
+installed 3600 shim
+fresh
+agd="$T/xdg/gh-agent"
+sp="$T/repo/scripts/shim:$PATH"
+credreq() { # credreq <dir> <request>: the shim as git's helper
+  : > "$T/gh.log"
+  (cd "$1" && printf '%b\n' "$2" | env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE=1 gh auth git-credential get 2>"$T/cred.err")
+}
+for d in plain repo; do
+  out="$(credreq "$T/$d" "protocol=https\nhost=github.com\npath=example-owner/$d.git\n")"; rc=$?
+  [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qx 'password=ghs_fake_shim' &&
+    printf '%s\n' "$out" | grep -qx 'username=x-access-token' &&
+    ! printf '%s\n' "$out" | grep -q gho_OWNER && [ ! -s "$T/gh.log" ] &&
+    grep '^DATA' "$FAKE_GH/log" | tail -n 1 | grep -qx "DATA {\"repositories\":\\[\"$d\"\\]}"
+  result $? "shim: git-credential in the $d repository answers a token scoped to the request's path, never the owner's" "rc=$rc $out $(cat "$T/cred.err" "$T/gh.log")"
+done
+
+# git itself, end to end, with no network: credential fill runs the helper.
+gitfill() { # gitfill <dir> <url>
+  (cd "$1" && printf 'url=%s\n\n' "$2" |
+    env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE=1 GIT_TERMINAL_PROMPT=0 GIT_ASKPASS= SSH_ASKPASS= \
+      git -c credential.helper= -c 'credential.helper=!gh auth git-credential' -c credential.useHttpPath=true credential fill 2>"$T/cred.err")
+}
+out="$(gitfill "$T/plain" https://github.com/example-owner/elsewhere.git)"; rc=$?
+[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qx 'password=ghs_fake_shim' &&
+  grep '^DATA' "$FAKE_GH/log" | tail -n 1 | grep -qx 'DATA {"repositories":\["elsewhere"\]}'
+result $? "shim: git credential fill for any github.com repository goes through the shim's scoped token" "rc=$rc $out $(cat "$T/cred.err")"
+
+printf '422\n{"message":"There is at least one repository that does not exist or is not accessible to the parent installation."}\n' > "$FAKE_GH/deny-private-companion"
+out="$(gitfill "$T/plain" https://github.com/example-owner/private-companion.git)"; rc=$?
+[ "$rc" != 0 ] && ! printf '%s\n' "$out" | grep -q '^password=' &&
+  grep -q "^gh (pap shim): pap-agent's installation on example-owner does not cover example-owner/private-companion; add the repository on the installation's page (pap agent-setup opens it)" "$T/cred.err"
+result $? "shim: a repository the installation does not cover is refused by name, and no other credential answers" "rc=$rc $out $(cat "$T/cred.err")"
+out="$(credreq "$T/plain" "protocol=https\nhost=github.com\npath=example-owner/private-companion.git\n")"; rc=$?
+[ "$rc" = 1 ] && [ "$out" = quit=1 ] && [ ! -s "$T/gh.log" ]
+result $? "shim: the refused credential tells git quit=1, and the real gh is never asked" "rc=$rc $out"
+
+out="$(credreq "$T/plain" "protocol=https\nhost=github.com\n")"; rc=$?
+[ "$rc" = 1 ] && [ "$out" = quit=1 ] && [ ! -s "$T/gh.log" ] && grep -q 'no repository path.*useHttpPath true' "$T/cred.err"
+result $? "shim: a credential request with no path is refused naming useHttpPath" "rc=$rc $out $(cat "$T/cred.err")"
+out="$(credreq "$T/plain" "protocol=https\nhost=ghe.example.com\npath=example-owner/plain.git\n")"; rc=$?
+[ "$rc" = 1 ] && [ "$out" = quit=1 ] && [ ! -s "$T/gh.log" ] && grep -q 'answers only for https://github.com' "$T/cred.err"
+result $? "shim: a credential request for another host is refused" "rc=$rc $out $(cat "$T/cred.err")"
+
+ghx() { # ghx <dir> [VAR=value...] <gh args...>: the shim in a pap claude session
+  dir="$1"; shift
+  : > "$T/gh.log"
+  (cd "$dir" && env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE=1 gh "$@" 2>&1)
+}
+lastrepo() { grep '^DATA' "$FAKE_GH/log" | tail -n 1 | sed 's/^DATA //' | jq -r '.repositories[0]'; }
+mkdir -p "$T/norepo"
+out="$(ghx "$T/norepo" api /user)"; rc=$?
+[ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] && printf '%s\n' "$out" | grep -q '^gh (pap shim): no repository to act for'
+result $? "shim: a call with no repository context is refused, the real gh never runs" "rc=$rc $out"
+out="$(ghx "$T/norepo" pr list -R example-owner/other)"; rc=$?
+[ "$rc" = 0 ] && [ "$(lastrepo)" = other ] && grep -qx 'GH_TOKEN=ghs_fake_shim args=pr list -R example-owner/other' "$T/gh.log"
+result $? "shim: -R names the repository the token is scoped to" "rc=$rc $out"
+out="$(ghx "$T/plain" api --method GET repos/example-owner/third/pulls)"; rc=$?
+[ "$rc" = 0 ] && [ "$(lastrepo)" = third ]
+result $? "shim: gh api repos/<owner>/<name>/... is scoped to that repository" "rc=$rc $out $(lastrepo)"
+out="$(ghx "$T/plain" pr list --repo=https://github.com/other-owner/x.git)"; rc=$?
+[ "$rc" = 1 ] && [ ! -s "$T/gh.log" ] && printf '%s\n' "$out" | grep -q 'pap-agent is not installed on other-owner'
+result $? "shim: no installation for the repository's owner, refused, the real gh never runs" "rc=$rc $out"
+out="$(ghx "$T/plain" pr list -R ghe.example.com/example-owner/x)"; rc=$?
+[ "$rc" = 1 ] && [ ! -s "$T/gh.log" ]
+result $? "shim: a repository on another host is refused" "rc=$rc $out"
+
+mv "$FAKE_KEYRING" "$T/keyring.away"; fresh
+: > "$T/gh.log"
+out="$(cd "$T/norepo" && env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE=1 REMOTE_CONTAINERS=true gh api /user 2>&1)"; rc=$?
+[ "$rc" = 0 ] && grep -qx 'GH_TOKEN=<unset> args=api /user' "$T/gh.log"
+result $? "shim: a dev container with no key steps aside in any directory" "rc=$rc $out"
+mv "$T/keyring.away" "$FAKE_KEYRING"
+
+# The hook's question: a session not started by pap claude fails the check
+# in any directory, so the hook can refuse outside adopting repositories.
+(cd "$T/norepo" && env PATH="$sp" GH_CONFIG_DIR= CLAUDECODE=1 PAP_SHIM_CHECK=1 gh >/dev/null 2>&1); rc1=$?
+(cd "$T/norepo" && env PATH="$sp" GH_CONFIG_DIR="$agd" CLAUDECODE=1 PAP_SHIM_CHECK=1 gh >/dev/null 2>&1); rc2=$?
+[ "$rc1" = 1 ] && [ "$rc2" = 0 ]
+result $? "shim: check mode answers the session question outside a repository too" "rc1=$rc1 rc2=$rc2"
 
 # --- agent-setup ---------------------------------------------------------------
 
