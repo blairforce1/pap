@@ -476,6 +476,17 @@ answers are the points above.
   ruleset is still compared, and `pap repo apply` refuses before any
   write. An admin token that sees an empty list gets drift, never the
   skip. Rule 23.3 names its enforcer.
+  Note (2026-11-09): slice d applied. On a personal repository GitHub
+  accepted the owner's `User` actor; the `RepositoryRole` retry was not
+  needed, and stays as the fallback. On an organisation's repository
+  `OrganizationAdmin` covers every admin of the organisation, not one
+  person: each of them may force-push any branch but `main`, so an
+  organisation that adopts PAP keeps its admins to the people it would
+  trust with that override. With slice c (blairforce1/.github#17: the
+  `owner-reviewed` gate and the merge report) and the pr-checks bot
+  allowlist (blairforce1/.github#18) shipped, and slice e's guides and
+  dated notes (0022's, then 0007, 0016 and 0018), slices a to e are
+  complete. This record's status is unchanged.
 
 ## Where it is taught or enforced
 

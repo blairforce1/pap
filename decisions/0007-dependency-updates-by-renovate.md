@@ -109,6 +109,11 @@ well enough.
   class label. The same pull request found that the hosted app reads
   configuration through the GitHub API, which does not follow symlinks, so
   pap carries a copy of the template file, not a link to it.
+- 2026-11-09, found with decision 0023 (blairforce1/.github#18): the
+  exemption is an exact allowlist, `renovate[bot]` and `dependabot[bot]`,
+  no longer any login ending in `[bot]`. Agent pull requests now come
+  from the agent app (`<owner>-pap-agent[bot]`), and must be checked as a
+  person's are, Checks section and provenance included.
 
 ## Where it is taught or enforced
 

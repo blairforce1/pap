@@ -255,6 +255,11 @@ so everything that must survive is either in the brief or committed.
   designed separately. The record ships with the first of them, so the
   tag that changes what the process asks of a human ships the tool
   (0001).
+  Note (2026-11-09): decision 0024 shipped the agent as `pap:cycle`, not
+  `pap:member`, with `pap:cycle-mechanical` for version bumps and syncs
+  and `pap:reviewer` for the cold review; read `pap:cycle` where this
+  record says `pap:member`. Since pap#118 a cycle first changes to the
+  repository its brief names. This record's status is unchanged.
 - Easier: a second project starts with the eleven rules instead of the
   eleven misses.
 - Easier: a shutdown costs nothing committed. The tracker, the save
