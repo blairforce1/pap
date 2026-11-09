@@ -164,6 +164,13 @@ not carry.
 - `.github/risk.yml` rates `bin/pap`, `scripts/shim/**` and the
   `reviewed` and `accept` skills high (decision 0023): a pull request
   changing agent identity now needs `owner-reviewed`, not just a merge.
+- The `pap-agent` app asks for Actions read (decision 0023, note of
+  2026-11-09), so an agent session can read its own workflow runs and job
+  logs. It also reads artifacts and caches; it cannot re-run, cancel or
+  dispatch, and sees no secret. Never upload a secret as an artifact:
+  GitHub masks registered secrets in logs, not artifacts. An existing app
+  gains it by hand ([account
+  setup](docs/account-setup.md#adding-a-permission-to-an-existing-app)).
 
 ### [0.14.0] - 2026-11-09
 

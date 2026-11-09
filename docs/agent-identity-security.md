@@ -18,16 +18,31 @@ when you installed it:
 | Pull requests   | read/write | open and edit pull requests, their labels and comments |
 | Workflows       | read/write | push files under `.github/workflows/`                  |
 | Checks          | read       | read check results                                     |
+| Actions         | read       | read workflow runs, job logs, artifacts and caches     |
 | Commit statuses | read       | read statuses                                          |
 | Metadata        | read       | read the repository (GitHub requires it)               |
 
-It has no Administration, Issues, Actions, Secrets, Members or
-organisation permission, so GitHub refuses it any settings, ruleset or
+It has no Administration, Issues, Secrets, Members or organisation
+permission, so GitHub refuses it any settings, ruleset or
 branch-protection write. GitHub does not refuse it a merge: merging needs
 only Contents and Pull requests. The guard hook refuses an agent's `gh pr
 merge` (rule 16.2); a merge report in `pr-checks` comes with slice (c).
 Commits stay yours: authored and SSH-signed by you, with the model in the
 `Co-Authored-By` trailer.
+
+Actions read lets a session read its own CI: the workflow runs, the job
+logs, the artifacts and the caches of the repositories the app is
+installed on (`gh run view --log-failed`, and `gh pr checks`' lookup of
+the workflow run). It does not let it re-run, cancel or dispatch a
+workflow, or change Actions settings: those need Actions write. It does
+not reach secrets: GitHub exposes no secret value through the API, and
+listing a repository's secret names needs the Secrets permission, which
+the app does not have. The risk is what a workflow leaves behind: a log
+or an artifact holding sensitive data is readable by every agent session
+on that repository. GitHub masks registered secrets in logs, not in
+artifacts, and not a value a step prints that was never registered as a
+secret. So never upload a secret, a token or real data as an artifact;
+the app covers only the repositories you selected when you installed it.
 
 ## What keeps your sign-in from an agent
 

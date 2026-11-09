@@ -171,6 +171,17 @@ by pap claude`, outside an adopting repository.** When the session's
 project adopts PAP, the hook needs `pap claude` for `gh` and git to
 GitHub in any directory. Quit and run `pap claude`.
 
+**`Resource not accessible by integration` (HTTP 403) from `gh run view`,
+`gh run view --log-failed` or `gh pr checks`.** The app's installation on
+that owner lacks Actions read: the app was registered before the
+manifest asked for it, or the installation's owner has not accepted the
+new permission. Add it and
+accept it ([account
+setup](account-setup.md#adding-a-permission-to-an-existing-app)). A token
+cached from before the acceptance keeps the old permissions for its hour;
+wait it out, or remove the token cache, `$XDG_RUNTIME_DIR/pap-agent-<uid>`
+(`$TMPDIR` on macOS), so the next call mints afresh.
+
 **`GitHub unreachable at https://api.github.com; check the network and
 try again`.** curl could not reach the API. Check the network or a proxy;
 nothing is cached past a token's hour.

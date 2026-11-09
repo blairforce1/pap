@@ -168,9 +168,9 @@ The same, step by step, when `pap agent-setup` cannot run:
    - Webhook: untick **Active**. The app takes no webhook.
    - Repository permissions, exactly these and nothing else: **Contents**
      read and write, **Pull requests** read and write, **Workflows** read
-     and write, **Checks** read-only, **Commit statuses** read-only,
-     **Metadata** read-only (GitHub sets it). No Issues, no
-     Administration, no Actions, no Secrets, no organisation or account
+     and write, **Checks** read-only, **Actions** read-only, **Commit
+     statuses** read-only, **Metadata** read-only (GitHub sets it). No
+     Issues, no Administration, no Secrets, no organisation or account
      permissions.
    - "Where can this GitHub App be installed?": **Any account**. A private
      app installs only on the account that owns it, and the organisations
@@ -228,6 +228,25 @@ shim acts only when Claude Code's `CLAUDECODE` is set. A dev container has
 no key, so there the shim steps aside and the container keeps your sign-in,
 by decision 0023. [Troubleshooting](troubleshooting.md#the-gh-shim-and-pap-agent)
 has each message the shim prints.
+
+### Adding a permission to an existing app
+
+An app registered before a permission was added to
+`scripts/pap-agent-manifest.json` (Actions read, for one) lacks it,
+and `pap agent-setup` does not change an app that exists. Add it by hand:
+
+1. On GitHub: Settings, Developer settings, GitHub Apps, the app, Edit,
+   **Permissions & events**. Under Repository permissions set **Actions**
+   to **Read-only**, and save.
+2. GitHub then asks each installation's owner to accept the new
+   permission: on your account and on each organisation the app is
+   installed on, open the installation's page (Settings, Applications,
+   or the organisation's Settings, GitHub Apps, then Configure) and
+   accept the request. Until an owner accepts, that installation keeps the
+   old permissions.
+
+Tokens minted after the acceptance carry the permission; one cached from
+before keeps the old ones for its hour ([troubleshooting](troubleshooting.md#the-gh-shim-and-pap-agent)).
 
 ## Your own sign-in and `pap claude`
 
