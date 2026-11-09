@@ -65,7 +65,7 @@ say go.
 
 A launch is a background sub-agent, spawned as `pap:cycle` (or
 `pap:cycle-mechanical` for a bump or a sync) and never as general-purpose
-(decision 0024), given one brief and nothing else, so the brief carries everything: the `/change <slug> <class>` line; what to
+(decision 0024), given one brief and nothing else, so the brief carries everything: the route on its first line, `/intent <slug> <class>` for a change that needs an intent and `/change <slug> <class>` for one that does not, with one line naming the item of rule 20.2 that decided it (rule 18.8; you can overrule it); what to
 build; the standing rules (the worktree, the paths it may touch, push
 after every commit, a save point after every commit, the report format,
 `ASK:` and `PAUSED:`); the model and effort for the task; and a **budget**

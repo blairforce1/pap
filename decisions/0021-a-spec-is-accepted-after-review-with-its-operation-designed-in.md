@@ -7,7 +7,7 @@
 - **PIP:** the owner's call of 2026-11-05: once `/intent` has accepted the intent, the change is specified in full, with acceptance scenarios in Given/When/Then, and its operation, how the intent is monitored, traced and undone, is designed at spec time. Of pap's 78 merged change pull requests none carries a `spec.md`; the one `intent.md` (process-coverage, written from the brief and never accepted) went straight to code. The pull request template's "How to revert" is answered last, by the context that wrote the code, and process 5.9's control bands exist in the process document and in no change
 - **Expected effect:** share of merged feature, infra and security-sensitive change pull requests whose `changes/<slug>/spec.md` carries Signals, Good, Wrong and Undo ↑ from 0 of 78 to every change started with `/spec`, read from `changes/*/spec.md` on main against merged `change/` pull requests, in pap and in each adopting repository separately; escapes attributed to a specification gap (5.11) at a median of 0 per closed change once `findings.md` exists, and until then 0017's proxy, `fix:` or `revert:` pull requests merged within 14 days that touch a file the change changed, ↓; the pull request's "How to revert" equal to the spec's Undo in every such change
 - **Introduced in:** not yet released; the release that ships `/spec`
-- **Revisit:** when 10 change PRs started with `/spec` have merged in one repository: the share and the proxy over those 10, how many specs were returned to (5.10) from code review or verification, how many operational scenarios were exercised, by hand or by H-015's watcher, and whether docs and chore specs earned their half page
+- **Revisit:** when 10 change PRs started with `/spec` have merged in one repository, counted from the first change started with `/spec` after the amendment of 2026-11-09: the share and the proxy over those 10, how many specs were returned to (5.10) from code review or verification, how many operational scenarios were exercised, by hand or by H-015's watcher, and whether docs and chore specs earned their half page
 
 ## Context
 
@@ -106,6 +106,12 @@ no spec to read, it has never been run on a pap change.
    one scenario that fails before the fix (17.4), Undo, and the qa
    perspective. A spike has no spec (section 4).
 
+8. **`/spec` follows `/intent`, so it too is for a change that needs it**
+   (amended 2026-11-09, rule 20.2 of
+   [0020](0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)).
+   A change started with `/intent` goes on to `/spec` as its class asks;
+   one that rule 20.2 sends to `/change` has no spec.
+
 The reason that carried it: the signal for a success measure is designed
 when the measure is, or it is never designed; and the person who can say
 how a change is undone is the one who has just read what it does, before
@@ -139,6 +145,13 @@ measurement of it.
 
 Recommendation: amend (count from the first change started with `/spec`,
 as the new Revisit line does)
+
+### Amended 2026-11-09
+
+The Project Lead said yes to the amendment: `/spec` is required for a
+change that needs it and not otherwise (point 8, rule 20.2), and the
+Revisit line counts from the first change started with `/spec`. Status
+stays `proposed`.
 
 ## Considered options
 

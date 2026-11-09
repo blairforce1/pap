@@ -195,6 +195,13 @@ A cycle's brief names its budget in tokens or wall time, set from the last audit
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
 - Enforced by: Partly: the `pap:cycle` agent definition carries the stop at the cap (decision 0024). Planned: `/pap:pm launch` refuses a brief without a budget line; `/pap:pm audit` reports the medians the next budgets are set from.
 
+### 18.8 Every brief names its route and why
+
+A cycle's brief starts with its route, `/intent <slug> <class>` or `/change <slug> <class> [Record: NNNN]`, and says in one line which item of rule 20.2 decided it; the human can overrule the route.
+
+- Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses a brief without the route and its reason, as rule 18.7's budget.
+
 ### 19.1 A cold review runs before a draft pull request
 
 Before `/change` opens its draft pull request, unless the change is mechanical as decision 0024 defines it, a read-only subagent given only the brief and the branch diff reviews it, with `/code-review low` against the worktree where that skill exists; each finding is fixed or answered, and Verification states the review ran, its level, its findings, the fixes and any left with the reason.
@@ -204,14 +211,28 @@ Before `/change` opens its draft pull request, unless the change is mechanical a
 
 ### 20.1 Intent is accepted by a recorded yes, before the spec and the code
 
-A change's `changes/<slug>/intent.md` records the human's yes to the intent restated in process 5.3's sections (`accepted-by:`, `accepted-on:`) and is committed on `change/<slug>` before `spec.md` and before any code; the one pull request carries them in that order, and an edit to `intent.md` after `spec.md` exists is intent churn, with its reason in the commit message.
+A change that needs one (rule 20.2) has a `changes/<slug>/intent.md` that records the human's yes to the intent restated in process 5.3's sections (`accepted-by:`, `accepted-on:`) and is committed on `change/<slug>` before `spec.md` and before any code; the one pull request carries them in that order, and an edit to `intent.md` after `spec.md` exists is intent churn, with its reason in the commit message.
 
 - Decision: [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)
 - Enforced by: Nothing yet. Taught by the `/intent` skill ([`plugins/pap/skills/intent/SKILL.md`](plugins/pap/skills/intent/SKILL.md)), which writes no file without the yes, and by the `/change` skill's step 2, which reads the file as the brief's intent. Planned: the reusable `pr-checks` workflow checks that a pull request with a `Change:` line carries `changes/<slug>/intent.md` with the acceptance lines and a hypothesis, and that its first commit precedes `spec.md`'s.
 
+### 20.2 A change starts with `/intent` when it needs one, and not otherwise
+
+A change that needs an intent starts with `/intent`, then `/spec` as its class asks (a spike has none); one that does not starts with `/change`. It needs it when either holds:
+
+1. it adds or changes something a user, operator or adopter sees: a command, a flag, an output, a file an adopting repository receives, a rule, or a check that can refuse;
+2. it carries a design choice with more than one reasonable answer that no decision record, rule, accepted spec or message from the human already settles.
+
+It does not when all it does is one or more of: housekeeping (the tracker, a tidy, a rename nobody sees); docs that describe what already exists; a version bump or a template sync; a test-only change; a fix that restores behaviour a record, rule, spec or doc already states. A change that matches both lists needs it.
+
+The project-manager session makes the call and carries it in the brief's first line (rule 18.8); the human can overrule it before launch or at review.
+
+- Decision: [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md), with [0021](decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md)
+- Enforced by: Nothing yet. Planned: `/pap:pm launch` refuses a brief whose first line names no route or whose next line names no item of this rule.
+
 ### 21.1 A spec is accepted by a recorded yes after review, before the code
 
-A change's `changes/<slug>/spec.md` records the human's yes (`accepted-by:`, `accepted-on:`), given after every spec review finding has a disposition recorded in `changes/<slug>/reviews/`, and is committed on `change/<slug>` after `intent.md` and before any code; the one pull request carries them in that order, and a commit to `spec.md` after code exists is spec rework, with its reason in the commit message.
+A change started with `/intent` (rule 20.2) has a `changes/<slug>/spec.md`, as its class asks, that records the human's yes (`accepted-by:`, `accepted-on:`), given after every spec review finding has a disposition recorded in `changes/<slug>/reviews/`, and is committed on `change/<slug>` after `intent.md` and before any code; the one pull request carries them in that order, and a commit to `spec.md` after code exists is spec rework, with its reason in the commit message.
 
 - Decision: [0021](decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md), with [0020](decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)
 - Enforced by: Nothing yet. Taught by the `/spec` skill ([`plugins/pap/skills/spec/SKILL.md`](plugins/pap/skills/spec/SKILL.md)), which writes no acceptance line without the yes, and by the `/change` skill's step 3, which builds to the spec. Planned: the reusable `pr-checks` workflow checks that a pull request with a `Change:` line of class feature, infra, security-sensitive or bugfix carries `spec.md` with the acceptance lines and a `reviews/` file, and that `spec.md`'s first commit follows `intent.md`'s and precedes the first commit outside `changes/`, `features/` and `product/`.
