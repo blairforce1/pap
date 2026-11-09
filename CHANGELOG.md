@@ -167,6 +167,20 @@ not carry.
   ask), and `/change` step 1 checks `git rev-parse --show-toplevel`
   against it before running `worktree.sh`.
 
+#### Changed
+
+- Docs catch up with 0.14.0 to 0.16.1 (decision 0023, slice e):
+  `docs/account-setup.md` lists the agent app's permissions (Actions read
+  included), installing it on every repository agents push to, and the
+  owner bypass applied by `pap repo apply` from your own terminal, with
+  what `OrganizationAdmin` means on an organisation;
+  `docs/make-a-change.md` says what a PM-launched cycle is (`pap:cycle`,
+  `pap:cycle-mechanical`, `cd` first), that `owner-reviewed` counts only
+  from a code owner's own `labeled` event, and what the merge report
+  does; `docs/troubleshooting.md` covers a stale `pap` on `PATH`, a cycle
+  that branched the wrong repository and a bot-added `owner-reviewed`.
+  Dated notes on decisions 0007, 0016, 0018 and 0023.
+
 ### [0.16.0] - 2026-11-09
 
 #### Added
