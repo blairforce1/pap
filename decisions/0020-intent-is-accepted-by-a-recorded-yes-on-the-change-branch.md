@@ -73,11 +73,11 @@ sections. The yes exists; the artefact it should accept does not.
 
 6. **`/intent` is for a change that needs it, and not otherwise**
    (amended 2026-11-09, rule 20.2). A change needs it when it adds or
-   changes something a user, operator or adopter sees, or carries a
-   design choice with more than one reasonable answer that nothing on
-   record settles; housekeeping, docs of what exists, a version bump or
-   sync, a test-only change and a fix that restores stated behaviour do
-   not. The project-manager session makes the call and names it in the
+   changes something a user, operator or adopter sees beyond what is
+   already stated, or its brief has to choose between designs that
+   nothing on record settles; a change made only of tracker edits,
+   renames nobody sees, docs of what exists, a version bump or sync,
+   tests, or a fix that restores stated behaviour does not. The project-manager session makes the call and names it in the
    brief's first line (rule 18.8); the human can overrule it.
 
 The reason that carried it: the yes is what the human was already giving.

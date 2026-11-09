@@ -220,10 +220,10 @@ A change that needs one (rule 20.2) has a `changes/<slug>/intent.md` that record
 
 A change that needs an intent starts with `/intent`, then `/spec` as its class asks (a spike has none); one that does not starts with `/change`. It needs it when either holds:
 
-1. it adds or changes something a user, operator or adopter sees: a command, a flag, an output, a file an adopting repository receives, a rule, or a check that can refuse;
-2. it carries a design choice with more than one reasonable answer that no decision record, rule, accepted spec or message from the human already settles.
+1. it adds or changes something a user, operator or adopter sees, beyond what a decision record, rule, accepted spec or doc already states: a command, a flag, an output, a file an adopting repository receives, a rule, or a check that can refuse;
+2. the brief has to choose between two or more designs, or leaves a question open, that no decision record, rule, accepted spec or message from the human settles.
 
-It does not when all it does is one or more of: housekeeping (the tracker, a tidy, a rename nobody sees); docs that describe what already exists; a version bump or a template sync; a test-only change; a fix that restores behaviour a record, rule, spec or doc already states. A change that matches both lists needs it.
+It does not when every part of it is one of: the tracker; a rename that leaves every command, flag, output and shipped file as it was; docs that describe what already exists and change no text in `rules.md` or `decisions/`; a version bump or a template sync; a change to tests only; a fix that restores behaviour a record, rule, spec or doc already states. A change with any part outside that list is tested against items 1 and 2.
 
 The project-manager session makes the call and carries it in the brief's first line (rule 18.8); the human can overrule it before launch or at review.
 
