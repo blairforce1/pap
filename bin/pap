@@ -60,7 +60,10 @@
 #         scripts/gen-codeowners.sh: .github/CODEOWNERS from the invariants.
 # doctor  The machine side repo status cannot see: git, mise on PATH and
 #         activated, gh installed and signed in, jq, the claude CLI and the
-#         pap and spec-review plugins, flock (a warning only), this
+#         pap and spec-review plugins, the pap plugin's version against
+#         this pap's (an older plugin is drift, with the update command; a
+#         newer one a warning; an unreleased pap compares nothing), flock
+#         (a warning only), this
 #         configuration trusted, the git hooks installed,
 #         blame.ignoreRevsFile set, and every pinned tool installed at its
 #         pin. In a repository that adopts PAP, decision 0023's agent app:
@@ -749,6 +752,28 @@ d_shell() {
   fi
 }
 
+# d_plugin: the pap plugin, found installed, against the pap running doctor.
+# The two ship as one release, so a plugin behind this pap lacks the hooks
+# this pap relies on. Its version is read from installed_plugins.json, as
+# plugin_cmd reads it. With an unreleased pap, or no one x.y.z version in the
+# file, nothing is compared. A newer plugin is a warning: a repository may
+# pin an older pap on purpose. spec-review is versioned on its own.
+d_plugin() {
+  dp_m="$(jq -r '.name // empty' "$root/.claude-plugin/marketplace.json" 2>/dev/null || true)"
+  dp_ver="$(jq -r --arg k "pap@$dp_m" '[.plugins[$k][]?.version // ""] | unique | if length == 1 then .[0] else empty end' \
+    "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2>/dev/null || true)"
+  dp_key="$(relkey "$dp_ver")"; dp_own="$(relkey "$own_version")"
+  if [ -z "$dp_key" ] || [ -z "$dp_own" ]; then
+    item ok "pap plugin installed"
+  elif [ "$dp_key" -lt "$dp_own" ]; then
+    item drift "pap plugin installed" "the plugin is $dp_ver and this pap is $own_version; restart Claude Code after: $(plugin_cmd pap)"
+  elif [ "$dp_key" -gt "$dp_own" ]; then
+    item warn "pap plugin installed" "the plugin is $dp_ver and this pap is $own_version, the older one: mise use -g github:blairforce1/pap@$dp_ver, or the repository's pin"
+  else
+    item ok "pap plugin installed" "$dp_ver"
+  fi
+}
+
 cmd_doctor() {
   fix=false
   [ "${1:-}" != --fix ] || { fix=true; shift; }
@@ -830,10 +855,12 @@ cmd_doctor() {
   else
     item ok "claude on PATH"
     for p in pap spec-review; do
-      if printf '%s\n' "$plugins" | grep -Eq "(^|[^a-z-])$p@"; then
-        item ok "$p plugin installed"
-      else
+      if ! printf '%s\n' "$plugins" | grep -Eq "(^|[^a-z-])$p@"; then
         item missing "$p plugin installed" "$(plugin_cmd "$p")"
+      elif [ "$p" = pap ]; then
+        d_plugin
+      else
+        item ok "$p plugin installed"
       fi
     done
   fi

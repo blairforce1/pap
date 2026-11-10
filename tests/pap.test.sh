@@ -562,6 +562,48 @@ rm -f "$CLAUDE_CONFIG_DIR/settings.json" "$CLAUDE_CONFIG_DIR/plugins/installed_p
 out="$(doctor MISE_SHELL=bash STUB_PLUGINS=fail)"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qF 'skipped  pap plugins installed  (claude plugin list failed'
 result $? "doctor: claude plugin list failing skips the plugin check; exits 0" "$out"
+# The pap plugin's version against the pap that runs doctor, read from the
+# file plugin_cmd reads. doctor is run by a released pap, 0.18.0, and by the
+# unreleased one; these cases read JSON, so they take the real jq.
+pdoctor() { (cd "$T/app" && env -u MISE_SHELL PATH="$T/realjq:$dpath" MISE_SHELL=bash sh "$1" doctor 2>&1); }
+pver() { printf '{"version":2,"plugins":{"pap@blairforce1-pap":[{"scope":"user","version":"%s"}]}}\n' "$1" > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"; }
+bare() { printf '%s\n' "$out" | grep -qx '  ok       pap plugin installed'; }
+pver 0.5.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 1 ] && ! printf '%s\n' "$out" | grep -q 'ok  *pap plugin installed' &&
+  has 'drift    pap plugin installed  (the plugin is 0.5.0 and this pap is 0.18.0; restart Claude Code after: claude plugin update pap@blairforce1-pap)'
+result $? "doctor: a pap plugin older than this pap is drift, not ok, with both versions, the update command and the restart; exits 1" "$out"
+printf '{"extraKnownMarketplaces":{"blairforce1-pap":{"source":{"source":"directory","path":"~/src/pap"}}}}\n' > "$CLAUDE_CONFIG_DIR/settings.json"
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 1 ] && has 'drift    pap plugin installed  (the plugin is 0.5.0 and this pap is 0.18.0; restart Claude Code after: bring ~/src/pap, the directory it updates from, up to date, then: claude plugin update pap@blairforce1-pap)'
+result $? "doctor: an older pap plugin from a directory marketplace names the directory to bring up to date" "$out"
+rm -f "$CLAUDE_CONFIG_DIR/settings.json"
+pver 0.19.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 0 ] && has "warn     pap plugin installed  (the plugin is 0.19.0 and this pap is 0.18.0, the older one: mise use -g github:blairforce1/pap@0.19.0, or the repository's pin)"
+result $? "doctor: a pap plugin newer than this pap warns, with both versions and the pap to move to; exits 0" "$out"
+pver 0.18.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 0 ] && has 'ok       pap plugin installed  (0.18.0)'
+result $? "doctor: a pap plugin at this pap's version is ok, with the version; exits 0" "$out"
+pver 0.5.0
+out="$(pdoctor "$pap")"; rc=$?
+[ "$rc" = 0 ] && bare
+result $? "doctor: an unreleased pap compares no plugin version: ok, as before" "$out"
+for v in "" unknown 0.18; do
+  pver "$v"
+  out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+  [ "$rc" = 0 ] && bare
+  result $? "doctor: a pap plugin whose version reads '$v' is not compared: ok, as before" "$out"
+done
+printf '{"version":2,"plugins":{"pap@blairforce1-pap":[{"scope":"user","version":"0.5.0"},{"scope":"project","version":"0.18.0"}]}}\n' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 0 ] && bare
+result $? "doctor: a pap plugin installed at two versions is not compared: ok, as before" "$out"
+rm -f "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 0 ] && bare
+result $? "doctor: a pap plugin Claude Code's file does not hold is not compared: ok, as before" "$out"
 out="$(doctor MISE_SHELL=bash PATH="$T/stub:$T/noflock:$T/mac:$T/sys")"; rc=$?
 [ "$rc" = 0 ] &&
   printf '%s\n' "$out" | grep -qF 'warn     flock on PATH  (brew install flock; heavy builds run without the machine lock)'
