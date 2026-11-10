@@ -9,7 +9,7 @@ does the rest, and stops where the work is the human's.
 
 This guide orders the steps and says who does each. What each command
 does is in the guides it links; where they disagree with the
-[reference](README.md), the reference wins.
+reference ([the process document](../process/personal-agentic-process.md), [`rules.md`](../rules.md) and [`decisions/`](../decisions/)), the reference wins.
 
 ## The minimum to know
 
@@ -157,12 +157,36 @@ full.
    ```sh
    git add -A && git commit -m "build(pap): adopt the template"
    git push -u origin change/adopt-pap
-   gh pr create --draft --label class:infra
+   gh pr create --draft --title "build(pap): adopt the template" \
+     --body-file <body> --label class:infra
    ```
 
-   The body comes from the account's pull request template. Answer its
-   Checks section: every box ticked, or a one-line reason on the very
-   next line. Under Verification, give the output of step 4.
+   `gh` fills in no template from a shell that cannot prompt, so write
+   the body to a file first, in the shape `pr-checks` reads:
+
+   ```text
+   Change: none
+   Record: none
+
+   ## Summary
+   What the pull request adds, one bullet per group of files.
+
+   ## Verification
+   What step 4 ran and what it showed.
+
+   ## How to revert
+   Revert the merge.
+
+   ## Checks
+   - [x] Verification run and output shown above
+   - [x] No protected path touched, or the owner has approved the head
+   - [x] Generated content carries provenance (model, skill, prompt)
+   Provenance: <model> via Claude Code, prompt "<the prompt's first line>"
+   ```
+
+   Tick a box only if it is true; an unticked box has a one-line reason
+   on the very next line. If the account's `.github` repository has its
+   own `pull_request_template.md`, use its headings instead.
 
    Check: `gh pr view --json isDraft,labels` shows a draft with
    `class:infra`.
@@ -198,13 +222,21 @@ full.
    ```sh
    git commit -m "docs(product): add the product layer"
    git push -u origin change/product-layer
-   gh pr create --draft --label class:docs
+   gh pr create --draft --title "docs(product): add the product layer" \
+     --body-file <body> --label class:docs
    ```
 
+   The body is step 6's, with one difference: this pull request touches
+   a protected path, `product/invariants.md`, so leave the second box
+   unticked with its reason beneath
+   ([Review by risk label](make-a-change.md#4-review-by-risk-label)).
+
    Check: as step 6, and this time `pr-checks` reports on the pull
-   request. With the `risk` layer it is labelled `risk:high`, because it
-   touches `product/invariants.md`; the human reviews it and adds
-   `owner-reviewed`.
+   request. With the `risk` layer it is labelled `risk:high`, and the
+   reason under the box is `Risk: high; the owner adds owner-reviewed
+   after review`. Without it, the reason is `Head to approve: <the
+   pushed head's first seven characters>`, and the human types the
+   `Approved-by:` line. Either way the approval is theirs.
 
    Report both pull request URLs, what is left for the human, and stop.
    The first real change is theirs to start: `/intent <slug> <class>`.
