@@ -23,7 +23,9 @@
 # plugins/pap/.claude-plugin/plugin.json and the pap entry in
 # .claude-plugin/marketplace.json do not both carry at that commit, or
 # whose section under "## pap" in CHANGELOG.md at that commit still reads
-# "Unreleased": date it before releasing.
+# "Unreleased": date it before releasing. Refuses, too, a version that is
+# not the one the install prompt in docs/agent-onboarding.md names at that
+# commit (changes/pap-new/spec.md): the version bump moves both.
 # Requires git, tar, jq and gh (authenticated), which the section reads pull
 # request bodies with.
 
@@ -57,6 +59,13 @@ heading="$(git show "$sha:CHANGELOG.md" | awk -v h="### [$version]" '
 case "$heading" in
   *Unreleased*) die "CHANGELOG.md at origin/main reads '$heading'; date the $version section first" ;;
 esac
+
+# The install prompt has Claude install pap at an exact version; a release
+# it does not name would leave the docs installing the one before.
+prompt="$(git show "$sha:docs/agent-onboarding.md" 2>/dev/null |
+  sed -n 's/.*github:blairforce1\/pap\[asset_pattern=pap-\*\.tar\.gz\]@\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n 1)"
+[ "$prompt" = "$version" ] ||
+  die "the install prompt in docs/agent-onboarding.md at origin/main names pap ${prompt:-no version}, not $version; bump it with the manifests first"
 
 out="$(mktemp -d)"
 name="pap-$version"

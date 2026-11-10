@@ -1,5 +1,7 @@
 #!/bin/sh
-# release.test.sh: tests for scripts/release.sh's CHANGELOG refusal, the
+# release.test.sh: tests for scripts/release.sh's CHANGELOG refusal, its
+# refusal of a version the install prompt does not name (scenarios
+# pap-new-16 and pap-new-40 of features/pap-new.feature), the
 # archive its --dry-run builds, and the "Written with" section it prints.
 #
 # Usage: sh tests/release.test.sh
@@ -77,6 +79,7 @@ g remote add origin "$T/origin.git"
 mkdir -p "$T/bin" "$T/bodies"
 cat > "$T/bin/gh" <<STUB
 #!/bin/sh
+echo "\$*" >> "$T/gh.log"
 cat "$T/bodies/\$3"
 STUB
 chmod +x "$T/bin/gh"
@@ -96,6 +99,18 @@ printf '[]\n' > "$T/repo/.github/labels.yml"
 printf 'name: security\n' > "$T/repo/templates/base/.github/workflows/security.yml"
 printf '{}\n' > "$T/repo/templates/base/.devcontainer/devcontainer.json"
 ln -s ../../../scripts/release.sh "$T/repo/templates/base/scripts/release.sh"
+# The install prompt, as docs/agent-onboarding.md carries it.
+install_prompt() {
+  mkdir -p "$T/repo/docs"
+  # shellcheck disable=SC2016 # the prompt's own backticks
+  printf 'Install pap for me: run `mise use -g %sgithub:blairforce1/pap[asset_pattern=pap-*.tar.gz]@%s%s`.\n' "'" "$1" "'" \
+    > "$T/repo/docs/agent-onboarding.md"
+}
+# prompt_version <file>: the version the install prompt in <file> names.
+prompt_version() {
+  sed -n 's/.*github:blairforce1\/pap\[asset_pattern=pap-\*\.tar\.gz\]@\([0-9.]*\).*/\1/p' "$1" | head -n 1
+}
+install_prompt 1.0.0
 
 release() { sh "$T/repo/scripts/release.sh" 1.0.0 --dry-run 2>&1; }
 
@@ -145,6 +160,46 @@ status=$?
 [ "$status" = 0 ] && [ "$(g diff --cached --name-only)" = wip ] && [ "$(g status --porcelain)" = 'A  wip' ]
 result $? "leaves the checkout's index and working tree as they were" "$out$(g status --porcelain)"
 g rm -q --cached wip && rm "$T/repo/wip"
+
+# The install prompt's version. A release of 0.18.0 while the prompt names
+# 0.17.0, run without --dry-run so a release would be created if it went on.
+for f in plugins/pap/.claude-plugin/plugin.json .claude-plugin/marketplace.json; do
+  sed 's/1\.0\.0/0.18.0/' "$T/repo/$f" > "$T/f" && mv "$T/f" "$T/repo/$f"
+done
+install_prompt 0.17.0
+commit "chore(release): bump to 0.18.0, the prompt left behind" push
+: > "$T/gh.log"
+out="$(sh "$T/repo/scripts/release.sh" 0.18.0 2>&1)"
+status=$?
+[ "$status" = 1 ] && printf '%s' "$out" | grep -q 'install prompt .* names pap 0\.17\.0, not 0\.18\.0'
+result $? "pap-new-16: a release whose install prompt names another version is refused naming both versions" "$out"
+! grep -q 'release create' "$T/gh.log" && [ -z "$(g ls-remote --tags origin)" ]
+result $? "pap-new-16: no release is created" "$(cat "$T/gh.log")"
+install_prompt 0.18.0
+commit "chore(release): the prompt names 0.18.0" push
+out="$(sh "$T/repo/scripts/release.sh" 0.18.0 --dry-run 2>&1)"
+status=$?
+[ "$status" = 0 ] && ! printf '%s' "$out" | grep -q 'install prompt'
+result $? "pap-new-40: a release whose install prompt names its version is not refused for the install prompt" "$out"
+rm "$T/repo/docs/agent-onboarding.md"
+commit "docs: no install prompt" push
+out="$(sh "$T/repo/scripts/release.sh" 0.18.0 --dry-run 2>&1)"
+status=$?
+[ "$status" = 1 ] && printf '%s' "$out" | grep -q 'names pap no version, not 0\.18\.0'
+result $? "refuses a release when the docs carry no install prompt" "$out"
+for f in plugins/pap/.claude-plugin/plugin.json .claude-plugin/marketplace.json; do
+  sed 's/0\.18\.0/1.0.0/' "$T/repo/$f" > "$T/f" && mv "$T/f" "$T/repo/$f"
+done
+install_prompt 1.0.0
+commit "chore: back to 1.0.0" push
+
+# A version bump moves the prompt: in this checkout the prompt names the
+# version the pap plugin carries, so a bump that leaves it behind fails here
+# before release.sh refuses it.
+[ -n "$(prompt_version "$here/docs/agent-onboarding.md")" ] &&
+  [ "$(prompt_version "$here/docs/agent-onboarding.md")" = "$(jq -r .version "$here/plugins/pap/.claude-plugin/plugin.json")" ]
+result $? "the install prompt in docs/agent-onboarding.md names the version plugin.json carries" \
+  "prompt: $(prompt_version "$here/docs/agent-onboarding.md"); plugin.json: $(jq -r .version "$here/plugins/pap/.claude-plugin/plugin.json")"
 
 # The previous release's pull request is outside the range. #2 is a squash
 # merge that kept one of its two Anthropic co-authors; its Provenance: line
