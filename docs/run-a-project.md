@@ -51,7 +51,8 @@ postmortem across cycles.
 
 Start it with `pap claude` in the repository. It needs the pap plugin,
 which carries the role and the guard; without it `pap claude` says so,
-prints the install command and starts a session with no mode. Only a
+prints the command that installs it on this machine and starts a session
+with no mode. Only a
 top-level session can spawn background agents and talk to you, so the PM
 is that session. It owns the brief, the tracker, the relay to you, pause
 and relaunch, and the audit.
@@ -254,7 +255,9 @@ First checks, all read-only:
    from a sub-agent, and the PM paths are not enforced.
 3. The last lines of `refusals.log` and `sessions.log`.
 4. `claude plugin list` and `mise ls`: the pap plugin and the pap command
-   are the same release.
+   are the same release. A plugin that is behind updates with
+   `claude plugin update pap@blairforce1-pap`; where the marketplace is a
+   directory, bring that checkout up to date first.
 5. `pap doctor` in the repository.
 
 Only then carry on with `pap claude --solo`. That is the undo for one
