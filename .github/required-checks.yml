@@ -1,0 +1,4 @@
+# Required status checks pap's own repository adds to the main ruleset's
+# (scripts/repo-sync.sh reads this file from the target). Not the template's:
+# an adopting repository has no macOS job. Decision 0002, note of 2026-11-10.
+- tests (macos)

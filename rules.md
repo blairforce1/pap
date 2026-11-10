@@ -32,7 +32,7 @@ Every intervention has a decision record with a PIP, at least one expected effec
 Squash-merged, linear history, review threads resolved, the `tests` check passing; no approving review is required.
 
 - Decision: [0002](decisions/0002-skills-stop-at-draft-pr.md)
-- Enforced by: Repository ruleset [`.github/rulesets/main.json`](.github/rulesets/main.json) (`pull_request`, `non_fast_forward`, `required_linear_history`, `required_status_checks`); Claude Code `PreToolUse` hook [`plugins/pap/hooks/hooks.json`](plugins/pap/hooks/hooks.json) routing to [`scripts/guard-branch.sh`](scripts/guard-branch.sh); git `pre-push` via [`lefthook.yml`](lefthook.yml).
+- Enforced by: Repository ruleset [`.github/rulesets/main.json`](.github/rulesets/main.json) (`pull_request`, `non_fast_forward`, `required_linear_history`, `required_status_checks`); Claude Code `PreToolUse` hook [`plugins/pap/hooks/hooks.json`](plugins/pap/hooks/hooks.json) routing to [`scripts/guard-branch.sh`](scripts/guard-branch.sh); git `pre-push` via [`lefthook.yml`](lefthook.yml). pap's own repository also requires `tests (macos)`, a required check it adds through [`.github/required-checks.yml`](.github/required-checks.yml); an adopting repository has no macOS job and the one test check.
 
 ### 2.2 Skills stop at a draft PR
 
