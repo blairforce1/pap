@@ -53,11 +53,12 @@ fi
 
 cwd=""
 if command -v jq >/dev/null 2>&1; then
-  input="$(cat)"
-  cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)"
+  # One read of stdin, by jq alone: the cwd, then the session id.
+  f="$(jq -r '[.cwd // "", .session_id // ""] | join("\u001f")' 2>/dev/null)" || f=""
+  cwd="${f%%"$(printf '\037')"*}"
   # Decision 0025: the session is no longer running, so a tracker lock it
   # holds can be taken over (session-start.sh wrote the note).
-  sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)"
+  sid="${f#*"$(printf '\037')"}"
   case "$sid" in
     "" | *[!A-Za-z0-9_-]*) ;;
     *) rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/pap/pm/live/$sid" 2>/dev/null ;;
