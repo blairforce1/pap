@@ -63,7 +63,7 @@ version bump of each release updates and `scripts/release.sh` checks:
 <!-- The install prompt: release.sh refuses a release whose version is not the one after the @ below. -->
 
 ```text
-Install pap for me: run `mise use -g 'github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@0.17.0'`, then `pap version`, which must print 0.17.0. Then tell me to exit this session and run, from my own terminal: `pap agent-setup --owner <my GitHub login>` if the pap-agent app is not registered on this machine yet, then `pap new <name>` from the directory the new clone should sit under (the defaults: private, layers base risk dotnet). Run neither of those yourself.
+Install pap for me: run `mise use -g 'github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@0.18.0'`, then `pap version`, which must print 0.18.0. Then tell me to exit this session and run, from my own terminal: `pap agent-setup --owner <my GitHub login>` if the pap-agent app is not registered on this machine yet, then `pap new <name>` from the directory the new clone should sit under (the defaults: private, layers base risk dotnet). Run neither of those yourself.
 ```
 
 - An exact version is not held back by mise's `minimum_release_age`
