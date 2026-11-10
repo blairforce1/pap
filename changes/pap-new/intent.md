@@ -29,7 +29,7 @@ Starting a greenfield PAP repository today means following #125's nine-step runb
   - It reports the kind of installation, and warns when a selected-repositories installation means one step after creation.
 - **Order:** the template and a one-line README as the first commit on `main`; create the repository and push; then clone setup; then `pap repo apply`. The hook and the ruleset do not exist at the first push.
 - **Token:** it mints a `pap-agent` token for the repository. On failure it prints the installation settings URL and retries on Enter.
-- **End:** it starts `pap claude` pre-prompted to say what happened, where the user is, and ask what they want to do next. The choices are read from a page in pap's docs at its GitHub URL, so the list changes as pap does. `/envision` is the likely first step, not a forced one.
+- **End:** it starts `pap claude` pre-prompted with a brief welcome to the Personal Agentic Process, what happened and where the user is, and a list of the pap skills, mods and agents installed on the machine, then asks what they want to do next. Nothing is read from pap's docs. `/envision` is the likely first step, not a forced one.
 - **Docs:**
   - A one-line paste-able prompt has Claude install pap with mise at an exact version written into the prompt text, then tells the user to exit and run `pap new`.
   - The version bump pull request updates that version, and `scripts/release.sh` refuses a release whose prompt version does not match.
@@ -65,5 +65,5 @@ The next 3 repositories the owner creates with `pap new` at the release tag reac
 - The new-adopter path from the pasted prompt on a clean machine is unmeasured, since no clean install is available: carried forward to the spec, @blairforce1 accepts it or names a tester.
 - How a re-run knows where it stopped: carried forward to the spec.
 - Defaults for visibility and layers, and whether `owner` may be an organisation: carried forward to the spec, @blairforce1.
-- The welcome's list is read from pap's docs on GitHub: answered. Whether it reads `main` or the installed version's tag is carried forward to the spec; `main` can list a command the installed pap lacks.
+- Where the welcome's list comes from: answered, from what is installed on the machine, so it cannot list a command the installed pap lacks.
 - Whether an exact version skips mise's `minimum_release_age`: carried forward to the spec, verified against mise's docs before the line is written.
