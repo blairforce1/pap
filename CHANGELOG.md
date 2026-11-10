@@ -159,6 +159,14 @@ not carry.
 
 ### [Unreleased]
 
+#### Fixed
+
+- After an upgrade, `claude` in a terminal that was already open ran the
+  old pap that `pap shell-init` had recorded, silently. The function now
+  runs the `pap` on `PATH` when it is another file with the higher version
+  (or an unreleased checkout against a recorded release) and says so in one
+  line. `pap doctor` reports a recorded pap older than itself as drift.
+
 ### [0.18.0] - 2026-11-10
 
 #### Added

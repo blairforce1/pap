@@ -48,8 +48,9 @@ for d in self gone; do
 done
 pap="$T/self/bin/pap"
 
-# $T/bin: a stub claude. $T/stale: a pap that must never run. $T/onpath: a
-# pap whose usage names pap claude.
+# $T/bin: a stub claude. $T/stale: a pap that prints no version, so it never
+# beats the recorded pap and must never run pap claude. $T/onpath: a pap
+# whose usage names pap claude.
 mkdir "$T/bin" "$T/stale" "$T/onpath"
 cat > "$T/bin/claude" <<'S'
 #!/bin/sh
@@ -57,7 +58,7 @@ echo "claude $# $* GH_CONFIG_DIR=${GH_CONFIG_DIR:-<unset>}" >> "$LOG"
 S
 cat > "$T/stale/pap" <<'S'
 #!/bin/sh
-[ $# -eq 0 ] || echo "stale pap $*" >> "$LOG"
+[ $# -eq 0 ] || [ "$1" = version ] || echo "stale pap $*" >> "$LOG"
 S
 cat > "$T/onpath/pap" <<'S'
 #!/bin/sh
@@ -65,7 +66,33 @@ cat > "$T/onpath/pap" <<'S'
 echo "path pap $*" >> "$LOG"
 S
 chmod +x "$T/bin/claude" "$T/stale/pap" "$T/onpath/pap"
-export LOG="$T/log"
+export LOG="$T/log" PROBES="$T/probes"
+
+# stubpap <dir> <version output>: a pap in <dir> that answers version with
+# the text, noting the call in $PROBES, and logs any other call.
+stubpap() {
+  mkdir -p "$1"
+  printf '%s\n' "$2" > "$1/version"
+  cat > "$1/pap" <<'S'
+#!/bin/sh
+[ $# -gt 0 ] || { echo "Usage: pap claude [<claude args>...]" >&2; exit 64; }
+if [ "$1" = version ]; then echo "$0" >> "$PROBES"; cat "$(dirname "$0")/version"; exit 0; fi
+echo "path pap $*" >> "$LOG"
+S
+  chmod +x "$1/pap"
+}
+stubpap "$T/p-new" 0.18.0
+stubpap "$T/p-old" 0.9.9
+stubpap "$T/p-equal" 0.16.1
+stubpap "$T/p-far" 99.0.0
+stubpap "$T/p-dev" "unreleased abc123 ($T/p-dev)"
+stubpap "$T/same" 0.16.1
+mkdir "$T/link" && ln -s "$T/same/pap" "$T/link/pap"
+
+# A released pap, 0.16.1: the copy with a VERSION file.
+mkdir "$T/rel"
+cp -a "$here/bin" "$here/scripts" "$T/rel/"
+echo 0.16.1 > "$T/rel/VERSION"
 
 # An adopting repository and a plain one.
 mkdir -p "$T/adopt/scripts" "$T/plain"
@@ -77,12 +104,15 @@ chmod +x "$T/adopt/scripts/guard-branch.sh"
 # claude --resume "a b", print the log; stderr goes to $T/err.
 run() {
   : > "$LOG"
+  : > "$PROBES"
   # shellcheck disable=SC2016 # $1 expands in the child shell
   (cd "$3" && PATH="$4:$T/bin:$PATH" "$1" -c '. "$1"; claude --resume "a b"' _ "$2" 2> "$T/err")
   cat "$LOG"
 }
 init="$T/init"
 sh "$pap" shell-init bash > "$init"
+init_rel="$T/init-rel"
+sh "$T/rel/bin/pap" shell-init bash > "$init_rel"
 
 ad="$T/xdg/gh-agent"
 shells=bash
@@ -93,12 +123,41 @@ for s in $shells; do
   result $? "$s, outside a PAP repository: plain claude, arguments intact" "$out"
   out="$(run "$s" "$init" "$T/adopt" "$T/stale")"
   [ "$out" = "claude 2 --resume a b GH_CONFIG_DIR=$ad" ]
-  result $? "$s, in a PAP repository: pap claude through the recorded pap, not a stale one on PATH" "$out"
+  result $? "$s, in a PAP repository: pap claude through the recorded pap, not a pap on PATH with no version" "$out"
+  out="$(run "$s" "$init_rel" "$T/adopt" "$T/p-new")"
+  [ "$out" = "path pap claude --resume a b" ] && [ -s "$PROBES" ] &&
+    [ "$(grep -c '^claude: ' "$T/err")" -eq 1 ] &&
+    grep -q "^claude: this terminal recorded pap 0.16.1 .* using pap 0.18.0 .*new terminal.*eval line again" "$T/err"
+  result $? "$s, recorded 0.16.1, PATH 0.18.0: the pap on PATH, and one line that says so" "$out $(cat "$T/err")"
 done
 if ! command -v zsh >/dev/null 2>&1; then
   n=$((n + 1))
   printf 'ok %d - # SKIP zsh cases: zsh is not installed\n' "$n"
 fi
+
+# recorded <label> <init> <PATH prefix>: the recorded pap ran, and the
+# function said nothing (pap claude's own lines start "pap: ").
+recorded() {
+  out="$(run bash "$2" "$T/adopt" "$3")"
+  [ "$out" = "claude 2 --resume a b GH_CONFIG_DIR=$ad" ] && ! grep -q '^claude: ' "$T/err"
+  result $? "$1" "$out $(cat "$T/err")"
+}
+recorded "recorded 0.16.1, PATH 0.9.9: the recorded pap, silent" "$init_rel" "$T/p-old"
+recorded "recorded 0.16.1, PATH 0.16.1 in another file: the recorded pap, silent" "$init_rel" "$T/p-equal"
+recorded "recorded unreleased, PATH 99.0.0: the recorded pap, silent" "$init" "$T/p-far"
+recorded "recorded unreleased, PATH unreleased: the recorded pap, silent" "$init" "$T/p-dev"
+out="$(run bash "$init_rel" "$T/adopt" "$T/p-dev")"
+[ "$out" = "path pap claude --resume a b" ] &&
+  grep -q "^claude: this terminal recorded pap 0.16.1 .* using pap unreleased abc123 " "$T/err"
+result $? "recorded 0.16.1, PATH unreleased: the checkout on PATH, and the line" "$out $(cat "$T/err")"
+
+# The same file, by its own path and through a symlink: no version probe.
+sed "s|^PAP_SHELL_INIT=.*|PAP_SHELL_INIT='$T/same/pap'|" "$init_rel" > "$T/init-same"
+for d in same link; do
+  out="$(run bash "$T/init-same" "$T/adopt" "$T/$d")"
+  [ "$out" = "path pap claude --resume a b" ] && [ ! -s "$PROBES" ] && [ ! -s "$T/err" ]
+  result $? "PATH's pap is the recorded file ($d): no version probe" "$out $(cat "$PROBES" "$T/err")"
+done
 
 sh "$T/gone/bin/pap" shell-init bash > "$T/init-gone"
 rm -rf "$T/gone"

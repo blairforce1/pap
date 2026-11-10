@@ -186,8 +186,14 @@
 #         ~/.bashrc (zsh: the same text). In a repository that adopts PAP (an
 #         executable scripts/guard-branch.sh, the guard hook's own test) it
 #         runs pap claude through this pap's absolute path, so it needs no
-#         pap on PATH and never picks a stale one; if that path is gone, a pap
-#         on PATH that has pap claude, else a warning and plain claude.
+#         pap on PATH. A pap on PATH that is another file runs instead when
+#         its version is the higher x.y.z, or it is an unreleased checkout
+#         and the recorded pap a release: an upgrade leaves the terminals
+#         already open recording the old pap. The function then says so in
+#         one line, with both versions; a new terminal, or the eval line
+#         again, records the new one. An unreleased recorded pap is never
+#         replaced. If the recorded path is gone, a pap on PATH that has
+#         pap claude, else a warning and plain claude.
 #         Elsewhere it runs claude unchanged. It exports PAP_SHELL_INIT, the
 #         path, which doctor reads.
 #
@@ -711,8 +717,17 @@ d_owner() {
 }
 
 # d_shell: whether this shell ran pap shell-init's eval line, read from the
-# PAP_SHELL_INIT it exports (doctor cannot see its parent's functions). Never
-# edits an rc file.
+# PAP_SHELL_INIT it exports (doctor cannot see its parent's functions), and
+# whether an upgrade has left that pap behind this one. Never edits an rc
+# file.
+# relkey <version>: a number that orders x.y.z versions; nothing for any
+# other text, an unreleased checkout's included.
+relkey() {
+  case "$1" in
+    *[!0-9.]* | *.*.*.* | .* | *. | *..* | 0[0-9]* | *.0[0-9]*) ;;
+    *.*.*) k_m="${1#*.}"; echo "$((${1%%.*} * 1000000000000 + ${k_m%%.*} * 1000000 + ${k_m#*.}))" ;;
+  esac
+}
 d_shell() {
   rc=bash; case "${SHELL:-}" in */zsh) rc=zsh ;; esac
   line="eval \"\$(pap shell-init $rc)\" in ~/.${rc}rc"
@@ -723,7 +738,13 @@ d_shell() {
   elif [ ! -f "$PAP_SHELL_INIT" ]; then
     item warn "claude is pap's function" "it runs $PAP_SHELL_INIT, which is gone: open a new shell, or check $line"
   else
-    item ok "claude is pap's function" "$PAP_SHELL_INIT"
+    s_ver="$(sh "$PAP_SHELL_INIT" version 2>/dev/null || true)"
+    s_key="$(relkey "$s_ver")"; s_own="$(relkey "$own_version")"
+    if [ -n "$s_key" ] && [ -n "$s_own" ] && [ "$s_key" -lt "$s_own" ]; then
+      item drift "claude is pap's function" "this shell recorded $PAP_SHELL_INIT, pap $s_ver, and this pap is $own_version: open a new terminal, or run eval \"\$(pap shell-init $rc)\" again"
+    else
+      item ok "claude is pap's function" "$PAP_SHELL_INIT"
+    fi
   fi
 }
 
@@ -1506,8 +1527,11 @@ cmd_claude() {
 }
 
 # The function's text is the same for bash and zsh; the shell names which rc
-# file the eval line goes in. One git call per launch, no pap probe unless
-# the recorded pap is gone.
+# file the eval line goes in. One git call per launch, and no pap probe
+# while the recorded pap exists and PATH has no pap or the same file. A
+# different pap on PATH costs two version calls: the higher x.y.z runs, a
+# version that is not x.y.z (an unreleased checkout) is never beaten, and
+# the recorded pap keeps a tie. With the recorded pap gone, one usage probe.
 cmd_shell_init() {
   [ $# -eq 1 ] || usage
   case "$1" in bash | zsh) ;; *) usage ;; esac
@@ -1517,15 +1541,32 @@ cmd_shell_init() {
 PAP_SHELL_INIT='$p'
 export PAP_SHELL_INIT
 claude() {
-  local pap_top pap_bin
+  local pap_top pap_bin pap_v pap_m pap_rv pap_pv pap_rk pap_pk
   pap_top="\$(git rev-parse --show-toplevel 2>/dev/null)"
   if [ -z "\$pap_top" ] || [ ! -x "\$pap_top/scripts/guard-branch.sh" ]; then
     command claude "\$@"; return
   fi
+  pap_bin="\$(command -v pap 2>/dev/null)"
   if [ -f "\$PAP_SHELL_INIT" ]; then
+    if [ -f "\$pap_bin" ] && ! [ "\$pap_bin" -ef "\$PAP_SHELL_INIT" ]; then
+      pap_rv="\$(sh "\$PAP_SHELL_INIT" version 2>/dev/null)"
+      pap_pv="\$("\$pap_bin" version 2>/dev/null)"
+      pap_rk=; pap_pk=
+      for pap_v in "\$pap_rv" "\$pap_pv"; do
+        pap_rk="\$pap_pk"; pap_pk=; pap_m="\${pap_v#*.}"
+        case "\$pap_v" in
+          *[!0-9.]* | *.*.*.* | .* | *. | *..* | 0[0-9]* | *.0[0-9]*) ;;
+          *.*.*) pap_pk="\$((\${pap_v%%.*} * 1000000000000 + \${pap_m%%.*} * 1000000 + \${pap_m#*.}))" ;;
+        esac
+      done
+      case "\$pap_pv" in "unreleased "*) pap_pk=x ;; esac
+      if [ -n "\$pap_rk" ] && { [ "\$pap_pk" = x ] || [ "\${pap_pk:-0}" -gt "\$pap_rk" ]; }; then
+        echo "claude: this terminal recorded pap \$pap_rv (\$PAP_SHELL_INIT); using pap \$pap_pv (\$pap_bin). Open a new terminal, or run the pap shell-init eval line again, to record it." >&2
+        "\$pap_bin" claude "\$@"; return
+      fi
+    fi
     sh "\$PAP_SHELL_INIT" claude "\$@"; return
   fi
-  pap_bin="\$(command -v pap 2>/dev/null)"
   if [ -n "\$pap_bin" ] && "\$pap_bin" 2>&1 | grep -q 'pap claude'; then
     "\$pap_bin" claude "\$@"; return
   fi

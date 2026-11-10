@@ -453,6 +453,26 @@ result $? "doctor: no shell-init in this shell warns, with the eval line for the
 out="$(doctor MISE_SHELL=bash PAP_SHELL_INIT="$pap")"
 has "ok       claude is pap's function  ($pap)"
 result $? "doctor: shell-init's PAP_SHELL_INIT names a pap that exists: ok" "$out"
+# An upgrade leaves the open terminals recording the old pap: doctor run by
+# a released pap, 0.18.0, against recorded paps that print other versions.
+cp -a "$T/self" "$T/drel" && echo 0.18.0 > "$T/drel/VERSION"
+for v in 0.9.9 0.18.0 0.19.0 unreleased; do
+  mkdir -p "$T/rec/$v"
+  # shellcheck disable=SC2016 # $1 is the stub's own
+  printf '#!/bin/sh\n[ "$1" = version ] && echo "%s"\n' "$v" > "$T/rec/$v/pap"
+done
+reldoctor() { (cd "$T/app" && env -u MISE_SHELL PATH="$dpath" MISE_SHELL=bash PAP_SHELL_INIT="$1" sh "$2" doctor 2>&1); }
+out="$(reldoctor "$T/rec/0.9.9/pap" "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 1 ] && has "drift    claude is pap's function  (this shell recorded $T/rec/0.9.9/pap, pap 0.9.9, and this pap is 0.18.0: open a new terminal, or run eval \"\$(pap shell-init bash)\" again)"
+result $? "doctor: shell-init's pap older than this pap is drift, with both versions and the fix" "$out"
+for v in 0.18.0 0.19.0 unreleased; do
+  out="$(reldoctor "$T/rec/$v/pap" "$T/drel/bin/pap")"
+  has "ok       claude is pap's function  ($T/rec/$v/pap)"
+  result $? "doctor: shell-init's pap at $v, this pap 0.18.0: ok" "$out"
+done
+out="$(reldoctor "$T/rec/0.9.9/pap" "$pap")"
+has "ok       claude is pap's function  ($T/rec/0.9.9/pap)"
+result $? "doctor: an unreleased pap never calls a recorded release old" "$out"
 out="$(doctor MISE_SHELL=bash PAP_SHELL_INIT="$T/gone/pap")"
 has "warn     claude is pap's function  (it runs $T/gone/pap, which is gone"
 result $? "doctor: shell-init's pap gone warns" "$out"
