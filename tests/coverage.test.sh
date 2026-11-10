@@ -89,12 +89,17 @@ cat > "$R/rules.md" <<'RULES'
 ### 2.1 Required is required
 
 - Decision: none
-- Enforced by: the `tests` check, a required check since #1. The `lint` workflow ([`.github/workflows/lint.yml`](.github/workflows/lint.yml)) is a required check too.
+- Enforced by: the `tests` check, a required check since #1. The `lint` workflow ([`.github/workflows/lint.yml`](.github/workflows/lint.yml)) is a required check too. So are `docs`, `quoted` and `single`, each a required check.
 
 ### 3.1 Optional is optional
 
 - Decision: none
 - Enforced by: the `tests` check does not block.
+
+### 3.2 The repository's own list is not optional
+
+- Decision: none
+- Enforced by: the `docs` check does not block.
 
 ### 4.1 A claim names a check
 
@@ -108,6 +113,10 @@ cat > "$R/.github/rulesets/main.json" <<'JSON'
 ] } } ] }
 JSON
 printf 'name: lint\n' > "$R/.github/workflows/lint.yml"
+# docs, quoted and single are required only by the repository's own list;
+# lint is a workflow in neither file.
+for w in docs quoted single; do printf 'name: %s\n' "$w" > "$R/.github/workflows/$w.yml"; done
+printf '%s\n' '# the checks this repository adds' '- docs  # ours' '- "quoted"' "- 'single'" > "$R/.github/required-checks.yml"
 
 out="$(cd "$R" && sh "$pap" coverage 2>&1)"
 rc=$?
@@ -141,15 +150,19 @@ has "rule 1.1 disagrees (names scripts/missing.sh, which does not exist)"
 result $? "a backticked path that does not exist disagrees" "$(show)"
 ! printf '%s\n' "$out" | grep -q 'real.sh\|example.invalid'
 result $? "an existing file and a URL agree" "$(show)"
-has "rule 2.1 disagrees (lint is not a required check in .github/rulesets/main.json)"
-result $? "a required claim on an optional check disagrees" "$(show)"
+has "rule 2.1 disagrees (lint is not a required check in .github/rulesets/main.json or .github/required-checks.yml)"
+result $? "a required claim on a check in neither file disagrees" "$(show)"
+! printf '%s\n' "$out" | grep -q '(docs is not a required\|(quoted is not a required\|(single is not a required'
+result $? "a required claim on a check only required-checks.yml names agrees, bare or quoted" "$(show)"
+has "rule 3.2 disagrees (docs is a required check in .github/required-checks.yml, so it blocks)"
+result $? "a does-not-block claim on a check only required-checks.yml names disagrees" "$(show)"
 ! printf '%s\n' "$out" | grep -q '(tests is not a required'
 result $? "a required claim on a required check agrees" "$(show)"
 has "rule 3.1 disagrees (tests is a required check in .github/rulesets/main.json, so it blocks)"
 result $? "a does-not-block claim on a required check disagrees" "$(show)"
 has "rule 4.1 disagrees (claims a required check and names none the repository has)"
 result $? "a claim naming no check disagrees" "$(show)"
-[ "$(printf '%s\n' "$out" | tail -n 1)" = "4 uncovered, 5 disagreeing" ]
+[ "$(printf '%s\n' "$out" | tail -n 1)" = "4 uncovered, 6 disagreeing" ]
 result $? "ends with the two counts" "$(show)"
 
 rm "$R/process/personal-agentic-process.md"
