@@ -12,7 +12,8 @@
 #   pm     the project-manager role, then where the tracker is, whether it
 #          is uncommitted, and its state file's first 60 lines, marked as
 #          data. One line in the session log: role:<source>.
-#   solo   one line saying the session is solo.
+#   solo   one line saying the session is solo, and one in the session
+#          log: solo:<source>.
 #   unset  nothing: a session not started by pap claude has no mode.
 #
 # The role is at most 80 lines and 8 KB. Each part opens with a marker
@@ -78,13 +79,15 @@ case "$session" in
     printf '%s\n' "$cpid" > "$live/$session" 2>/dev/null || true ;;
 esac
 
+version="$(claude --version 2>/dev/null | sed -n '1s/ .*//p')" || version=""
 if [ "$mode" = solo ]; then
+  pm_repo "${CLAUDE_PROJECT_DIR:-${cwd:-.}}" && pm_adopts "$pm_top" && repo="$(pm_key "$pm_top")" || repo="-"
+  pm_log sessions.log "$(pm_now)" "${session:--}" solo "$repo" "${version:--}" "solo:$source"
   emit "This is a solo session, started with pap claude --solo: PM mode is off, no project-manager role is given and the PM paths are not enforced. Every other pap rule holds, and /pap:pm start and launch still work."
   exit 0
 fi
 
 pm_session "${CLAUDE_PROJECT_DIR:-${cwd:-.}}"
-version="$(claude --version 2>/dev/null | sed -n '1s/ .*//p')" || version=""
 what="role:$source"
 warning=""
 if [ -n "$agent" ]; then
