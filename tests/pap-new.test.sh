@@ -95,6 +95,13 @@ mkdir "$T/stub"
 cat > "$T/stub/git" <<'EOF'
 #!/bin/sh
 [ -z "${W:-}" ] || printf '%s\n' "$*" >> "$W/git.log"
+if [ -n "${W:-}" ] && [ -f "$W/term-at-commit" ]; then
+  case " $* " in *" commit "*)
+    rm -f "$W/term-at-commit"
+    kill -TERM "$(ps -o ppid= -p "$PPID" | tr -d ' ')"
+    exit 1 ;;
+  esac
+fi
 if [ -n "${W:-}" ] && [ -f "$W/kill-at-commit" ]; then
   case " $* " in *" commit "*)
     rm -f "$W/kill-at-commit"
@@ -501,7 +508,10 @@ result $? "pap-new-28: a declined summary stops the run in preflight" "$out"
 # --- Creation runs in one order and never past a missing control --------------
 
 world
+# The owner's shell exports tokens of its own; none may reach the session.
+export GH_TOKEN=gho_OWNERSECRET GITHUB_TOKEN=gho_OWNERSECRET
 run '\n' trial
+unset GH_TOKEN GITHUB_TOKEN
 c="$W/cwd/trial"
 for s in "Step 1 of 6: first commit" "Step 2 of 6: repository creation" "Step 3 of 6: first push" \
   "Step 4 of 6: clone setup" "Step 5 of 6: repository settings" "Step 6 of 6: agent token"; do
@@ -558,7 +568,7 @@ result $? "pap-new-37: gh in the session acts as the agent installation" "$(tail
 result $? "pap-new-37: no owner token and no owner gh directory is in the session's environment" "$(grep -e GH_ -e GITHUB "$W/claude.env")"
 
 # pap-new-14, on the same run.
-has '^  repository  https://github.com/olive/trial$' && has "^  clone       $c\$" && has 'cd trial && pap claude' &&
+has '^  /envision (pap): .' && has '^  repository  https://github.com/olive/trial$' && has "^  clone       $c\$" && has 'cd trial && pap claude' &&
   has '^Starting Claude Code as the agent$'
 result $? "pap-new-14: the run first prints the repository's URL, the clone's path and how to start the session again" "$out"
 p="$(cat "$W/claude.args")"
@@ -696,6 +706,15 @@ for state in committed created pushed "set up" "settings applied"; do
 done
 
 world
+: > "$W/term-at-commit"
+run '\n' trial
+[ "$rc" != 0 ] && [ -z "$(ls -A "$W/cwd")" ] && [ ! -d "$W/gh/repos" ]
+result $? "pap-new-33: a first commit interrupted by a signal leaves nothing in the current directory" "$out; $(ls -A "$W/cwd")"
+run '\n' trial
+welcomed && [ "$(commits)" = 1 ]
+result $? "pap-new-33: the re-run after the signal makes the first commit and reaches the welcome session" "$out"
+
+world
 : > "$W/kill-at-commit"
 run '\n' trial
 [ "$rc" != 0 ] && [ ! -e "$W/cwd/trial" ] && [ ! -d "$W/gh/repos" ]
@@ -734,6 +753,16 @@ for more in "only the first commit" "the first commit and later merged pull requ
   welcomed && grep -q "^GH_CONFIG_DIR=$W/xdg/gh-agent\$" "$W/claude.env" && has 'steps done 6 of 6'
   result $? "pap-new-35: with main holding $more, a welcome session starts in the clone as the agent" "$out"
 done
+
+world
+run '\n' trial
+run '\n' trial --layers base go
+preflight_stop && has 'cause: the recorded layers are base risk dotnet, not base go' && hasnt 'main is not yet protected'
+result $? "pap-new-36: a refusal on a complete repository does not say main is unprotected" "$out"
+world
+run '\n' trial --owner Olive
+welcomed && [ -f "$W/gh/repos/olive/trial" ]
+result $? "pap-new-2: the owner's own login is taken in any case" "$out"
 
 world
 stopped_at committed --layers base go
