@@ -234,7 +234,7 @@ them.
   `.github/required-checks.yml` names it, `.github/rulesets/main.json`
   does not, because `pap repo apply` gives that file's checks to every
   adopting repository and none of them has a macOS job. `pap coverage`
-  reads both files. It is live once the owner runs `pap repo apply`.
+  reads both files.
 
 ## Where it is taught or enforced
 

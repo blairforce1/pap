@@ -162,10 +162,11 @@ not carry.
 #### Changed
 
 - `pap coverage` checks a `rules.md` sentence that claims a "required
-  check" against the repository's own `.github/required-checks.yml` as
-  well as `.github/rulesets/main.json`, the two lists `pap repo apply`
-  requires from. A check only the first file names was reported as not
-  required. The line for a check in neither now names both files.
+  check" against `.github/rulesets/main.json` and the repository's own
+  `.github/required-checks.yml`, the two lists `pap repo apply` requires
+  from. It read `main.json` only, so a check that only
+  `required-checks.yml` names was a false disagreement. The line for a
+  check in neither now names both files.
 - pap's own repository requires `tests (macos)` to merge, through its
   `.github/required-checks.yml` (decision 0002, note of 2026-11-10). A
   pull request could merge while the macOS job was still running, or after
