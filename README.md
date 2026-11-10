@@ -45,6 +45,8 @@ Decision 0018 (proposed in [#81](https://github.com/blairforce1/pap/pull/81)) re
 
 ## Documentation
 
+Handing the setup to an agent? [Onboard a repository with an agent](docs/agent-onboarding.md) has a prompt to paste into Claude Code and the runbook it follows, for a new repository and for an existing one. [`llms.txt`](llms.txt) indexes every guide and the reference for an agent that needs to find its way.
+
 User guides are in [`docs/`](docs/README.md): getting started, adopting a repository, setting up the account, starting a project, making a change, running a project with a project-manager session, deciding and improving, and troubleshooting. They say how to use the process and its tooling, what is a command today and what is still by hand; the process document, `rules.md` and `decisions/` stay the reference.
 
 ## What is here
@@ -52,6 +54,7 @@ User guides are in [`docs/`](docs/README.md): getting started, adopting a reposi
 | Path                                  | What it is                                                                                                                                                                                                                                                                                                 |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `docs/`                               | User guides: how to adopt and use PAP, task by task, with the real commands and what is still by hand or planned.                                                                                                                                                                                          |
+| `llms.txt`                            | An index of the guides and the reference, one line each, for an agent reading the repository cold.                                                                                                                                                                                                         |
 | `process/personal-agentic-process.md` | The process itself. Tool-agnostic. Says what must happen, not how.                                                                                                                                                                                                                                         |
 | `rules.md`                            | The rule register: every enforceable rule, the decision that introduced it, and what enforces it today. Gaps are written down, not hidden.                                                                                                                                                                 |
 | `decisions/`                          | Decision records. Process changes are treated as measured interventions (decision 0001), so each record states the expected effect and when it will be revisited.                                                                                                                                          |
