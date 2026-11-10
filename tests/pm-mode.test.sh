@@ -962,7 +962,13 @@ at 10:10:00; pm "$A" start --session "$S1"
 [ "$rc" = 0 ] && ! grep -q '^- trial' "$trk/state.md" && [ "$(sed -n '/^## In flight$/,/^## Waiting/p' "$trk/state.md" | grep -c '^- ')" = 1 ] &&
   sed -n '/^## In flight$/,/^## Waiting/p' "$trk/state.md" | grep -qx -- '- none' && grep -q '^- budget-cap' "$trk/state.md" && tclean
 result $? "pm-mode-43: after a decision whose text starts \"abandoned\", /pap:pm start rewrites the state file and \"trial\" is not in flight" "$(cat "$trk/state.md")"
+# The typed line of 10:07 was used up by the refusal: a launch run again
+# without the owner typing it is not the owner's yes.
 at 10:11:00; pm "$A" launch trial --session "$S1"
+[ "$rc" = 10 ] && [ "$(events launch)" = 1 ]
+result $? "pm-mode-40: a refused launch uses up the typed line; run again untyped once the cause is gone, it is refused" "exit $rc; $out"
+at 10:12:00; typed "$A" "$S1" "/pap:pm launch trial"
+at 10:13:00; pm "$A" launch trial --session "$S1"
 [ "$rc" = 0 ] && [ "$(events launch)" = 2 ]
 result $? "pm-mode-43: and the launch the owner typed for it then goes through: the way out for a dead cycle" "exit $rc; $out"
 

@@ -38,7 +38,7 @@
 #          on exit 0. It refuses, changing nothing, with:
 #            10  the owner did not type /pap:pm launch <slug> (rule 18.2);
 #                pm-log.sh records the typed command, and one record serves
-#                one launch
+#                one attempt: a refusal 11 to 15 uses it up
 #            11  the event log has no restate event for the slug (rule 18.2)
 #            12  the brief is missing or its first line names no route
 #                (rule 18.8)
@@ -310,25 +310,31 @@ case "$cmd" in
     last="$(awk -F '\t' -v s="$slug" '$2 == "launch" && $3 == s { t = $1 } END { print t }' "$events")"
     [ -f "$pmd/launches.log" ] &&
       awk -F '\t' -v ses="$session" -v k="$key" -v s="$slug" -v t="$last" \
-        '$2 == ses && $3 == k && $4 == s && ($1 "") > (t "") { f = 1 } END { exit !f }' "$pmd/launches.log" ||
+        '$2 == ses && $3 == k && $4 == s { f = ($5 != "used" && ($1 "") > (t "")) } END { exit !f }' "$pmd/launches.log" ||
       die 10 "the owner types the command: /pap:pm launch $slug (rule 18.2). That typed line is the owner's yes, and this launch has none" \
         "give the owner the command and stop; do not invoke it yourself."
+    # The typed line serves this one attempt: a refusal below uses it up,
+    # so the owner types the launch again once what it names is fixed.
+    refuse() {
+      pm_log launches.log "$(pm_now)" "$session" "$key" "$slug" used
+      die "$@"
+    }
     awk -F '\t' -v s="$slug" '$2 == "restate" && $3 == s { f = 1 } END { exit !f }' "$events" ||
-      die 11 "the ask is restated first (rule 18.2): the event log has no restate event for \"$slug\"" \
+      refuse 11 "the ask is restated first (rule 18.2): the event log has no restate event for \"$slug\"" \
         "restate the ask in one line, log the restate event, commit, and the owner types the launch again."
     brief="$trk/briefs/$slug.md"
-    [ -f "$brief" ] || die 12 "there is no brief at $brief, so no first line naming its route (rule 18.8)"
+    [ -f "$brief" ] || refuse 12 "there is no brief at $brief, so no first line naming its route (rule 18.8)"
     l1="$(sed -n 1p "$brief" | tr '\t' ' ')"
     l2="$(sed -n 2p "$brief" | tr '\t' ' ')"
     re="$(printf '%s' "$slug" | sed 's/\./\\./g')"
     printf '%s\n' "$l1" | grep -Eq "^/(pap:)?(intent|change) +$re +(feature|infra|security-sensitive|bugfix|spike|chore|docs)( |\$)" ||
-      die 12 "the brief lacks a first line naming its route (rule 18.8): /intent $slug <class> or /change $slug <class> [Record: NNNN]"
+      refuse 12 "the brief lacks a first line naming its route (rule 18.8): /intent $slug <class> or /change $slug <class> [Record: NNNN]"
     printf '%s\n' "$l2" | grep -Eq '^Rule 20\.2: (item [12]|exempt: .+)' ||
-      die 13 "the brief lacks a second line naming the item of rule 20.2 that decided the route: \"Rule 20.2: item 1\", \"Rule 20.2: item 2\" or \"Rule 20.2: exempt: <which>\""
+      refuse 13 "the brief lacks a second line naming the item of rule 20.2 that decided the route: \"Rule 20.2: item 1\", \"Rule 20.2: item 2\" or \"Rule 20.2: exempt: <which>\""
     grep -Ei '^Budget:.*[0-9]' "$brief" | grep -Eiq 'token|minute|hour|min|wall' ||
-      die 14 "the brief lacks a budget in tokens or wall time (rule 18.7): a line \"Budget: <n> tokens\" or \"Budget: <n> minutes\""
+      refuse 14 "the brief lacks a budget in tokens or wall time (rule 18.7): a line \"Budget: <n> tokens\" or \"Budget: <n> minutes\""
     ! inflight | awk -F '\t' -v s="$slug" '$1 == s { f = 1 } END { exit !f }' ||
-      die 15 "\"$slug\" is in flight: launched, with no later report, pause, merge or abandoned decision" \
+      refuse 15 "\"$slug\" is in flight: launched, with no later report, pause, merge or abandoned decision" \
         "a dead cycle is cleared on the owner's word, by a decision event whose text starts \"abandoned\"."
     agent=pap:cycle
     ! grep -Eq '^Mechanical: *yes' "$brief" || agent=pap:cycle-mechanical
