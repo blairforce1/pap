@@ -833,7 +833,7 @@ cmd_doctor() {
       if printf '%s\n' "$plugins" | grep -Eq "(^|[^a-z-])$p@"; then
         item ok "$p plugin installed"
       else
-        item missing "$p plugin installed" "claude plugin install $p --marketplace blairforce1/pap"
+        item missing "$p plugin installed" "$(plugin_cmd "$p")"
       fi
     done
   fi
@@ -1425,6 +1425,36 @@ c_plugin() {
   [ -f "$f" ] && [ -n "$market" ] || return 1
   jq -e --arg k "pap@$market" '.plugins // {} | has($k)' "$f" >/dev/null 2>&1
 }
+# plugin_cmd <plugin>: the command that gets one of pap's plugins onto this
+# machine, or brings it up to date, on one line; the command ends the line. Which it is comes from
+# Claude Code's own files and nothing else: installed_plugins.json, and for
+# the marketplace known_marketplaces.json, then extraKnownMarketplaces in the
+# user settings. `--marketplace` adds the marketplace, and Claude Code
+# refuses to add one it already knows from a directory, so it is given only
+# to a machine that has never seen pap's marketplace.
+plugin_cmd() {
+  ph_d="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  ph_m="$(jq -r '.name // empty' "$root/.claude-plugin/marketplace.json" 2>/dev/null || true)"
+  ph_src=""
+  if [ -n "$ph_m" ]; then
+    ph_src="$(jq -c --arg m "$ph_m" 'if type == "object" then .[$m] // empty | .source // {} else empty end' \
+      "$ph_d/plugins/known_marketplaces.json" 2>/dev/null || true)"
+    [ -n "$ph_src" ] || ph_src="$(jq -c --arg m "$ph_m" '.extraKnownMarketplaces[$m] // empty | .source // {}' \
+      "$ph_d/settings.json" 2>/dev/null || true)"
+  fi
+  if [ -n "$ph_m" ] && jq -e --arg k "$1@$ph_m" '.plugins // {} | has($k)' "$ph_d/plugins/installed_plugins.json" >/dev/null 2>&1; then
+    ph_path="$(printf '%s\n' "$ph_src" | jq -r 'select(.source == "directory") | .path // empty' 2>/dev/null || true)"
+    if [ -n "$ph_path" ]; then
+      say "bring $ph_path, the directory it updates from, up to date, then: claude plugin update $1@$ph_m"
+    else
+      say "claude plugin update $1@$ph_m"
+    fi
+  elif [ -n "$ph_src" ]; then
+    say "claude plugin install $1@$ph_m"
+  else
+    say "claude plugin install $1 --marketplace blairforce1/pap"
+  fi
+}
 # c_key <root>: the repository's key in pap's state directory, the owner and
 # name of its origin or, with none, its main work tree's path. The plugin's
 # pm-lib.sh computes the same key (pm_key); tests/pm-mode.test.sh holds the
@@ -1485,7 +1515,7 @@ cmd_claude() {
     # Never a session that is called PM and has no guard.
     c_mode=none c_what=no-plugin
     say "pap: claude: PM mode needs the pap plugin, which carries the role and the guard, and it is not installed for Claude Code on this machine." \
-      "pap: claude: install it: claude plugin install pap --marketplace blairforce1/pap" \
+      "pap: claude: install it: $(plugin_cmd pap)" \
       "pap: claude: starting a session with no mode." >&2
   fi
   if [ "$c_mode" = none ]; then unset PAP_MODE; else PAP_MODE="$c_mode"; export PAP_MODE; fi
@@ -2657,8 +2687,8 @@ cmd_new() {
 $listing
 </installed>"
   else
-    say "" "The pap plugin is not installed for Claude Code on this machine: claude plugin install pap --marketplace blairforce1/pap"
-    given="The pap plugin is not installed for Claude Code on this machine, so its skills (/envision among them) are not here. Tell the owner the command that installs it: claude plugin install pap --marketplace blairforce1/pap"
+    say "" "The pap plugin is not installed for Claude Code on this machine: $(plugin_cmd pap)"
+    given="The pap plugin is not installed for Claude Code on this machine, so its skills (/envision among them) are not here. Tell the owner the command that installs it: $(plugin_cmd pap)"
   fi
   prompt="In one line, welcome the owner to the Personal Agentic Process (PAP).
 What happened: pap new $did.

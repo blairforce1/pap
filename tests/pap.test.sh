@@ -36,7 +36,7 @@ export GIT_CONFIG_NOSYSTEM=1
 # The pap under test: a plain copy, neither a release nor a git checkout, so
 # the checkout's own tags (a release tag on main) cannot change what it does.
 mkdir "$T/self"
-cp -a "$here/bin" "$here/scripts" "$here/templates" "$T/self/"
+cp -a "$here/bin" "$here/scripts" "$here/templates" "$here/.claude-plugin" "$T/self/"
 pap="$T/self/bin/pap"
 
 n=0
@@ -83,6 +83,10 @@ export MISE_DATA_DIR="$T/misedata"
 # client id in a config under $T, GitHub at an address only the fake curl
 # answers, and no global git config of the machine's.
 export XDG_CONFIG_HOME="$T/xdg" XDG_RUNTIME_DIR="$T/run" FAKE_KEYRING="$T/keyring" FAKE_GH="$T/fakegh"
+# Claude Code's own files are read from here, never from the machine's: the
+# plugin command pap doctor prints depends on them.
+export CLAUDE_CONFIG_DIR="$T/claude"
+mkdir -p "$CLAUDE_CONFIG_DIR/plugins"
 export PAP_GITHUB_API=http://github.invalid GIT_CONFIG_GLOBAL="$T/gitconfig"
 unset REMOTE_CONTAINERS CLAUDECODE GH_CONFIG_DIR GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
 mkdir -p "$T/xdg/pap" "$T/run" "$T/fakegh" "$T/xdg/gh" "$T/xdg/gh-agent"
@@ -536,6 +540,25 @@ missing "doctor: spec-review plugin missing, with the install command" \
 missing "doctor: pap plugin missing, with the install command" \
   'missing  pap plugin installed  (claude plugin install pap --marketplace blairforce1/pap)' \
   STUB_PLUGINS='  > spec-review@blairforce1-pap'
+# The command is the one that works on this machine, read from Claude Code's
+# own files: a marketplace it knows is not added again, and a plugin its
+# file holds is updated, not installed. These cases read JSON, so they take
+# the real jq ahead of the stub.
+mkdir "$T/realjq"
+ln -s "$(command -v jq)" "$T/realjq/jq"
+printf '{"extraKnownMarketplaces":{"blairforce1-pap":{"source":{"source":"directory","path":"~/src/pap"}}}}\n' > "$CLAUDE_CONFIG_DIR/settings.json"
+missing "doctor: pap plugin missing where the user settings list the marketplace as a directory, with an install that does not add it again" \
+  'missing  pap plugin installed  (claude plugin install pap@blairforce1-pap)' \
+  STUB_PLUGINS='  > spec-review@blairforce1-pap' PATH="$T/realjq:$dpath"
+printf '{"version":2,"plugins":{"pap@blairforce1-pap":[{"installPath":"/nowhere"}]}}\n' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+missing "doctor: a pap plugin Claude Code's file holds, from a directory marketplace, with the update command and the directory" \
+  'missing  pap plugin installed  (bring ~/src/pap, the directory it updates from, up to date, then: claude plugin update pap@blairforce1-pap)' \
+  STUB_PLUGINS='  > spec-review@blairforce1-pap' PATH="$T/realjq:$dpath"
+printf '{"blairforce1-pap":{"source":{"source":"github","repo":"blairforce1/pap"},"installLocation":"/nowhere"}}\n' > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+missing "doctor: a pap plugin Claude Code's file holds, from a marketplace that is no directory, with the update command alone" \
+  'missing  pap plugin installed  (claude plugin update pap@blairforce1-pap)' \
+  STUB_PLUGINS='  > spec-review@blairforce1-pap' PATH="$T/realjq:$dpath"
+rm -f "$CLAUDE_CONFIG_DIR/settings.json" "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json" "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
 out="$(doctor MISE_SHELL=bash STUB_PLUGINS=fail)"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qF 'skipped  pap plugins installed  (claude plugin list failed'
 result $? "doctor: claude plugin list failing skips the plugin check; exits 0" "$out"

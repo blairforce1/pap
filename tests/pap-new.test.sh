@@ -592,6 +592,11 @@ p="$(cat "$W/claude.args" 2>/dev/null)"
 welcomed && pin 'What happened: pap new made the first commit' && pin 'Where the owner is: in the clone' &&
   pin 'The pap plugin is not installed' && pin 'claude plugin install pap --marketplace blairforce1/pap' && ! pin '<installed>'
 result $? "pap-new-15: a machine without the pap plugin is told so in the welcome, with the command that installs it" "$p"
+printf '{"extraKnownMarketplaces":{"blairforce1-pap":{"source":{"source":"directory","path":"~/src/pap"}}}}\n' > "$HOME/.claude/settings.json"
+run '\n' trial
+p="$(cat "$W/claude.args" 2>/dev/null)"
+welcomed && pin 'The pap plugin is not installed' && pin 'claude plugin install pap@blairforce1-pap' && ! pin -e '--marketplace'
+result $? "pap-new-15: where the user settings list pap's marketplace as a directory, the command installs from it and does not add it again" "$p"
 
 world
 org acme

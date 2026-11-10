@@ -393,6 +393,29 @@ pc "$A"
 plugin_on
 [ "$(stub_mode)" = none ] && has 'PM mode needs the pap plugin'
 result $? "pm-mode-50: a machine with no installed-plugins file at all is the same: no mode, and it says why" "mode $(stub_mode); $err"
+# The command is the one that works on this machine. The regression first:
+# `--marketplace` adds the marketplace, and Claude Code refuses to add one
+# that the user settings already list as a directory.
+fresh
+plugin_off
+jq -n --arg m "$market" '{extraKnownMarketplaces: {($m): {source: {source: "directory", path: "~/src/pap"}}}}' \
+  > "$CLAUDE_CONFIG_DIR/settings.json"
+pc "$A"
+has "claude plugin install pap@$market" && ! has '--marketplace'
+result $? "pm-mode-50: where the user settings list pap's marketplace as a directory, the command installs from it and does not add it again" "$err"
+rm -f "$CLAUDE_CONFIG_DIR/settings.json"
+jq -n --arg m "$market" '{($m): {source: {source: "github", repo: "blairforce1/pap"}, installLocation: "/nowhere"}}' \
+  > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+pc "$A"
+has "claude plugin install pap@$market" && ! has '--marketplace'
+result $? "pm-mode-50: where Claude Code already knows pap's marketplace, the command installs from it and does not add it again" "$err"
+jq -n '{"other-market": {source: {source: "directory", path: "/elsewhere"}}}' > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+jq -n '{extraKnownMarketplaces: {"other-market": {source: {source: "directory", path: "/elsewhere"}}}}' > "$CLAUDE_CONFIG_DIR/settings.json"
+pc "$A"
+has 'claude plugin install pap --marketplace blairforce1/pap'
+result $? "pm-mode-50: another marketplace known on the machine changes nothing: the command adds pap's and installs from it" "$err"
+rm -f "$CLAUDE_CONFIG_DIR/settings.json" "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+plugin_on
 
 # --- A solo session is the owner's ------------------------------------------------
 
