@@ -68,6 +68,7 @@ Body, in the template's order:
 ```text
 Change: <slug if changes/<slug>/ exists on the branch, else none>
 Record: <NNNN or none>
+Route: <the brief's route and its rule 20.2 item; omit the line when the brief names none>
 
 ## Summary
 One or two lines, then one bullet per file or group changed.
@@ -88,6 +89,8 @@ Tick a box only if it is true. An unticked box needs a one-line reason below it,
 - [x] Generated content carries provenance (model, skill, prompt)
 Provenance: <model> via Claude Code, skill change, prompt "<one-line brief>"; recorded in the commit trailers.
 ```
+
+The `Route:` line is for a cycle a project-manager session launched (rule 25.5). Its brief starts with the route, `/intent <slug> <class>` or `/change <slug> <class> [Record: NNNN]`, and its second line names the item of rule 20.2 that decided it (rule 18.8). Copy both, unchanged, onto one line joined by `; `, as in `Route: /change <slug> <class>; Rule 20.2: item 1`. A change with no such brief, one the human invoked directly, has no `Route:` line.
 
 Answer every box. An unticked box has its reason on the next line. The protected-path box depends on the mode: the repository is in risk mode when its base branch has `.github/risk.yml` (`git cat-file -e origin/main:.github/risk.yml`, decision 0016).
 

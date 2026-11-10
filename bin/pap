@@ -15,7 +15,7 @@
 #        pap agent-key import <pem> [--client-id <id>] | status
 #        pap agent-token [--owner <login> | --repo <owner>/<name>]
 #        pap agent-setup [--owner <login>] [--name <app-name>]
-#        pap claude [<claude args>...]
+#        pap claude [--solo] [<claude args>...]
 #        pap shell-init bash|zsh
 #        pap version
 #
@@ -168,6 +168,19 @@
 #         shim) git's only credential helper for github.com and sets
 #         credential.https://github.com.useHttpPath, so git names the
 #         repository to the shim. Start every Claude Code session with it.
+#         It also sets the session's mode (decision 0025): in a repository
+#         that adopts PAP the session is the project manager (PAP_MODE=pm),
+#         given its role by the pap plugin and refused any write outside
+#         the PM paths; --solo, which is pap's own argument and is taken
+#         out, starts a session without the mode (PAP_MODE=solo) wherever
+#         it is run, and is refused in an agent shell; anywhere else the
+#         session has no mode. The mode belongs to this start, so --resume
+#         gives a conversation the mode of the start that resumed it.
+#         Without the pap plugin installed there is no PM mode: it says
+#         so, with the install command, and starts a session with no mode.
+#         Every start is one line in the session log,
+#         ${XDG_STATE_HOME:-~/.local/state}/pap/pm/sessions.log. --help
+#         prints this before Claude Code's own help.
 # shell-init
 #         Prints a claude function for eval "$(pap shell-init bash)" in
 #         ~/.bashrc (zsh: the same text). In a repository that adopts PAP (an
@@ -1382,7 +1395,88 @@ cmd_agent_setup() {
 # Decision 0023 point 2, rule 23.4: an agent shell's gh reads a directory
 # that never holds a sign-in; the owner's stays in gh's default directory.
 
+# c_plugin: the pap plugin is installed for Claude Code on this machine,
+# read from Claude Code's own file, as n_installed reads it.
+c_plugin() {
+  f="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
+  market="$(jq -r '.name // empty' "$root/.claude-plugin/marketplace.json" 2>/dev/null || true)"
+  [ -f "$f" ] && [ -n "$market" ] || return 1
+  jq -e --arg k "pap@$market" '.plugins // {} | has($k)' "$f" >/dev/null 2>&1
+}
+# c_key <root>: the repository's key in pap's state directory, the owner and
+# name of its origin or, with none, its main work tree's path. The plugin's
+# pm-lib.sh computes the same key (pm_key); tests/pm-mode.test.sh holds the
+# two together.
+c_key() {
+  u="$(git -C "$1" remote get-url origin 2>/dev/null || true)"
+  u="${u%/}"; u="${u%.git}"
+  k_name="${u##*/}"; k_rest="${u%/*}"; k_owner="${k_rest##*[/:]}"
+  bad=false
+  for w in "$k_name" "$k_owner"; do
+    case "$w" in "" | [!A-Za-z0-9]* | *[!A-Za-z0-9._-]*) bad=true ;; esac
+  done
+  if [ -n "$u" ] && [ "$k_rest" != "$u" ] && [ "$bad" = false ]; then
+    printf '%s/%s\n' "$k_owner" "$k_name"
+  else
+    g="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    printf '_path/%s\n' "$(printf '%s' "${g%/.git}" | tr '/' '%')"
+  fi
+}
+
 cmd_claude() {
+  # --solo is pap's own and is taken out, wherever it stands before a --;
+  # every other argument reaches Claude Code unchanged.
+  c_solo=false c_dd=false
+  for a in "$@"; do
+    shift
+    if [ "$a" = --solo ] && [ "$c_dd" = false ]; then c_solo=true; continue; fi
+    [ "$a" != -- ] || c_dd=true
+    set -- "$@" "$a"
+  done
+  case "${1:-}" in
+    --help | -h)
+      say "pap claude [--solo] [<claude args>...]" \
+        "  Starts Claude Code as the agent (rule 23.4). By default, in a repository that adopts PAP," \
+        "  the session is the project manager (PM mode, decision 0025): it proposes the route for" \
+        "  what you ask, interviews for intent and spec, launches a cycle for everything else, and" \
+        "  itself writes only changes/<slug>/, features/<slug>.feature, product/ and the tracker." \
+        "  Outside an adopting repository the session has no mode." \
+        "  --solo  starts a session without the mode, from your own terminal; refused in an agent shell." \
+        "  Every other argument is Claude Code's, whose own help follows." "" ;;
+  esac
+  # The solo flag is the owner's: refused in an agent shell, before anything else.
+  if [ "$c_solo" = true ] && sig="$(n_agent_shell)"; then
+    say "pap: claude: --solo is the owner's to run, and this is an agent shell: $sig" \
+      "pap: claude: from your own terminal, run: pap claude --solo" >&2
+    exit 1
+  fi
+  c_top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  c_repo="-" c_what=start
+  [ -z "$c_top" ] || [ ! -x "$c_top/scripts/guard-branch.sh" ] || c_repo="$(c_key "$c_top")"
+  if [ "$c_solo" = true ]; then
+    c_mode=solo
+  elif [ "$c_repo" = "-" ]; then
+    c_mode=none
+  elif c_plugin; then
+    c_mode=pm
+  else
+    # Never a session that is called PM and has no guard.
+    c_mode=none c_what=no-plugin
+    say "pap: claude: PM mode needs the pap plugin, which carries the role and the guard, and it is not installed for Claude Code on this machine." \
+      "pap: claude: install it: claude plugin install pap --marketplace blairforce1/pap" \
+      "pap: claude: starting a session with no mode." >&2
+  fi
+  if [ "$c_mode" = none ]; then unset PAP_MODE; else PAP_MODE="$c_mode"; export PAP_MODE; fi
+  # One line a start, in the session log (time, session, mode, repository,
+  # Claude Code version, what); a start is never held up by it.
+  c_log="${XDG_STATE_HOME:-$HOME/.local/state}/pap/pm"
+  if mkdir -p "$c_log" 2>/dev/null; then
+    chmod 700 "${c_log%/pm}" "$c_log" 2>/dev/null || true
+    # No session id and no Claude Code version yet: the plugin's
+    # session-start hook logs both, on the line for the role it gives.
+    printf '%s\t-\t%s\t%s\t-\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$c_mode" "$c_repo" "$c_what" \
+      >> "$c_log/sessions.log" 2>/dev/null || true
+  fi
   d="$(a_agentdir)"
   mkdir -p "$d" && chmod 700 "$d" || die "claude: cannot create $d"
   unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN

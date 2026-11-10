@@ -14,7 +14,9 @@ PAP runs on Linux and macOS; Windows through WSL2.
   it and activate it in your shell (`eval "$(mise activate <shell>)"` in
   your shell's rc file).
 - [Claude Code](https://code.claude.com/), where the skills run, from
-  Anthropic's installer. It updates itself, so no repository pins it.
+  Anthropic's installer. It updates itself, so no repository pins it. The
+  model and its version are Claude Code's too: pap ships no model and
+  pins neither.
 
 Then, once `mise install` has run in a repository, `gh auth login` with a
 GitHub account. `pap repo` needs `gh` signed in as someone who
@@ -114,15 +116,27 @@ applies that commit's templates and records `version = "unreleased"`.
    it needs a one-time ruleset bypass to merge; see "The first pull
    request" in [Adopt a repository](adopt-a-repo.md#the-first-pull-request).
 
-4. **Write the product layer.** In Claude Code, in the repository, run
-   `/envision`. It interviews you and writes `product/` (vision,
+4. **Write the product layer.** Start Claude Code in the repository with
+   `pap claude` ([Set up the account](account-setup.md#your-own-sign-in-and-pap-claude)
+   has its one-time setup). In a repository that adopts PAP that session
+   is the project manager by default: it proposes the route for what you
+   ask, runs the interviews itself, hands every other change to a cycle,
+   and writes only `changes/<slug>/`, `features/<slug>.feature`,
+   `product/` and its tracker. `pap claude --solo` starts a session
+   without the mode. [Run a project](run-a-project.md) has the rest.
+
+   With no product layer the session proposes `/envision`; run it. It
+   interviews you and writes `product/` (vision,
    invariants with protected paths, a hypothesis backlog, a conventions
    skeleton). Then `pap codeowners` writes `.github/CODEOWNERS` from the
    protected paths. [Start a project](start-a-project.md) has the detail.
 
 5. **Make the first change.** `/intent <slug> <class>` followed by what
-   you want, then `/spec <slug>`, then `/change <slug> <class>` with a
-   brief. [Make a change](make-a-change.md) walks the flow.
+   you want, then `/spec <slug>`. In a PM session the build is a cycle:
+   type `/pap:pm start` once, then `/pap:pm launch <slug>` when the PM
+   has written the brief. In a solo session it is `/change <slug>
+   <class>` with a brief. [Make a change](make-a-change.md) walks the
+   flow.
 
 ## Check the result
 
