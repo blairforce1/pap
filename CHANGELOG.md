@@ -159,6 +159,10 @@ not carry.
 
 ### [Unreleased]
 
+### [0.18.0] - 2026-11-10
+
+#### Added
+
 - `pap new <name>`: one command, run from your own terminal, from nothing
   to a greenfield PAP repository and a welcome session in it. Preflight
   checks the shell, the parameters, your `gh` sign-in and scopes, the
@@ -169,6 +173,41 @@ not carry.
   runbook in `docs/agent-onboarding.md`, which now carries an install
   prompt pinned to an exact version. `scripts/release.sh` refuses a
   release that prompt does not name.
+- `/pap:pm start` and `/pap:pm launch <slug>` (decision 0025), run by
+  `plugins/pap/skills/pm/pap-pm.sh`: the tracker, its lock and its push,
+  and the launch checks. A launch is refused, and no cycle starts, when
+  the owner did not type `/pap:pm launch <slug>` in that session, or the
+  brief names no route or no item of rule 20.2. `pap-pm.sh` also has
+  `commit` and `discard [--confirm]`.
+- A guard on the PM paths (rule 25.2): a project-manager session's Edit,
+  Write and NotebookEdit are refused outside `changes/<slug>/**`,
+  `features/<slug>.feature` and `product/**` in its own repository, and
+  the tracker, with the route named. Its `git commit` is refused when the
+  work tree holds any change outside those paths. Sub-agents are not
+  bound, so a cycle is refused no path. Each refusal is logged.
+- A project-manager session is given its role and the tracker's state at
+  every start, resume, `/clear` and compaction (rule 25.3).
+- The `Route:` line in a pull request body (rule 25.5): `/change` copies
+  the route and the rule 20.2 item from a project-manager's brief.
+- Decision 0025 (proposed) and rules 25.1 to 25.5. Rules 18.2, 18.7, 18.8
+  and 20.2 name what now enforces them.
+- `pap claude --help`. `pap claude` logs each start, and says when the pap
+  plugin is missing: it then starts a session with no mode.
+- `docs/agent-onboarding.md`: what a Claude Code session follows to bring
+  a repository onto PAP, with a prompt to paste for each path, the
+  brownfield runbook with a check per step, when to stop and ask, and what
+  done looks like. `llms.txt`: an index of the guides, the reference and
+  the layer READMEs. `README.md` and `docs/README.md` link to both.
+
+#### Changed
+
+- `pap claude` in an adopting repository now starts a project-manager
+  session (decision 0025, rule 25.1), where it started a plain one. That
+  session writes only the PM paths; everything else goes through a cycle
+  it launches. `pap claude --solo` is the way to a session without the
+  mode. `--solo` is the owner's: it is refused in an agent shell.
+- `docs/run-a-project.md`, `docs/getting-started.md` and `CLAUDE.md` say
+  what is now a command.
 
 ### [0.17.0] - 2026-11-10
 
