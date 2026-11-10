@@ -175,16 +175,19 @@ not carry.
   release that prompt does not name.
 - `/pap:pm start` and `/pap:pm launch <slug>` (decision 0025), run by
   `plugins/pap/skills/pm/pap-pm.sh`: the tracker, its lock and its push,
-  and the launch checks. A launch is refused, and no cycle starts, when
-  the owner did not type `/pap:pm launch <slug>` in that session, or the
-  brief names no route or no item of rule 20.2. `pap-pm.sh` also has
-  `commit` and `discard [--confirm]`.
+  and the launch checks. A launch is refused, and no cycle starts, with
+  an exit code from 10 to 19 naming the reason: among them, the owner did
+  not type `/pap:pm launch <slug>` in that session, the event log has no
+  `restate` event for the slug, or the brief names no route, no item of
+  rule 20.2 or no budget. `pap-pm.sh` also has `commit` and
+  `discard [--confirm]`.
 - A guard on the PM paths (rule 25.2): a project-manager session's Edit,
-  Write and NotebookEdit are refused outside `changes/<slug>/**`,
-  `features/<slug>.feature` and `product/**` in its own repository, and
-  the tracker, with the route named. Its `git commit` is refused when the
-  work tree holds any change outside those paths. Sub-agents are not
-  bound, so a cycle is refused no path. Each refusal is logged.
+  Write and NotebookEdit are refused outside the PM paths:
+  `changes/<slug>/**`, `features/<slug>.feature` and `product/**` in its
+  own repository, and the tracker. The refusal names the route. Its
+  `git commit` is refused when the work tree holds any change outside
+  those paths. Sub-agents are not bound, so a cycle is refused no path.
+  Each refusal is logged.
 - A project-manager session is given its role and the tracker's state at
   every start, resume, `/clear` and compaction (rule 25.3).
 - The `Route:` line in a pull request body (rule 25.5): `/change` copies
