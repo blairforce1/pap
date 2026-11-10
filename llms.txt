@@ -1,0 +1,36 @@
+# PAP
+
+> Personal Agentic Process: a software process for one developer whose code is mostly written by AI agents, and the Claude Code tooling (the `pap` CLI, three plugins, repository templates) that enforces and measures it.
+
+Every change is a worktree, a `change/<slug>` branch and a draft pull request; the human writes intent, reviews and merges. An agent setting a repository up starts at "Onboard a repository with an agent". Where a guide and the reference disagree, the reference wins.
+
+## Start here
+
+- [Onboard a repository with an agent](https://raw.githubusercontent.com/blairforce1/pap/main/docs/agent-onboarding.md): The runbook an agent follows for a new or an existing repository, with a check after every step and the points where it stops for the human.
+- [README](https://raw.githubusercontent.com/blairforce1/pap/main/README.md): What PAP is, where it comes from, and what each directory holds.
+
+## Guides
+
+- [Getting started](https://raw.githubusercontent.com/blairforce1/pap/main/docs/getting-started.md): The tools and plugins to install, the `pap` command, and a first repository by hand.
+- [Adopt a repository](https://raw.githubusercontent.com/blairforce1/pap/main/docs/adopt-a-repo.md): `pap init`, `sync`, `repo`, `codeowners` and `doctor`; the layers; the first pull request; public repositories.
+- [Set up the account](https://raw.githubusercontent.com/blairforce1/pap/main/docs/account-setup.md): Once per GitHub account: the `.github` repository, labels, Renovate, the `pap-agent` app and `pap claude`.
+- [Start a project](https://raw.githubusercontent.com/blairforce1/pap/main/docs/start-a-project.md): `/envision` and the product layer: vision, invariants, backlog, conventions.
+- [Make a change](https://raw.githubusercontent.com/blairforce1/pap/main/docs/make-a-change.md): `/intent`, `/spec`, `/change`, the classes, review by risk label, merge, findings.
+- [Run a project](https://raw.githubusercontent.com/blairforce1/pap/main/docs/run-a-project.md): One session as project manager, briefing and tracking several change cycles.
+- [Decide and improve](https://raw.githubusercontent.com/blairforce1/pap/main/docs/decide-and-improve.md): Decision records, revisits, audits, evals and the backlog.
+- [Agent identity and its security](https://raw.githubusercontent.com/blairforce1/pap/main/docs/agent-identity-security.md): What an agent can do on GitHub as the app, and what keeps the owner's sign-in from it.
+- [Troubleshooting](https://raw.githubusercontent.com/blairforce1/pap/main/docs/troubleshooting.md): What each refusal from a check, a hook, the `gh` shim or `pap` means, and the way through.
+
+## Reference
+
+- [The process](https://raw.githubusercontent.com/blairforce1/pap/main/process/personal-agentic-process.md): What must happen, tool-agnostic: principles, the product layer, task classes, phases.
+- [Rules](https://raw.githubusercontent.com/blairforce1/pap/main/rules.md): Every enforceable rule, the decision behind it, and what enforces it today.
+- [Decisions](https://github.com/blairforce1/pap/tree/main/decisions): One record per process change, with its expected effect and revisit date.
+- [Base template](https://raw.githubusercontent.com/blairforce1/pap/main/templates/base/README.md): Every file the base layer writes into a repository, and how the template is adopted and synced.
+
+## Optional
+
+- [.NET layer](https://raw.githubusercontent.com/blairforce1/pap/main/templates/dotnet/README.md): The .NET pins, analyzers and hook checks.
+- [Go layer](https://raw.githubusercontent.com/blairforce1/pap/main/templates/go/README.md): The Go pins, linter configuration and hook checks.
+- [Risk layer](https://raw.githubusercontent.com/blairforce1/pap/main/templates/risk/README.md): Risk mode: `risk:*` labels and the `owner-reviewed` gate.
+- [Changelog](https://raw.githubusercontent.com/blairforce1/pap/main/CHANGELOG.md): What each release changed.
