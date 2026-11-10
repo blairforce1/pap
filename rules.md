@@ -223,7 +223,7 @@ A change that needs an intent starts with `/intent`, then `/spec` as its class a
 1. it adds or changes something a user, operator or adopter sees, beyond what a decision record, rule, accepted spec or doc already states: a command, a flag, an output, a file an adopting repository receives, a rule, or a check that can refuse;
 2. the brief has to choose between two or more designs, or leaves a question open, that no decision record, rule, accepted spec or message from the human settles.
 
-It does not when every part of it is one of: the tracker; a rename that leaves every command, flag, output and shipped file as it was; docs that describe what already exists and change no text in `rules.md` or `decisions/`; a version bump or a template sync; a change to tests only; a fix that restores behaviour a record, rule, spec or doc already states. A change with any part outside that list is tested against items 1 and 2.
+It does not when every part of it is one of: the tracker; a rename that leaves every command, flag, output and shipped file as it was; docs that describe what already exists and change no text in `rules.md` or `decisions/`; a version bump or a template sync; a change to tests only; a fix that restores behaviour a record, rule, spec or doc already states; a change to `rules.md` or `decisions/` that records a decision the human has already made in a message (a revisit Result they answered, a dated note, or an amendment they approved), where the brief quotes or cites that approval. A change with any part outside that list is tested against items 1 and 2.
 
 The project-manager session makes the call and carries it in the brief's first line (rule 18.8); the human can overrule it before launch or at review.
 

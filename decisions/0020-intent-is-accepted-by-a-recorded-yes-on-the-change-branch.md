@@ -77,8 +77,12 @@ sections. The yes exists; the artefact it should accept does not.
    already stated, or its brief has to choose between designs that
    nothing on record settles; a change made only of tracker edits,
    renames nobody sees, docs of what exists, a version bump or sync,
-   tests, or a fix that restores stated behaviour does not. The project-manager session makes the call and names it in the
-   brief's first line (rule 18.8); the human can overrule it.
+   tests, a fix that restores stated behaviour, or a change to
+   `rules.md` or `decisions/` recording a decision the human already
+   made in a message, which the brief quotes or cites, does not
+   (amended 2026-11-10). The project-manager session makes the call and
+   names it in the brief's first line (rule 18.8); the human can
+   overrule it.
 
 The reason that carried it: the yes is what the human was already giving.
 Writing it into the file the next phase reads costs one interview and buys
