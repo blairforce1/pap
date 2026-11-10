@@ -318,8 +318,14 @@ runs, for example from a global mise install (`mise use -g`); a pap that
 is only on `PATH` inside a project's directory is not. In a repository
 with an executable `scripts/guard-branch.sh` the function runs `pap
 claude` through the pap that printed it; anywhere else it runs `claude`
-unchanged. Remove any `alias claude='pap claude'` first: bash expands it
-inside the function's definition. `pap claude` itself sets `GH_CONFIG_DIR`
+unchanged. After an upgrade, a terminal that was already open still
+records the old pap. The function then runs the `pap` on `PATH` when its
+version is the higher, and says so in one line; open a new terminal, or
+run the eval line again, to record the new one. An unreleased checkout,
+recorded or on `PATH`, is never passed over for a release. `pap doctor`
+reports a recorded pap older than itself as drift. Remove any
+`alias claude='pap claude'` first: bash expands it inside the function's
+definition. `pap claude` itself sets `GH_CONFIG_DIR`
 to an empty agent directory and unsets the GitHub
 token variables, so an agent shell finds no stored account and only the
 shim's `pap-agent` token works (rule 23.4). In an adopting repository the
