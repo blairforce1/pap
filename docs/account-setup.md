@@ -107,6 +107,21 @@ cancel or dispatch a workflow. No Issues, no Administration, no Secrets,
 so the app can neither change a repository's settings nor read a
 ruleset's bypass list.
 
+### Selected repositories, or all
+
+When you install the app on an owner, GitHub asks which repositories it
+may reach. PAP recommends **Only select repositories** (decision 0023),
+for a personal account and for an organisation alike.
+
+| Choice                   | Effect on a personal account                                                                                                                                                   | Effect on an organisation                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Only select repositories | An agent session can mint a token only for the repositories you picked. Each new repository is one step: `pap new` prints the installation's page and waits while you add it.  | The same, and an organisation owner adds the repository; a member who is not an owner must ask one. |
+| All repositories         | No step per new repository. Every agent session on the machine can mint a token with Contents write for every repository you own, including ones with no ruleset and no hooks. | The same for every repository of the organisation, present and future, whoever created it.          |
+
+`pap new` works with either: its preflight says which the installation
+is, and with selected repositories names the one step that follows
+creation.
+
 ### With `pap agent-setup`
 
 From an adopting repository, on the machine that runs agents:
