@@ -2072,6 +2072,20 @@ n_look() {
   fi
 }
 
+# n_hooks: the git hooks installed in the clone, one name a line. A function,
+# not written inside $( ): bash 3.2, macOS's sh, misreads a case there.
+n_hooks() {
+  h="$(cd "$n_dir" && git rev-parse --git-path hooks)" || return 0
+  case "$h" in /*) ;; *) h="$n_dir/$h" ;; esac
+  [ -d "$h" ] || return 0
+  for f in "$h"/*; do
+    case "$f" in
+      *.sample) ;;
+      *) [ ! -f "$f" ] || basename "$f" ;;
+    esac
+  done
+}
+
 # n_ruleset: 0 when the main ruleset is there, active, with no bypass
 # actor; else sets n_why.
 n_ruleset() {
@@ -2401,8 +2415,7 @@ cmd_new() {
 
   n_begin 3
   if [ "$n_remote" != first ]; then
-    hooks="$(cd "$n_dir" && h="$(git rev-parse --git-path hooks)" && [ -d "$h" ] &&
-      for f in "$h"/*; do case "$f" in *.sample | *"/*") ;; *) basename "$f" ;; esac; done | tr '\n' ' ')" || true
+    hooks="$(n_hooks | tr '\n' ' ')"
     [ -z "$hooks" ] ||
       n_stop "the clone has git hooks installed (${hooks% }), and the first push neither runs nor skips a hook" \
         "nothing was pushed. Remove them from ./$n_name/.git/hooks; clone setup installs them after the push."
