@@ -161,14 +161,15 @@ printf '%s\n' "$line" | grep -Eq "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:
 result $? "a build appends time, command, power and duration to the state log, not the repo" "log '$line'; repo: $(git -C "$T/repo" status --porcelain | tr '\n' ' ')"
 
 # Only the verb and the project file reach the log: a property carrying a
-# secret, as -p:, --property or a bare value that looks like a project, never does.
+# secret, as -p:, --property, an option's value or a bare value that looks
+# like a project, never does.
 # Files named like the option and the property exist, so neither guard
 # rests on the existence check alone.
-mkdir "$T/work"; : > "$T/App.csproj"; : > "$T/work/-p:_k3_.csproj"; : > "$T/work/Secret=_k2_.sln"
-(cd "$T/work" && sh "$hb" publish -p:Secret=_k1_ --property Secret=_k2_.sln -p:_k3_.csproj _k4_.sln "$T/App.csproj" -f net10.0-ios -c Release >/dev/null 2>&1)
+mkdir "$T/work"; : > "$T/App.csproj"; : > "$T/work/-p:_k3_.csproj"; : > "$T/work/Secret=_k2_.sln"; : > "$T/work/_k5_.sln"; : > "$T/work/Bare=_k6_.sln"; : > "$T/work/--_k7_.sln"
+(cd "$T/work" && sh "$hb" publish -p:Secret=_k1_ --property Secret=_k2_.sln -p:_k3_.csproj _k4_.sln Bare=_k6_.sln --no-restore -o _k5_.sln --_k7_.sln -c Release "$T/App.csproj" -f net10.0-ios >/dev/null 2>&1)
 last="$(tail -n 1 "$log")"
 [ "$(wc -l < "$log")" -eq 2 ] && printf '%s\n' "$last" | grep -q "${tab}dotnet publish $T/App.csproj${tab}" &&
-  ! grep -qE "_k[1-4]_|Secret|net10\.0|Release" "$log"
+  ! grep -qE "_k[1-7]_|Secret|net10\.0|Release" "$log"
 result $? "no argument but the verb and the project reaches the log" "log: $(tr '\n' '|' < "$log")"
 
 rm -r "$T/ps"; supply ACAD Mains 1

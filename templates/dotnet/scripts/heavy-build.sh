@@ -108,10 +108,21 @@ if [ -n "$state" ]; then
   # Only the verb and the project or solution are logged, never other
   # arguments: a property can carry a secret. The project is the first
   # argument that names an existing *.csproj, *.fsproj, *.vbproj, *.proj,
-  # *.sln, *.slnx or *.slnf file and has no leading - and no =; else "-".
+  # *.sln, *.slnx or *.slnf file, has no leading - and no =, and does not
+  # follow an option without : or = (it may be that option's value, as in
+  # -o out.sln); else "-".
   project=-
+  after_opt=""
   for a in "$@"; do
-    case "$a" in -* | *=*) continue ;; esac
+    if [ -n "$after_opt" ]; then
+      after_opt=""
+      case "$a" in -*) ;; *) continue ;; esac
+    fi
+    case "$a" in
+      -*:* | -*=*) continue ;;
+      -*) after_opt=1; continue ;;
+      *=*) continue ;;
+    esac
     case "$a" in
       *.csproj | *.fsproj | *.vbproj | *.proj | *.sln | *.slnx | *.slnf)
         if [ -f "$a" ]; then project="$a"; break; fi ;;
