@@ -34,7 +34,7 @@ Starting a greenfield PAP repository today means following #125's nine-step runb
   - A one-line paste-able prompt has Claude install pap with mise at an exact version written into the prompt text, then tells the user to exit and run `pap new`.
   - The version bump pull request updates that version, and `scripts/release.sh` refuses a release whose prompt version does not match.
   - One line says an exact version skips mise's `minimum_release_age`.
-  - Account setup recommends an all-repositories `pap-agent` installation for a personal account, and sets out both choices and their effect for an organisation.
+  - Account setup recommends a selected-repositories `pap-agent` installation (decision 0023), and sets out both choices and their effect for a personal account and for an organisation.
   - This replaces the greenfield section of `docs/agent-onboarding.md`.
 
 ## Non-goals
