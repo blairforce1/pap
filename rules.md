@@ -151,7 +151,7 @@ The spec of a feature, security-sensitive or bugfix change adds or changes at le
 A session that launches cycles opens no change pull request (process housekeeping the human asks for excepted), adds no `owner-reviewed`, writes no `Approved-by:`, merges nothing, writes no GitHub or repository settings, and does no act a hook refused a cycle.
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), with [0002](decisions/0002-skills-stop-at-draft-pr.md) and [0016](decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md)
-- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. Nothing refuses its `gh pr create` or a settings write. Planned: `/pap:pm` has no step that opens a pull request, and the `pap:cycle` and `pap:cycle-mechanical` agents (decision 0024) are the only routes to `/change` under it.
+- Enforced by: Partly: [`plugins/pap/hooks/guard-route.sh`](plugins/pap/hooks/guard-route.sh) refuses the label, the `Approved-by:` body and the merge from any agent session (rule 16.2), the project-manager session included. `/pap:pm` ([`plugins/pap/skills/pm/SKILL.md`](plugins/pap/skills/pm/SKILL.md), decision [0025](decisions/0025-pap-runs-as-the-project-manager-by-default.md)) has no step that opens a pull request, labels or merges, and the session's own writes are bound by rule 25.2. Still escaping: nothing refuses its `gh pr create` or a settings write. Whether a server gate should is open for the server-gate intent (backlog H-017).
 
 ### 18.2 A cycle is launched after a restated yes
 
@@ -165,7 +165,7 @@ Before a cycle is launched, the event log carries the ask restated in one line a
 The state file and the event log are committed on every launch, postmortem, message to a cycle, pause, relaunch, merge, decision and audit, and only the project-manager session writes them.
 
 - Decision: [0018](decisions/0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md)
-- Enforced by: Nothing yet. Planned: `/pap:pm event` writes and commits in one step; `/pap:pm start` and `relaunch` refuse a tracker with uncommitted changes.
+- Enforced by: Partly: [`plugins/pap/skills/pm/pap-pm.sh`](plugins/pap/skills/pm/pap-pm.sh) (decision [0025](decisions/0025-pap-runs-as-the-project-manager-by-default.md)). `/pap:pm start` stops on an uncommitted tracker (exit 4) until the owner commits or discards it, and `/pap:pm launch` commits the tracker before a cycle starts. `pap-pm.sh commit` commits the tracker and pushes it when it has a remote. One session holds the tracker at a time, by a lock every command takes. Still by hand: the PM appends the other event lines itself and then runs `commit`, so nothing makes it commit on each one. Still escaping: nothing refuses a sub-agent's shell write to the tracker. Planned: `/pap:pm event` and `relaunch` (backlog H-012).
 
 ### 18.4 An audit every five merged change PRs and at every relaunch
 
