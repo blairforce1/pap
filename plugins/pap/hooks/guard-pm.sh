@@ -32,11 +32,13 @@
 # Each refusal adds a line to the refusal log. A shell command that changes
 # a file is not seen here; guard-route.sh judges the commit.
 
+# SC2154: the pm_ variables are set by pm-lib.sh's functions.
+# shellcheck disable=SC2154
 set -u
 [ "${PAP_MODE:-}" = pm ] || exit 0
 
 here="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=plugins/pap/hooks/pm-lib.sh
+# shellcheck disable=SC1091 # pm-lib.sh, beside this script
 . "$here/pm-lib.sh"
 
 input="$(cat)"

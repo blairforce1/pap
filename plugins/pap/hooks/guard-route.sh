@@ -119,6 +119,8 @@
 # as does an --input body piped from anything but a heredoc. Neither the
 # label nor the merge can be traced to who did it once it is through.
 
+# SC2154: the pm_ variables are set by pm-lib.sh's functions.
+# shellcheck disable=SC2154
 set -u
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -359,7 +361,7 @@ targets="$(printf '%s' "$input" | jq -r '
   # A call that cannot be parsed is let through, as it always was. In a PM
   # session it is said and logged, so the window can count them.
   if [ "${PAP_MODE:-}" = pm ]; then
-    # shellcheck source=plugins/pap/hooks/pm-lib.sh
+    # shellcheck disable=SC1091 # pm-lib.sh, beside this script
     . "$(dirname "$0")/pm-lib.sh"
     printf 'guard-route: could not read the tool call; nothing was checked for it\n' >&2
     pm_log refusals.log "$(pm_now)" - pm unknown - - unread
@@ -461,7 +463,7 @@ EOF2
 pm_lib=""
 pm_lib() {
   [ -z "$pm_lib" ] || return 0
-  # shellcheck source=plugins/pap/hooks/pm-lib.sh
+  # shellcheck disable=SC1091 # pm-lib.sh, beside this script
   . "$(dirname "$0")/pm-lib.sh"
   pm_session "${CLAUDE_PROJECT_DIR:-.}"
   pm_lib=yes

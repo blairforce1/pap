@@ -34,12 +34,14 @@
 # Never blocks a start: with no jq the role is printed as plain text and
 # the source is unknown.
 
+# SC2154: the pm_ variables are set by pm-lib.sh's functions.
+# shellcheck disable=SC2154
 set -u
 mode="${PAP_MODE:-}"
 case "$mode" in pm | solo) ;; *) exit 0 ;; esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=plugins/pap/hooks/pm-lib.sh
+# shellcheck disable=SC1091 # pm-lib.sh, beside this script
 . "$here/pm-lib.sh"
 
 input="$(cat)"

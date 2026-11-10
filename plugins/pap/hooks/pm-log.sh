@@ -18,6 +18,8 @@
 #            the sub-agent's id and type. A message to a sub-agent after its
 #            first stop is what the messaged-cycles signal counts.
 
+# SC2154: the pm_ variables are set by pm-lib.sh's functions.
+# shellcheck disable=SC2154
 set -u
 kind="${1:-}"
 case "$kind" in
@@ -28,7 +30,7 @@ esac
 command -v jq >/dev/null 2>&1 || exit 0
 
 here="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=plugins/pap/hooks/pm-lib.sh
+# shellcheck disable=SC1091 # pm-lib.sh, beside this script
 . "$here/pm-lib.sh"
 
 input="$(cat)"
