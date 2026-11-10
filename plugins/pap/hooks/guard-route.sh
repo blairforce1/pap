@@ -495,8 +495,12 @@ while IFS="$tab" read -r kind target reason file; do
       printf 'guard-route: refusing git commit in %s: the whole work tree is judged, and it holds changes outside the PM paths: %s\n' \
         "$pm_top" "$(head -n 10 "$out_tmp" | tr '\n' ' ' | sed 's/ $//')$([ "$(wc -l < "$out_tmp")" -le 10 ] || printf ' and more')" >&2
       printf 'guard-route: rule 25.2: a PM session commits only the PM paths. Commit from the change'"'"'s own work tree, or have whoever owns each file move it; never stash, clean, check out or delete a file to clear this. Report the files to the owner and stop.\n' >&2
+      # The repository as guard-pm.sh logs it: its key when it is the
+      # session's own, its root otherwise.
+      c_repo="$pm_top"
+      [ "$pm_common" != "$pm_own_common" ] || c_repo="$pm_own_key"
       while IFS= read -r f; do
-        pm_log refusals.log "$(pm_now)" "${session_id:--}" pm main "$f" "$pm_top" commit
+        pm_log refusals.log "$(pm_now)" "${session_id:--}" pm main "$f" "$c_repo" commit
       done < "$out_tmp"
       status=2
     fi
