@@ -211,6 +211,13 @@ not carry.
   mode. `--solo` is the owner's: it is refused in an agent shell.
 - `docs/run-a-project.md`, `docs/getting-started.md` and `CLAUDE.md` say
   what is now a command.
+- The "Enforced by" lines of rules 18.1 and 18.3 say what `/pap:pm` now
+  does and what still escapes; 18.3 goes from "Nothing yet" to "Partly".
+  Neither rule's own sentence changed. `README.md`'s Quick start and its
+  "Several changes at once" paragraph describe PM mode as shipped:
+  `pap claude` starts the project-manager session, `pap claude --solo`
+  one without the mode, and the owner types `/pap:pm start` and
+  `/pap:pm launch <slug>`.
 
 ### [0.17.0] - 2026-11-10
 
