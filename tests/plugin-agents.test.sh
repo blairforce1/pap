@@ -62,6 +62,15 @@ case ", $tools," in
   *) [ -n "$tools" ]; result $? "reviewer: no Edit, Write or Agent" ;;
 esac
 
+# The reviewer starts in its launcher's directory, where /code-review sees
+# no diff, so its body must open by changing into the worktree.
+first=$(awk 'NR == 1 { next } f == 0 && $0 == "---" { f = 1; next }
+  f && NF { print; exit }' "$dir/reviewer.md")
+case "$first" in
+  'First, before any other command, '?cd?' to the worktree'*) result 0 "reviewer: body starts by changing into the worktree" ;;
+  *) result 1 "reviewer: body starts by changing into the worktree" ;;
+esac
+
 [ "$(field "$dir/cycle-mechanical.md" model)" = haiku ]
 result $? "cycle-mechanical: model is haiku"
 

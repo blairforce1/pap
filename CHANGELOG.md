@@ -198,6 +198,15 @@ not carry.
   that branched the wrong repository and a bot-added `owner-reviewed`.
   Dated notes on decisions 0007, 0016, 0018 and 0023.
 
+#### Fixed
+
+- The `pap:reviewer` agent changes into the worktree before anything else
+  and passes it as the `/code-review` target. It started in its
+  launcher's directory, where `/code-review` with no target found a clean
+  tree and returned nothing, so every cold review fell back to the
+  reviewer's own read. `/change` step 5 says the same, and
+  `tests/plugin-agents.test.sh` checks the reviewer's first line.
+
 ### [0.16.1] - 2026-11-09
 
 #### Fixed
