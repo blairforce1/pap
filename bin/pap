@@ -63,10 +63,9 @@
 #         pap and spec-review plugins, the pap plugin's version against
 #         this pap's (an older plugin is drift, with the update command; a
 #         newer one a warning; an unreleased pap compares nothing), flock
-#         (a warning only), this
-#         configuration trusted, the git hooks installed,
-#         blame.ignoreRevsFile set, and every pinned tool installed at its
-#         pin. In a repository that adopts PAP, decision 0023's agent app:
+#         (a warning only), this configuration trusted, the git hooks
+#         installed, blame.ignoreRevsFile set, and every pinned tool
+#         installed at its pin. In a repository that adopts PAP, decision 0023's agent app:
 #         openssl and curl, the key in the keyring, the client id, an
 #         HTTPS origin (an SSH one is reported with the set-url fix and
 #         never changed), gh by name as git's credential helper for
