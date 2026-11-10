@@ -29,6 +29,16 @@
 # without it (macOS ships none; `brew install flock`) the build runs
 # unlocked and says so. PAP_HEAVY_LOCK and PAP_POWER_SUPPLY override the
 # lock path and the sysfs directory, for tests.
+#
+# Each build appends one line to
+# ${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log, so a revisit
+# of decision 0015 can count heavy builds: the UTC start time, "dotnet",
+# the verb and the project or solution file as given (or "-"), battery or
+# mains, and the duration in seconds, tab-separated. No other argument is
+# logged. The log is per user and per machine, never in a repository:
+# a relative XDG_STATE_HOME is ignored, as the XDG spec says; with no
+# absolute HOME either, or a state directory inside a git work tree,
+# nothing is logged. A log that cannot be written never fails the build.
 
 set -u
 
@@ -61,7 +71,9 @@ case "${1:-}" in
 esac
 
 cap=""
+power=mains
 if on_battery; then
+  power=battery
   case " $* " in
     *" -m"* | *" /m"* | *" --max-cpu-count"*) ;;
     *) cap="-m:2"; say "on battery: MSBuild capped at two nodes (-m:2)" ;;
@@ -80,5 +92,50 @@ else
   fi
 fi
 
+state=""
+case "${XDG_STATE_HOME:-}" in
+  /*) state="$XDG_STATE_HOME" ;;
+  *) case "${HOME:-}" in /*) state="$HOME/.local/state" ;; esac ;;
+esac
+started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+t0="$(date +%s)"
+
 # shellcheck disable=SC2086 # $cap is one word or nothing
 dotnet "$verb" "$@" $cap 9>&-
+rc=$?
+
+if [ -n "$state" ]; then
+  # Only the verb and the project or solution are logged, never other
+  # arguments: a property can carry a secret. The project is the first
+  # argument that names an existing *.csproj, *.fsproj, *.vbproj, *.proj,
+  # *.sln, *.slnx or *.slnf file, has no leading - and no =, and does not
+  # follow an option without : or = (it may be that option's value, as in
+  # -o out.sln); else "-".
+  project=-
+  after_opt=""
+  for a in "$@"; do
+    if [ -n "$after_opt" ]; then
+      after_opt=""
+      case "$a" in -*) ;; *) continue ;; esac
+    fi
+    case "$a" in
+      -*:* | -*=*) continue ;;
+      -*) after_opt=1; continue ;;
+      *=*) continue ;;
+    esac
+    case "$a" in
+      *.csproj | *.fsproj | *.vbproj | *.proj | *.sln | *.slnx | *.slnf)
+        if [ -f "$a" ]; then project="$a"; break; fi ;;
+    esac
+  done
+  cmdline="$(printf 'dotnet %s %s' "$verb" "$project" | tr '\t\n' '  ')"
+  if mkdir -p "$state/pap" 2>/dev/null &&
+    git -C "$state/pap" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    say "$state/pap is inside a git work tree; this build is not logged"
+  elif ! { mkdir -p "$state/pap" &&
+    printf '%s\t%s\t%s\t%ss\n' "$started" "$cmdline" "$power" "$(($(date +%s) - t0))" \
+      >>"$state/pap/heavy-builds.log"; } 2>/dev/null; then
+    say "cannot write $state/pap/heavy-builds.log; this build is not logged"
+  fi
+fi
+exit "$rc"

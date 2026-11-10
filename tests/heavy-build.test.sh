@@ -52,6 +52,8 @@ exit "${STUB_EXIT:-0}"
 EOF
 chmod +x "$T/stub/dotnet"
 export STUB_LOG="$T/dotnet.log" PAP_HEAVY_LOCK="$T/lock" PAP_POWER_SUPPLY="$T/ps"
+# Every build logs under the state directory: keep it in the temp dir.
+export HOME="$T/home" XDG_STATE_HOME="$T/state"
 PATH="$T/stub:$PATH"
 export PATH
 
@@ -142,6 +144,64 @@ ln -s "$(command -v cat)" "$T/bin/cat"
 out="$(PATH="$T/stub:$T/bin" "$(command -v sh)" "$hb" -c Release 2>&1)"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'flock not found' && [ "$(cat "$STUB_LOG")" = "build -c Release" ]
 result $? "no flock: the build runs unlocked and says so" "exit $rc; out '$out'"
+
+# --- the log ---------------------------------------------------------------------
+
+# Each build appends one tab-separated line (UTC start, verb and project, power,
+# seconds) under the user's state directory, and nothing in the repository
+# it ran from.
+git init -q "$T/repo"
+rm -rf "$T/ps" "$T/state"; supply ADP1 Mains 0; supply BAT0 Battery
+log="$T/state/pap/heavy-builds.log"
+(cd "$T/repo" && STUB_SLEEP=1 sh "$hb" publish -f net10.0-ios -c Release >/dev/null 2>&1)
+line="$(cat "$log" 2>/dev/null)"
+tab="$(printf '\t')"
+printf '%s\n' "$line" | grep -Eq "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z${tab}dotnet publish -${tab}battery${tab}[1-9][0-9]*s\$" &&
+  [ "$(wc -l < "$log")" -eq 1 ] && [ -z "$(git -C "$T/repo" status --porcelain)" ]
+result $? "a build appends time, command, power and duration to the state log, not the repo" "log '$line'; repo: $(git -C "$T/repo" status --porcelain | tr '\n' ' ')"
+
+# Only the verb and the project file reach the log: a property carrying a
+# secret, as -p:, --property, an option's value or a bare value that looks
+# like a project, never does.
+# Files named like the option and the property exist, so neither guard
+# rests on the existence check alone.
+mkdir "$T/work"; : > "$T/App.csproj"; : > "$T/work/-p:_k3_.csproj"; : > "$T/work/Secret=_k2_.sln"; : > "$T/work/_k5_.sln"; : > "$T/work/Bare=_k6_.sln"; : > "$T/work/--_k7_.sln"
+(cd "$T/work" && sh "$hb" publish -p:Secret=_k1_ --property Secret=_k2_.sln -p:_k3_.csproj _k4_.sln Bare=_k6_.sln --no-restore -o _k5_.sln --_k7_.sln -c Release "$T/App.csproj" -f net10.0-ios >/dev/null 2>&1)
+last="$(tail -n 1 "$log")"
+[ "$(wc -l < "$log")" -eq 2 ] && printf '%s\n' "$last" | grep -q "${tab}dotnet publish $T/App.csproj${tab}" &&
+  ! grep -qE "_k[1-7]_|Secret|net10\.0|Release" "$log"
+result $? "no argument but the verb and the project reaches the log" "log: $(tr '\n' '|' < "$log")"
+
+rm -r "$T/ps"; supply ACAD Mains 1
+(cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
+[ "$(wc -l < "$log")" -eq 3 ] && tail -n 1 "$log" | grep -q "${tab}dotnet build -${tab}mains${tab}"
+result $? "a second build appends a second line, on mains" "log: $(tr '\n' '|' < "$log")"
+
+unset XDG_STATE_HOME
+(cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
+grep -q "${tab}dotnet build -${tab}" "$T/home/.local/state/pap/heavy-builds.log" 2>/dev/null
+result $? "without XDG_STATE_HOME the log is under HOME/.local/state" ""
+
+export XDG_STATE_HOME=state
+(cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
+[ ! -e "$T/repo/state" ] && [ "$(wc -l < "$T/home/.local/state/pap/heavy-builds.log")" -eq 2 ] &&
+  [ -z "$(git -C "$T/repo" status --porcelain)" ]
+result $? "a relative XDG_STATE_HOME is ignored, so nothing lands in the repo" "repo: $(find "$T/repo" -maxdepth 1 ! -name .git | tr '\n' ' ')"
+
+export XDG_STATE_HOME="$T/repo/state"
+out="$(cd "$T/repo" && sh "$hb" -c Release 2>&1)"
+[ ! -e "$T/repo/state/pap/heavy-builds.log" ] && [ -z "$(git -C "$T/repo" status --porcelain)" ] &&
+  printf '%s\n' "$out" | grep -q 'not logged'
+result $? "a state directory inside a work tree is not logged to, and says so" "out '$out'; repo: $(git -C "$T/repo" status --porcelain | tr '\n' ' ')"
+
+export XDG_STATE_HOME="$T/state"
+chmod a-w "$T/state/pap/heavy-builds.log"
+export STUB_EXIT=4
+out="$(cd "$T/repo" && sh "$hb" -c Release 2>&1)"; rc=$?
+unset STUB_EXIT
+chmod u+w "$T/state/pap/heavy-builds.log"
+[ "$rc" = 4 ] && printf '%s\n' "$out" | grep -q 'not logged'
+result $? "a log it cannot write never changes the build's status, and says so" "exit $rc; out '$out'"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

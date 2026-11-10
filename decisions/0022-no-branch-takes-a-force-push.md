@@ -5,7 +5,7 @@
 - **Deciders:** blairforce1, with Claude
 - **Supersedes:** none; extends the `non_fast_forward` rule of [0002](0002-skills-stop-at-draft-pr.md) from main to every branch
 - **PIP:** the owner's call of 2026-11-05 that no force push becomes the default on every branch, overridable only on purpose. That week a background agent force-pushed its own `change/` branch, and nothing stopped it: the `main` ruleset blocks a non-fast-forward push on the default branch only, and the agent hook had no rule for it
-- **Expected effect:** force pushes by an agent session to any branch of an adopting repository ↓ to 0; no baseline exists beyond the one incident, as nothing recorded them before. Deliberate overrides are visible: every one shows as `pap repo status` drift until `pap repo apply` restores the ruleset
+- **Expected effect:** force pushes by an agent session to any branch of an adopting repository ↓ to 0; no baseline exists beyond the one incident, as nothing recorded them before. The deliberate override is the owner's own force push from their terminal, which the `all-branches` ruleset's owner bypass lets through ([0023](0023-agents-act-on-github-as-their-own-app.md) point 4, #116); there is no ruleset to disable, so an override shows in the repository's force-push activity, not as `pap repo status` drift (amended 2026-11-09)
 - **Introduced in:** not yet released; the release that ships `.github/rulesets/all-branches.json` and the `push-args` guard
 - **Revisit:** after 20 change PRs from #117: if the hook refused a push that was not a force push, or a force push reached a branch through a route the hook does not follow, with each adopting repository's force-push activity read from GitHub; and at once, by hand, if an agent force push is found in an adopting repository
 
@@ -104,6 +104,13 @@ shown: the count would read 0 with or without the guard.
 
 Recommendation: amend (the Expected effect's override sentence, to the
 owner's force push of 0023 point 4)
+
+### Amended 2026-11-09
+
+The Project Lead said yes to the amendment. The Expected effect's
+override sentence now names the owner's own force push and the bypass
+of 0023 point 4; point 4 already carried the dated note. Status stays
+`proposed`.
 
 ## Considered options
 

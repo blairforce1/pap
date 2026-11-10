@@ -7,7 +7,7 @@
 - **PIP:** the owner's call of 2026-11-05 that the intent must be intentional. Process 5.1 makes intent phase 1, human-owned and "accepted when merged"; no tool writes it (backlog H-005). In practice the project manager's brief plus the human's yes to a one-line restatement (decision [0018](0018-a-project-manager-session-launches-cycles-and-keeps-the-tracker.md), rule 18.2) has stood in for intent, outside `changes/<slug>/`: of pap's 78 merged change pull requests, one carries an `intent.md` (process-coverage), so no change links to a hypothesis where a measure can read it, and `findings.md` would have no success measure to evaluate
 - **Expected effect:** share of merged change pull requests whose branch carries an accepted `changes/<slug>/intent.md` naming `H-NNN` or `reactive: <reason>` ↑ from 1 of 78 (1%) to every change started with `/intent`, read as `changes/*/intent.md` on main against merged `change/` pull requests, in pap and in each adopting repository separately; intent churn (5.4: commits to `intent.md` after `spec.md` first exists on the branch) counted per change from git, expected at a median of 0 and not above 1; reactive share (6.3) reported from the same files
 - **Introduced in:** not yet released; the release that ships `/intent`
-- **Revisit:** when 10 change PRs started with `/intent` have merged in one repository: the share, the churn and the reactive share over those 10, and how many intents accepted in the interview were returned to (5.10) at spec or review
+- **Revisit:** when 10 change PRs started with `/intent` have merged in one repository, counted from the first change started with `/intent` after the amendment of 2026-11-09: the share, the churn and the reactive share over those 10, and how many intents accepted in the interview were returned to (5.10) at spec or review
 
 ## Context
 
@@ -71,6 +71,19 @@ sections. The yes exists; the artefact it should accept does not.
    is next and how; H-012's `/pap:pm launch` calls `/intent` in a later
    cycle.
 
+6. **`/intent` is for a change that needs it, and not otherwise**
+   (amended 2026-11-09, rule 20.2). A change needs it when it adds or
+   changes something a user, operator or adopter sees beyond what is
+   already stated, or its brief has to choose between designs that
+   nothing on record settles; a change made only of tracker edits,
+   renames nobody sees, docs of what exists, a version bump or sync,
+   tests, a fix that restores stated behaviour, or a change to
+   `rules.md` or `decisions/` recording a decision the human already
+   made in a message, which the brief quotes or cites, does not
+   (amended 2026-11-10). The project-manager session makes the call and
+   names it in the brief's first line (rule 18.8); the human can
+   overrule it.
+
 The reason that carried it: the yes is what the human was already giving.
 Writing it into the file the next phase reads costs one interview and buys
 the link to a hypothesis that every measure in 5.2 and 6.3 needs.
@@ -99,6 +112,14 @@ refuted, not confirmed.
 Recommendation: amend (count from the first change started with
 `/intent`, as the new Revisit line does; whether briefs should start
 with `/intent` is a separate call for the Project Lead)
+
+### Amended 2026-11-09
+
+The Project Lead said yes to the amendment and made the separate call:
+"we need to do them but only for things that need them". Point 6 and
+rule 20.2 carry the test; rule 18.8 has the brief name its route. The
+Revisit line counts from the first change started with `/intent`. Status
+stays `proposed`.
 
 ## Considered options
 
@@ -153,6 +174,8 @@ with `/intent` is a separate call for the Project Lead)
 ## Where it is taught or enforced
 
 Backs [`rules.md`](../rules.md) 20.1 (intent is accepted by a recorded yes
-and committed before the spec and the code) and narrows 2.2. Taught by the
+and committed before the spec and the code), 20.2 (a change starts with
+`/intent` when it needs one) and 18.8 (a brief names its route), and
+narrows 2.2. Taught by the
 `/intent` skill ([`plugins/pap/skills/intent/SKILL.md`](../plugins/pap/skills/intent/SKILL.md))
 and the `/change` skill's step 2. Enforced by nothing yet.

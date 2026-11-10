@@ -159,8 +159,29 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `scripts/heavy-build.sh` (the .NET layer) logs each heavy build it runs,
+  its UTC start, verb and project or solution file (no other argument),
+  battery or mains and duration, to
+  `${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log`, outside
+  every repository, so decision 0015's revisit can count them (0015
+  amended).
+- Rule 20.2: a change starts with `/intent`, then `/spec`, only when it
+  needs one: it changes something a user, operator or adopter sees, or
+  carries a design choice nothing on record settles, and not to record a
+  decision the human already made in a message the brief cites. Rule 18.8: a PM
+  brief's first line is its route, with one line naming the item that
+  decided it. Decisions 0020 and 0021 amended, their revisits counted from
+  the first change started with `/intent` and `/spec`.
+
 #### Changed
 
+- Decision 0022's Expected effect names the owner's own force push under
+  0023 point 4's bypass as the override, in place of a disabled ruleset.
+  Decision 0024's Revisit line is in the typed form, so `pap revisits` no
+  longer reports it unknown. 0015, 0020, 0021, 0022 and 0024 stay
+  `proposed`.
 - The revisits of decisions 0015, 0019, 0020, 0021 and 0022 are written
   into their Result sections. 0019 is `measured:inconclusive` and kept,
   with point 1 to be amended by 0024. The four proposed records keep
