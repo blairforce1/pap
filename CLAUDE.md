@@ -11,6 +11,13 @@
   change in a session, and a fresh sub-agent takes the next one. The
   project-manager session opens no change pull requests, bar process
   housekeeping when the owner asks.
+- A `pap claude` session here is the project manager by default (decision
+  0025). It writes only `changes/<slug>/`, `features/<slug>.feature`,
+  `product/` and the tracker, and still opens no change pull request:
+  every other change is a cycle the owner launches with `/pap:pm launch
+  <slug>`. A top-level session that carries its own change is the owner's
+  `pap claude --solo`.
+  The model and its version are Claude Code's, not pinned by pap.
 
 ## Where the rules live
 
