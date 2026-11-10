@@ -159,8 +159,27 @@ not carry.
 
 ### [Unreleased]
 
+### [0.18.1] - 2026-11-10
+
+#### Added
+
+- `docs/troubleshooting.md`: an entry for the line `claude` prints when
+  the terminal recorded an older pap than the one on `PATH`, with what it
+  means and the fix.
+- `product/backlog.md`: H-018, a launcher that resolves pap for the
+  repository at launch, so that a session is started by the version the
+  repository pins.
+
 #### Fixed
 
+- pap printed one fixed command for getting its plugin, `claude plugin
+  install pap --marketplace blairforce1/pap`. Claude Code refuses it where
+  the marketplace is already listed as a directory, and it is the wrong
+  command for a plugin that is installed. `pap doctor`, `pap claude` and
+  `pap new` now print the command that fits the machine: `claude plugin
+  update pap@<marketplace>` when the plugin is installed, `claude plugin
+  install pap@<marketplace>` without `--marketplace` when the marketplace
+  is already known, and the first-install form otherwise.
 - After an upgrade, `claude` in a terminal that was already open ran the
   old pap that `pap shell-init` had recorded, silently. The function now
   runs the `pap` on `PATH` when it is another file with the higher version

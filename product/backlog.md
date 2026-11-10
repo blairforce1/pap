@@ -59,6 +59,11 @@ Related: decision 0025 (rules 25.1, 25.2 and 25.5 name what it would close); rul
 Why: PM mode binds only a session `pap claude` started, and only its main session. A session started as plain `claude` has no mode, and a PM that has a sub-agent make the edit passes the guard. Both are closed only where the session cannot reach: at the pull request.
 Open for its intent: how a launch logged on one machine is shown to the server, so that a writing sub-agent is tied to it; whether a PM session's `gh pr create` is refused (rule 18.1 keeps the housekeeping exception).
 
+**H-018** We believe a launcher that resolves pap for the repository at launch will produce sessions whose `pap claude`, gh shim and mode match the repository's pin, measured by sessions started by a pap other than the repository's pinned version, at 0 (the session log could carry the launcher's version).
+Related: decision 0023 (rule 23.4, `pap claude`); decision 0025; #131. Class: feature
+Why: `pap shell-init` records the absolute path of one pap install when a terminal starts, and #131 only lets a newer release on `PATH` win. Neither reads the pap version the repository pins in `.config/mise/conf.d/pap.toml`, so two repositories pinned at different versions are launched by the same pap. The owner, 2026-11-10: the launcher should "honour the version pinned within a repo, ideally", and it is "quite important".
+Open for its intent (rule 20.2 item 2, so it needs an `/intent`): which design. The candidates are resolving with `mise exec -- pap claude` at launch, calling `pap` by name on `PATH`, or recording mise's shim; none is chosen. A plugin cannot replace the launcher: `PAP_MODE`, the agent gh directory and the shim must be in Claude Code's own environment before it starts.
+
 ## Unranked
 
 **H-006** We believe joining Claude Code's telemetry to the change id will produce inner-loop measures per change, measured by the share of changes with token and rework-share data.

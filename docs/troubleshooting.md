@@ -330,6 +330,15 @@ session started as plain `claude`
 passes this to every cycle it starts, since they inherit its environment:
 restart the PM session with `pap claude`.
 
+**`claude: this terminal recorded pap <old> (<path>); using pap <new>
+(<path>). Open a new terminal, or run the pap shell-init eval line again,
+to record it.`** The terminal was open across an upgrade: its `claude`
+function, from `pap shell-init`, recorded the older pap, and the newer
+`pap` on `PATH` was used for this session. Nothing is wrong with the
+session. Open a new terminal, or run `eval "$(pap shell-init bash)"` (or
+`zsh`) again, and the line stops. `pap doctor` reports the same thing as
+`drift claude is pap's function`.
+
 **`gh (pap shim): <agent dir>/hosts.yml holds a github.com sign-in`.**
 Something signed in inside the agent directory, which must stay empty.
 Remove that `hosts.yml` from your own terminal.
