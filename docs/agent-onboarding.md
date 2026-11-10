@@ -1,11 +1,12 @@
 # Onboard a repository with an agent
 
-A runbook a Claude Code session follows to bring a repository onto PAP,
-with a check after every step. Two paths: [greenfield](#greenfield), a new
-repository with nothing in it but a first commit, and
-[brownfield](#brownfield), a repository that already has code, hooks or
-CI. The human pastes [a prompt](#paste-this-into-claude-code); the agent
-does the rest, and stops where the work is the human's.
+Two paths onto PAP. [Greenfield](#greenfield), a repository that does not
+exist yet: one command, `pap new <name>`, run by the human from their own
+terminal, makes it and ends in a Claude Code session. [Brownfield](#brownfield),
+a repository that already has code, hooks or CI: a runbook a Claude Code
+session follows, with a check after every step. Either way the human
+pastes [a prompt](#paste-this-into-claude-code) first, and the agent stops
+where the work is the human's.
 
 This guide orders the steps and says who does each. What each command
 does is in the guides it links; where they disagree with the
@@ -13,7 +14,9 @@ reference ([the process document](../process/personal-agentic-process.md), [`rul
 
 ## The minimum to know
 
-Adopting PAP puts three things in place, in this order:
+Adopting PAP puts three things in place, in this order. `pap new` does the
+first two for a new repository; the table is who does what in an existing
+one:
 
 | What              | Put there by                       | Who runs it                            |
 | ----------------- | ---------------------------------- | -------------------------------------- |
@@ -41,7 +44,7 @@ enforce them, so working around one fails; stop and say so instead.
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Once per machine    | Install git, mise and Claude Code; `gh auth login`; install the `pap` and `spec-review` plugins                                                               | [Getting started](getting-started.md)                                               |
 | Once per account    | The `.github` repository, the labels, the Renovate app, the `pap-agent` app                                                                                   | [Set up the account](account-setup.md)                                              |
-| Once per repository | Create it on GitHub with a first commit on `main`; install the `pap-agent` app on it; start the session there with `pap claude`                               | [Set up the account](account-setup.md#the-pap-agent-app)                            |
+| Once per repository | New: `pap new <name>`. Existing: install the `pap-agent` app on it and start the session there with `pap claude`                                              | [Set up the account](account-setup.md#the-pap-agent-app)                            |
 | During the runbook  | Choose the layers and the version; run `pap repo apply`; answer `/envision`; review and merge both pull requests, the first through a one-time ruleset bypass | [Adopt a repository](adopt-a-repo.md#the-first-pull-request)                        |
 | Public repositories | The Actions policy that allows `pull_request_target` for `pr-checks`                                                                                          | [Adopt a repository](adopt-a-repo.md#public-repositories-allow-pull_request_target) |
 
@@ -54,25 +57,33 @@ human runs those.
 
 ## Paste this into Claude Code
 
-Fill in the two angle-bracket fields. `<version>` is a release tag
-without its `v`, from <https://github.com/blairforce1/pap/releases>. The
-layers are `base`, plus any of `dotnet`, `go` and `risk`
-([what each adds](adopt-a-repo.md#pap-init-layer)).
+Greenfield, the install prompt. It names an exact version, which the
+version bump of each release updates and `scripts/release.sh` checks:
 
-Greenfield:
+<!-- The install prompt: release.sh refuses a release whose version is not the one after the @ below. -->
 
 ```text
-Onboard this repository onto PAP. It is new: one commit on main, no code yet.
-Read https://raw.githubusercontent.com/blairforce1/pap/main/docs/agent-onboarding.md
-and follow its greenfield runbook step by step, running the check after each
-step and showing me its result before the next.
-pap version: <version>
-Layers: <base [dotnet] [go] [risk]>
-Stop wherever the runbook says the step is mine, tell me exactly what to run
-or decide, and wait. Do not merge anything.
+Install pap for me: run `mise use -g 'github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@0.17.0'`, then `pap version`, which must print 0.17.0. Then tell me to exit this session and run, from my own terminal: `pap agent-setup --owner <my GitHub login>` if the pap-agent app is not registered on this machine yet, then `pap new <name>` from the directory the new clone should sit under (the defaults: private, layers base risk dotnet). Run neither of those yourself.
 ```
 
-Brownfield:
+- An exact version is not held back by mise's `minimum_release_age`
+  (default 24 hours): mise's settings reference says "Exact versions such
+  as `node@22.5.0`, and versions recorded in `mise.lock`, are not
+  filtered", and an install of pap 0.17.0 five hours after its release,
+  with the setting at 7 days, went through. So the prompt skips the
+  cooldown on a release that may be hours old. What mise's GitHub backend
+  still checks on the download: the digest GitHub reports for the asset,
+  and GitHub artifact attestations when a release has them. pap's
+  releases publish none, so the digest is the only check.
+- The prompt on `main` can name a version for the few minutes between its
+  version bump merging and that release being cut; if `mise` finds no
+  such version, use the one before it from
+  <https://github.com/blairforce1/pap/releases>.
+
+Brownfield. Fill in the two angle-bracket fields. `<version>` is a release
+tag without its `v`, from <https://github.com/blairforce1/pap/releases>.
+The layers are `base`, plus any of `dotnet`, `go` and `risk`
+([what each adds](adopt-a-repo.md#pap-init-layer)).
 
 ```text
 Onboard this existing repository onto PAP. It already has code and may have
@@ -88,6 +99,79 @@ or decide, and wait. Do not merge anything.
 ```
 
 ## Greenfield
+
+```sh
+pap new <name> [--owner <login>] [--visibility private|public] [--layers <layer>...] [--yes]
+```
+
+Run it yourself, from your own terminal, in the directory the clone
+should sit under. It refuses an agent's shell: it acts as you, on your own
+`gh` sign-in, until the last step. The defaults are a private repository
+under your own account with the layers `base`, `risk` and `dotnet`;
+`--owner` takes an organisation you administer.
+
+**Preflight** creates nothing. It checks the name, the owner, the
+visibility and the layers; your `gh` sign-in and its `repo` and `workflow`
+scopes, offering `gh auth login` or `gh auth refresh` and asking for no
+other scope; that the `pap-agent` app is registered
+([`pap agent-setup`](account-setup.md#with-pap-agent-setup)) and
+installed on the owner; that the owner's plan gives a private repository
+a ruleset (GitHub's free plan does not: choose `--visibility public`);
+that no organisation ruleset would refuse the first push; and what
+already exists of that name. It ends with a summary (the login acted as,
+the repository, the visibility, the layers, and the author name and
+email of the first commit, which a public repository publishes for good)
+and waits for Enter; `--yes` skips the wait.
+
+**Creation** is six steps, each named as it starts:
+
+1. The first commit, in `./<name>`: the template at the chosen layers and
+   a README whose only line is `# <name>`.
+2. The repository on GitHub, empty.
+3. The first push: the one direct push to `main` the repository ever
+   takes, made before any hook or ruleset exists. pap adds no ruleset
+   bypass for it, and stops if the clone already has hooks.
+4. Clone setup: `mise trust && mise install && mise run setup`.
+5. `pap repo apply`, then the `main` ruleset read back. Without an active
+   `main` ruleset with no bypass actor the run stops here, and no agent
+   token is asked for.
+6. A `pap-agent` token for the one repository. If the installation is
+   for selected repositories, it prints the installation's page, waits
+   while you add the new repository there, and asks again on Enter.
+
+Then it prints the repository's URL and the clone's path and starts
+`pap claude` in the clone: Claude Code on your own install, acting on
+GitHub as the agent app, not something pap provides. That session is
+given what the run did, where you are, and the pap skills, mods and
+agents installed on your machine, and asks what you want next. `/envision`
+([Start a project](start-a-project.md)) is the likely first step; it
+starts nothing unasked. A public repository, and an organisation, each
+leave one setting only you can change; preflight names it, and the
+welcome repeats it.
+
+**A stop** names its step, what exists so far, the cause and the exact
+command to run again, and undoes nothing. Run that command: it reads
+GitHub and the current directory, goes on from what exists, and makes no
+commit, repository or push a second time. Something of that name that
+`pap new` did not make, in the directory or on GitHub, is left alone:
+choose another name, or use the brownfield runbook. `pap new` never
+deletes a repository. Read-only checks before a re-run: `pap repo status
+--repo <owner>/<name>`, and `pap doctor` in the clone.
+
+Every later change is `/intent`, `/spec`, `/change`
+([Make a change](make-a-change.md)). The first pull request should need
+no ruleset bypass, because the template is on `main` from the first
+commit.
+
+## Brownfield
+
+A survey, then nine steps with a check after each. The steps come first,
+as they run for any repository; [what an existing repository adds](#what-an-existing-repository-adds)
+to each follows them. The repository needs a first commit on `main` and
+the `pap-agent` app installed on it, and the session is started there
+with `pap claude`.
+
+### The nine steps
 
 In every command below, `pap` is on `PATH` where the shell has activated
 mise; where it has not, as in an agent's shell, write `mise exec -- pap`.
@@ -241,10 +325,10 @@ full.
    Report both pull request URLs, what is left for the human, and stop.
    The first real change is theirs to start: `/intent <slug> <class>`.
 
-## Brownfield
+### What an existing repository adds
 
-The same nine steps, with a survey before them and more to settle inside
-them. Do the greenfield step of the same number, then what is added here.
+A survey before the nine steps, and more to settle inside them. Do the
+step of the same number above, then what is added here.
 
 0. **Survey; change nothing.** Report to the human, one line each:
 
@@ -263,12 +347,12 @@ them. Do the greenfield step of the same number, then what is added here.
 
    Check: the human has read the survey and said go.
 
-1. As greenfield. `pap init` refuses a working tree with uncommitted
+1. As above. `pap init` refuses a working tree with uncommitted
    changes; if there are any, they are the human's to commit or stash.
 
-2. As greenfield.
+2. As above.
 
-3. As greenfield, then resolve what `init` could not. It prints `C
+3. As above, then resolve what `init` could not. It prints `C
    <path>` for each file that already existed and differs from the
    template, and leaves ordinary conflict markers in it.
 
@@ -287,7 +371,7 @@ them. Do the greenfield step of the same number, then what is added here.
    Check: `git diff --check origin/main` reports no conflict marker, and
    the second `init` prints no `C` line.
 
-4. As greenfield, with two additions.
+4. As above, with two additions.
 
    **Wire in the tests.** `mise run test` runs every task named `test:*`,
    and the required `tests` check runs that. The `dotnet` and `go` layers
@@ -316,7 +400,7 @@ them. Do the greenfield step of the same number, then what is added here.
    Whatever still fails goes in the pull request's Verification as it
    is, with the box unticked and the reason beneath. Do not hide it.
 
-5. As greenfield, but the human reads before applying:
+5. As above, but the human reads before applying:
 
    ```sh
    pap repo apply --dry-run
@@ -329,17 +413,17 @@ them. Do the greenfield step of the same number, then what is added here.
    human applies; a check that needs a baseline on `main` goes in after
    the first merge ([The first pull request](adopt-a-repo.md#the-first-pull-request)).
 
-6. As greenfield. In the body, list every conflict resolved in step 3
+6. As above. In the body, list every conflict resolved in step 3
    and which side won, and every check from step 4 that still fails.
 
-7. As greenfield.
+7. As above.
 
-8. As greenfield. `/envision` skims the code first and proposes
+8. As above. `/envision` skims the code first and proposes
    candidate invariants from what it finds; each one still needs the
    human's yes. If `product/` already exists it runs as a review and
    edits in place.
 
-9. As greenfield. In the report, add the changes this one leaves behind:
+9. As above. In the report, add the changes this one leaves behind:
    the formatting pull request, any shellcheck findings, any hook or
    formatter the human chose to retire.
 

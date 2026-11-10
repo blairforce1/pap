@@ -159,6 +159,17 @@ not carry.
 
 ### [Unreleased]
 
+- `pap new <name>`: one command, run from your own terminal, from nothing
+  to a greenfield PAP repository and a welcome session in it. Preflight
+  checks the shell, the parameters, your `gh` sign-in and scopes, the
+  `pap-agent` app and what already exists; then the first commit, the
+  repository, the one direct push to `main`, clone setup, `pap repo apply`
+  and an agent token, in that order. A stop names its step and the command
+  that resumes it; nothing is ever deleted. It replaces the greenfield
+  runbook in `docs/agent-onboarding.md`, which now carries an install
+  prompt pinned to an exact version. `scripts/release.sh` refuses a
+  release that prompt does not name.
+
 ### [0.17.0] - 2026-11-10
 
 #### Added
