@@ -32,10 +32,10 @@
 #
 # Each build appends one line to
 # ${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log, so a revisit
-# of decision 0015 can count heavy builds: the UTC start time, the dotnet
-# command, battery or mains, and the duration in seconds, tab-separated.
-# The arguments are logged verbatim, so pass no secret as a build
-# property. The log is per user and per machine, never in a repository:
+# of decision 0015 can count heavy builds: the UTC start time, "dotnet",
+# the verb and the project or solution file as given (or "-"), battery or
+# mains, and the duration in seconds, tab-separated. No other argument is
+# logged. The log is per user and per machine, never in a repository:
 # a relative XDG_STATE_HOME is ignored, as the XDG spec says; with no
 # absolute HOME either, or a state directory inside a git work tree,
 # nothing is logged. A log that cannot be written never fails the build.
@@ -105,8 +105,19 @@ dotnet "$verb" "$@" $cap 9>&-
 rc=$?
 
 if [ -n "$state" ]; then
-  # shellcheck disable=SC2086
-  cmdline="$(printf '%s ' dotnet "$verb" "$@" $cap | tr '\t\n' '  ' | sed 's/ $//')"
+  # Only the verb and the project or solution are logged, never other
+  # arguments: a property can carry a secret. The project is the first
+  # argument that names an existing *.csproj, *.fsproj, *.vbproj, *.proj,
+  # *.sln, *.slnx or *.slnf file and has no leading - and no =; else "-".
+  project=-
+  for a in "$@"; do
+    case "$a" in -* | *=*) continue ;; esac
+    case "$a" in
+      *.csproj | *.fsproj | *.vbproj | *.proj | *.sln | *.slnx | *.slnf)
+        if [ -f "$a" ]; then project="$a"; break; fi ;;
+    esac
+  done
+  cmdline="$(printf 'dotnet %s %s' "$verb" "$project" | tr '\t\n' '  ')"
   if mkdir -p "$state/pap" 2>/dev/null &&
     git -C "$state/pap" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     say "$state/pap is inside a git work tree; this build is not logged"

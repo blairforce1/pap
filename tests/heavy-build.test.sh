@@ -147,7 +147,7 @@ result $? "no flock: the build runs unlocked and says so" "exit $rc; out '$out'"
 
 # --- the log ---------------------------------------------------------------------
 
-# Each build appends one tab-separated line (UTC start, command, power,
+# Each build appends one tab-separated line (UTC start, verb and project, power,
 # seconds) under the user's state directory, and nothing in the repository
 # it ran from.
 git init -q "$T/repo"
@@ -156,18 +156,29 @@ log="$T/state/pap/heavy-builds.log"
 (cd "$T/repo" && STUB_SLEEP=1 sh "$hb" publish -f net10.0-ios -c Release >/dev/null 2>&1)
 line="$(cat "$log" 2>/dev/null)"
 tab="$(printf '\t')"
-printf '%s\n' "$line" | grep -Eq "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z${tab}dotnet publish -f net10.0-ios -c Release -m:2${tab}battery${tab}[1-9][0-9]*s\$" &&
+printf '%s\n' "$line" | grep -Eq "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z${tab}dotnet publish -${tab}battery${tab}[1-9][0-9]*s\$" &&
   [ "$(wc -l < "$log")" -eq 1 ] && [ -z "$(git -C "$T/repo" status --porcelain)" ]
 result $? "a build appends time, command, power and duration to the state log, not the repo" "log '$line'; repo: $(git -C "$T/repo" status --porcelain | tr '\n' ' ')"
 
+# Only the verb and the project file reach the log: a property carrying a
+# secret, as -p:, --property or a bare value that looks like a project, never does.
+# Files named like the option and the property exist, so neither guard
+# rests on the existence check alone.
+mkdir "$T/work"; : > "$T/App.csproj"; : > "$T/work/-p:_k3_.csproj"; : > "$T/work/Secret=_k2_.sln"
+(cd "$T/work" && sh "$hb" publish -p:Secret=_k1_ --property Secret=_k2_.sln -p:_k3_.csproj _k4_.sln "$T/App.csproj" -f net10.0-ios -c Release >/dev/null 2>&1)
+last="$(tail -n 1 "$log")"
+[ "$(wc -l < "$log")" -eq 2 ] && printf '%s\n' "$last" | grep -q "${tab}dotnet publish $T/App.csproj${tab}" &&
+  ! grep -qE "_k[1-4]_|Secret|net10\.0|Release" "$log"
+result $? "no argument but the verb and the project reaches the log" "log: $(tr '\n' '|' < "$log")"
+
 rm -r "$T/ps"; supply ACAD Mains 1
 (cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
-[ "$(wc -l < "$log")" -eq 2 ] && tail -n 1 "$log" | grep -q "${tab}dotnet build -c Release${tab}mains${tab}"
+[ "$(wc -l < "$log")" -eq 3 ] && tail -n 1 "$log" | grep -q "${tab}dotnet build -${tab}mains${tab}"
 result $? "a second build appends a second line, on mains" "log: $(tr '\n' '|' < "$log")"
 
 unset XDG_STATE_HOME
 (cd "$T/repo" && sh "$hb" -c Release >/dev/null 2>&1)
-grep -q "${tab}dotnet build -c Release${tab}" "$T/home/.local/state/pap/heavy-builds.log" 2>/dev/null
+grep -q "${tab}dotnet build -${tab}" "$T/home/.local/state/pap/heavy-builds.log" 2>/dev/null
 result $? "without XDG_STATE_HOME the log is under HOME/.local/state" ""
 
 export XDG_STATE_HOME=state

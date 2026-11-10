@@ -53,7 +53,9 @@ starts is stopped when it ends.
    `pmset -g batt` says "Battery Power"; where neither answers, mains is
    assumed. `flock` is util-linux; without it the build runs unlocked and
    says so. Each build the script runs appends one line, its UTC start,
-   the dotnet command, battery or mains and its duration in seconds, to
+   `dotnet`, the verb and the project or solution file as given (no
+   other argument, since a property can carry a secret), battery or
+   mains and its duration in seconds, to
    `${XDG_STATE_HOME:-$HOME/.local/state}/pap/heavy-builds.log`: per user
    and per machine, never in a repository (a relative `XDG_STATE_HOME` is
    ignored, and a state directory inside a git work tree is not written), and a log it cannot write never fails the build. The log is
