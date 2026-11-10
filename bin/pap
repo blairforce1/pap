@@ -1404,7 +1404,7 @@ c_plugin() {
   jq -e --arg k "pap@$market" '.plugins // {} | has($k)' "$f" >/dev/null 2>&1
 }
 # plugin_cmd <plugin>: the command that gets one of pap's plugins onto this
-# machine, or brings it up to date, on one line. Which it is comes from
+# machine, or brings it up to date, on one line; the command ends the line. Which it is comes from
 # Claude Code's own files and nothing else: installed_plugins.json, and for
 # the marketplace known_marketplaces.json, then extraKnownMarketplaces in the
 # user settings. `--marketplace` adds the marketplace, and Claude Code
@@ -1423,7 +1423,7 @@ plugin_cmd() {
   if [ -n "$ph_m" ] && jq -e --arg k "$1@$ph_m" '.plugins // {} | has($k)' "$ph_d/plugins/installed_plugins.json" >/dev/null 2>&1; then
     ph_path="$(printf '%s\n' "$ph_src" | jq -r 'select(.source == "directory") | .path // empty' 2>/dev/null || true)"
     if [ -n "$ph_path" ]; then
-      say "claude plugin update $1@$ph_m, once the directory it updates from, $ph_path, is up to date"
+      say "bring $ph_path, the directory it updates from, up to date, then: claude plugin update $1@$ph_m"
     else
       say "claude plugin update $1@$ph_m"
     fi

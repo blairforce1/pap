@@ -532,7 +532,7 @@ missing "doctor: pap plugin missing where the user settings list the marketplace
   STUB_PLUGINS='  > spec-review@blairforce1-pap' PATH="$T/realjq:$dpath"
 printf '{"version":2,"plugins":{"pap@blairforce1-pap":[{"installPath":"/nowhere"}]}}\n' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
 missing "doctor: a pap plugin Claude Code's file holds, from a directory marketplace, with the update command and the directory" \
-  'missing  pap plugin installed  (claude plugin update pap@blairforce1-pap, once the directory it updates from, ~/src/pap, is up to date)' \
+  'missing  pap plugin installed  (bring ~/src/pap, the directory it updates from, up to date, then: claude plugin update pap@blairforce1-pap)' \
   STUB_PLUGINS='  > spec-review@blairforce1-pap' PATH="$T/realjq:$dpath"
 printf '{"blairforce1-pap":{"source":{"source":"github","repo":"blairforce1/pap"},"installLocation":"/nowhere"}}\n' > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
 missing "doctor: a pap plugin Claude Code's file holds, from a marketplace that is no directory, with the update command alone" \
