@@ -30,8 +30,11 @@ Protocol is followed only when the owner remembers to invoke it.
   owner can still invoke a skill directly.
 - The PM interviews for intent and spec, and launches a cycle for
   everything else (`/pap:pm start`, `/pap:pm launch`).
-- The PM session can itself write only the tracker and `changes/<slug>/`.
-  Any other write is refused, with the route named.
+- The PM session can itself write only the tracker and what its interview
+  skills write: `changes/<slug>/`, `features/<slug>.feature` and
+  `product/**`. Any other write is refused, with the route named.
+  (Edited 2026-11-10 after acceptance, churn: the spec found that `/spec`
+  and `/envision` write the last two in the main session.)
 - After a `/clear`, the PM resumes from a minimal committed tracker.
 - An ask no route covers stops. In pap the PM proposes an `/intent`; in an
   adopting repository it hands the owner the text of an issue for
