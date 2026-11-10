@@ -53,7 +53,15 @@ fi
 
 cwd=""
 if command -v jq >/dev/null 2>&1; then
-  cwd="$(jq -r '.cwd // empty' 2>/dev/null)"
+  input="$(cat)"
+  cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)"
+  # Decision 0025: the session is no longer running, so a tracker lock it
+  # holds can be taken over (session-start.sh wrote the note).
+  sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)"
+  case "$sid" in
+    "" | *[!A-Za-z0-9_-]*) ;;
+    *) rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/pap/pm/live/$sid" 2>/dev/null ;;
+  esac
 fi
 [ -n "$cwd" ] || cwd="${CLAUDE_PROJECT_DIR:-.}"
 
