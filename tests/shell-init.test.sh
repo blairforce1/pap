@@ -135,11 +135,12 @@ if ! command -v zsh >/dev/null 2>&1; then
   printf 'ok %d - # SKIP zsh cases: zsh is not installed\n' "$n"
 fi
 
-# recorded <label> <init> <PATH prefix>: the recorded pap ran, and the
-# function said nothing (pap claude's own lines start "pap: ").
+# recorded <label> <init> <PATH prefix>: the pap on PATH was asked its
+# version, the recorded pap ran, and the function said nothing (pap
+# claude's own lines start "pap: ").
 recorded() {
   out="$(run bash "$2" "$T/adopt" "$3")"
-  [ "$out" = "claude 2 --resume a b GH_CONFIG_DIR=$ad" ] && ! grep -q '^claude: ' "$T/err"
+  [ "$out" = "claude 2 --resume a b GH_CONFIG_DIR=$ad" ] && [ -s "$PROBES" ] && ! grep -q '^claude: ' "$T/err"
   result $? "$1" "$out $(cat "$T/err")"
 }
 recorded "recorded 0.16.1, PATH 0.9.9: the recorded pap, silent" "$init_rel" "$T/p-old"

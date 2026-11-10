@@ -716,10 +716,6 @@ d_owner() {
   fi
 }
 
-# d_shell: whether this shell ran pap shell-init's eval line, read from the
-# PAP_SHELL_INIT it exports (doctor cannot see its parent's functions), and
-# whether an upgrade has left that pap behind this one. Never edits an rc
-# file.
 # relkey <version>: a number that orders x.y.z versions; nothing for any
 # other text, an unreleased checkout's included.
 relkey() {
@@ -728,6 +724,11 @@ relkey() {
     *.*.*) k_m="${1#*.}"; echo "$((${1%%.*} * 1000000000000 + ${k_m%%.*} * 1000000 + ${k_m#*.}))" ;;
   esac
 }
+
+# d_shell: whether this shell ran pap shell-init's eval line, read from the
+# PAP_SHELL_INIT it exports (doctor cannot see its parent's functions), and
+# whether an upgrade has left that pap behind this one. Never edits an rc
+# file.
 d_shell() {
   rc=bash; case "${SHELL:-}" in */zsh) rc=zsh ;; esac
   line="eval \"\$(pap shell-init $rc)\" in ~/.${rc}rc"
@@ -1532,6 +1533,8 @@ cmd_claude() {
 # different pap on PATH costs two version calls: the higher x.y.z runs, a
 # version that is not x.y.z (an unreleased checkout) is never beaten, and
 # the recorded pap keeps a tie. With the recorded pap gone, one usage probe.
+# The same-file test is [ -ef ], which bash and zsh both have and POSIX
+# does not.
 cmd_shell_init() {
   [ $# -eq 1 ] || usage
   case "$1" in bash | zsh) ;; *) usage ;; esac
@@ -1548,7 +1551,7 @@ claude() {
   fi
   pap_bin="\$(command -v pap 2>/dev/null)"
   if [ -f "\$PAP_SHELL_INIT" ]; then
-    if [ -f "\$pap_bin" ] && ! [ "\$pap_bin" -ef "\$PAP_SHELL_INIT" ]; then
+    if [ "\${pap_bin#/}" != "\$pap_bin" ] && ! [ "\$pap_bin" -ef "\$PAP_SHELL_INIT" ]; then
       pap_rv="\$(sh "\$PAP_SHELL_INIT" version 2>/dev/null)"
       pap_pv="\$("\$pap_bin" version 2>/dev/null)"
       pap_rk=; pap_pk=
