@@ -62,10 +62,11 @@
 #         activated, gh installed and signed in, jq, the claude CLI and the
 #         pap and spec-review plugins, the pap plugin's version against
 #         this pap's (an older plugin is drift, with the update command; a
-#         newer one a warning; an unreleased pap compares nothing), flock
-#         (a warning only), this configuration trusted, the git hooks
-#         installed, blame.ignoreRevsFile set, and every pinned tool
-#         installed at its pin. In a repository that adopts PAP, decision 0023's agent app:
+#         newer one a warning; of several scopes the oldest is judged; an
+#         unreleased pap compares nothing), flock (a warning only), this
+#         configuration trusted, the git hooks installed,
+#         blame.ignoreRevsFile set, and every pinned tool installed at its
+#         pin. In a repository that adopts PAP, decision 0023's agent app:
 #         openssl and curl, the key in the keyring, the client id, an
 #         HTTPS origin (an SSH one is reported with the set-url fix and
 #         never changed), gh by name as git's credential helper for
@@ -754,22 +755,36 @@ d_shell() {
 # d_plugin: the pap plugin, found installed, against the pap running doctor.
 # The two ship as one release, so a plugin behind this pap lacks the hooks
 # this pap relies on. Its version is read from installed_plugins.json, as
-# plugin_cmd reads it. With an unreleased pap, or no one x.y.z version in the
+# plugin_cmd reads it. Installed in more than one scope, the oldest x.y.z
+# version is the one judged, and the line says so; an entry with no such
+# version is left out. With an unreleased pap, or no x.y.z version in the
 # file, nothing is compared. A newer plugin is a warning: a repository may
 # pin an older pap on purpose. spec-review is versioned on its own.
 d_plugin() {
   dp_m="$(jq -r '.name // empty' "$root/.claude-plugin/marketplace.json" 2>/dev/null || true)"
-  dp_ver="$(jq -r --arg k "pap@$dp_m" '[.plugins[$k][]?.version // ""] | unique | if length == 1 then .[0] else empty end' \
+  dp_all="$(jq -r --arg k "pap@$dp_m" '.plugins[$k][]? | .version // "" | tostring' \
     "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2>/dev/null || true)"
-  dp_key="$(relkey "$dp_ver")"; dp_own="$(relkey "$own_version")"
+  dp_ver="" dp_key="" dp_n=0
+  while IFS= read -r dp_v; do
+    dp_n=$((dp_n + 1))
+    dp_k="$(relkey "$dp_v")"
+    if [ -n "$dp_k" ] && { [ -z "$dp_key" ] || [ "$dp_k" -lt "$dp_key" ]; }; then
+      dp_ver="$dp_v" dp_key="$dp_k"
+    fi
+  done <<EOF
+$dp_all
+EOF
+  dp_own="$(relkey "$own_version")"
+  dp_note=""
+  [ "$dp_n" -le 1 ] || dp_note="installed in more than one scope, the oldest reported: "
   if [ -z "$dp_key" ] || [ -z "$dp_own" ]; then
     item ok "pap plugin installed"
   elif [ "$dp_key" -lt "$dp_own" ]; then
-    item drift "pap plugin installed" "the plugin is $dp_ver and this pap is $own_version; restart Claude Code after: $(plugin_cmd pap)"
+    item drift "pap plugin installed" "${dp_note}the plugin is $dp_ver and this pap is $own_version; restart Claude Code after: $(plugin_cmd pap)"
   elif [ "$dp_key" -gt "$dp_own" ]; then
-    item warn "pap plugin installed" "the plugin is $dp_ver and this pap is $own_version, the older one: mise use -g github:blairforce1/pap@$dp_ver, or the repository's pin"
+    item warn "pap plugin installed" "${dp_note}the plugin is $dp_ver and this pap is $own_version, the older one: mise use -g github:blairforce1/pap@$dp_ver, or the repository's pin"
   else
-    item ok "pap plugin installed" "$dp_ver"
+    item ok "pap plugin installed" "$dp_note$dp_ver"
   fi
 }
 

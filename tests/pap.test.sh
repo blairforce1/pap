@@ -596,10 +596,29 @@ for v in "" unknown 0.18; do
   [ "$rc" = 0 ] && bare
   result $? "doctor: a pap plugin whose version reads '$v' is not compared: ok, as before" "$out"
 done
-printf '{"version":2,"plugins":{"pap@blairforce1-pap":[{"scope":"user","version":"0.5.0"},{"scope":"project","version":"0.18.0"}]}}\n' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+# Installed in more than one scope: the oldest readable version is the one
+# judged, and the line says another copy exists.
+pvers() { printf '{"version":2,"plugins":{"pap@blairforce1-pap":[{"scope":"project","version":"%s"},{"scope":"user","version":"%s"}]}}\n' "$1" "$2" > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"; }
+pvers 0.18.0 0.5.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 1 ] && has 'drift    pap plugin installed  (installed in more than one scope, the oldest reported: the plugin is 0.5.0 and this pap is 0.18.0; restart Claude Code after: claude plugin update pap@blairforce1-pap)'
+result $? "doctor: a pap plugin in two scopes, one older than this pap and one equal, is drift naming the older; exits 1" "$out"
+pvers 0.18.0 0.18.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 0 ] && has 'ok       pap plugin installed  (installed in more than one scope, the oldest reported: 0.18.0)'
+result $? "doctor: a pap plugin in two scopes, both at this pap's version, is ok; exits 0" "$out"
+pvers 0.19.0 0.20.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 0 ] && has "warn     pap plugin installed  (installed in more than one scope, the oldest reported: the plugin is 0.19.0 and this pap is 0.18.0, the older one: mise use -g github:blairforce1/pap@0.19.0, or the repository's pin)"
+result $? "doctor: a pap plugin in two scopes, both newer than this pap, warns naming the older of the two; exits 0" "$out"
+pvers unknown 0.5.0
+out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
+[ "$rc" = 1 ] && has 'drift    pap plugin installed  (installed in more than one scope, the oldest reported: the plugin is 0.5.0 and this pap is 0.18.0;'
+result $? "doctor: a scope whose version cannot be read is left out of the choice" "$out"
+pvers unknown ""
 out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
 [ "$rc" = 0 ] && bare
-result $? "doctor: a pap plugin installed at two versions is not compared: ok, as before" "$out"
+result $? "doctor: a pap plugin in two scopes, neither version readable, is not compared: ok, as before" "$out"
 rm -f "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
 out="$(pdoctor "$T/drel/bin/pap")"; rc=$?
 [ "$rc" = 0 ] && bare

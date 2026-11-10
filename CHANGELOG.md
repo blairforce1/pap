@@ -169,7 +169,8 @@ not carry.
   command that updates it and the restart it needs. A newer plugin is a
   warning that names the pap to move to, and does not fail doctor: a
   repository may pin an older pap on purpose. Equal versions are `ok`, with
-  the version in the line. An unreleased pap, or a version that cannot be
+  the version in the line. A plugin installed in more than one scope is
+  judged by its oldest version, and the line says so. An unreleased pap, or a version that cannot be
   read, compares nothing. The spec-review plugin is versioned on its own
   and is not compared.
 
