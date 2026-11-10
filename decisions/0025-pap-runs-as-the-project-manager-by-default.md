@@ -26,7 +26,7 @@
   `gh` and git; cycles that get a message after their first report ↓ from
   18% (19 of 108, decision 0018) to at most 1 of those 10, read from the
   message log the guard writes. 0018 keeps its own 20-cycle window
-- **Introduced in:** not yet released; the release that ships PM mode in
+- **Introduced in:** v0.18.0, the release that ships PM mode in
   `pap claude`, `/pap:pm start` and `/pap:pm launch`
 - **Revisit:** after 10 change PRs from #126: both effects; the health signals of the spec's Operations section (cycle refusals, PM refusals, solo share, guard not binding, unread calls); whether a change got through one of rule 25.2's limits. #126 is the last pull request merged before this record; when the release that ships PM mode merges, a dated note here moves the start to that pull request, so the ten are the ones merged after the release
 
