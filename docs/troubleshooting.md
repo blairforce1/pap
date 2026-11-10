@@ -91,9 +91,25 @@ file is written only on your yes.
 **A plugin does not show a new skill after a release.** A plugin installed
 from a local checkout loads from that checkout: `git pull` there, then
 `/reload-plugins` in Claude Code. A plugin installed from the marketplace
-updates with `claude plugin update pap` (then restart the session), or
-`claude plugin marketplace update` first if the marketplace itself is
-behind.
+updates with `claude plugin update pap@blairforce1-pap` (then restart the
+session), or `claude plugin marketplace update` first if the marketplace
+itself is behind.
+
+**`claude plugin install pap --marketplace blairforce1/pap` fails to add
+the marketplace.** The message is:
+
+```text
+✘ Failed to add marketplace: Cannot add this marketplace: it would download into the folder "blairforce1-pap", which the marketplace "blairforce1-pap" listed under extraKnownMarketplaces in your settings (from dir:/home/you/src/pap) uses, so it can't be added while that entry is listed.
+```
+
+Your Claude Code settings already list the marketplace as a directory, a
+checkout of pap, and `--marketplace` would add it a second time. Leave it
+out. With the plugin not installed, run
+`claude plugin install pap@blairforce1-pap`. With an old one installed,
+bring that checkout up to date, run
+`claude plugin update pap@blairforce1-pap` and restart the session.
+`pap doctor`, `pap claude` and `pap new` print the command that fits the
+machine.
 
 **`/pap:accept` acted on the wrong repository.** Its first line,
 `Repository: owner/name (path)`, says which. It acts on the current

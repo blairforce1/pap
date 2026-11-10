@@ -52,6 +52,14 @@ and the same for `spec-review`. The `pm-console` plugin is for a session
 that runs several changes at once; [Run a project](run-a-project.md) says
 when to install it.
 
+That is the first install, on a machine that has never seen the
+marketplace. A plugin already installed updates with
+`claude plugin update pap@blairforce1-pap`, then a restart of the session.
+Where the marketplace is a directory, a checkout of pap listed in your
+Claude Code settings, bring that checkout up to date first: the update
+reads it, and `--marketplace` is refused there
+([Troubleshooting](troubleshooting.md#skills-and-worktrees)).
+
 Three plugins live in this marketplace:
 
 | Plugin        | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                |
