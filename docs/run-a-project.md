@@ -254,10 +254,12 @@ First checks, all read-only:
    first line, means this Claude Code does not let the guard tell the PM
    from a sub-agent, and the PM paths are not enforced.
 3. The last lines of `refusals.log` and `sessions.log`.
-4. `claude plugin list` and `mise ls`: the pap plugin and the pap command
-   are the same release. A plugin that is behind updates with
-   `claude plugin update pap@blairforce1-pap`; where the marketplace is a
-   directory, bring that checkout up to date first.
+4. The pap plugin and the pap command are the same release. `pap doctor`
+   compares them in its `pap plugin installed` line. A plugin that is
+   behind is `drift`, with the command that updates it; restart Claude
+   Code after it. A plugin that is ahead is a warning: the pap command is
+   the older one. A pap that is not a release compares nothing; there,
+   read `claude plugin list` and `mise ls` yourself.
 5. `pap doctor` in the repository.
 
 Only then carry on with `pap claude --solo`. That is the undo for one

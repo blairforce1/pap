@@ -159,6 +159,21 @@ not carry.
 
 ### [Unreleased]
 
+#### Fixed
+
+- `pap doctor` said `ok  pap plugin installed` for a plugin many releases
+  behind the pap running it: a 0.5.0 plugin under pap 0.18.0 has none of the
+  hooks that pap relies on, and nothing said so. doctor now reads the
+  plugin's version from Claude Code's `installed_plugins.json` and compares
+  it with its own. An older plugin is `drift`, with both versions, the
+  command that updates it and the restart it needs. A newer plugin is a
+  warning that names the pap to move to, and does not fail doctor: a
+  repository may pin an older pap on purpose. Equal versions are `ok`, with
+  the version in the line. A plugin installed in more than one scope is
+  judged by its oldest version, and the line says so. An unreleased pap, or
+  a version that cannot be read, compares nothing. The spec-review plugin is
+  versioned on its own and is not compared.
+
 ### [0.18.1] - 2026-11-10
 
 #### Added
