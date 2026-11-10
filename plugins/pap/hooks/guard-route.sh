@@ -5,7 +5,8 @@
 # (decisions/0012-protected-paths-need-an-owners-approved-by-line.md),
 # 0016 (decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md),
 # 0022 (decisions/0022-no-branch-takes-a-force-push.md) and 0023
-# (decisions/0023-agents-act-on-github-as-their-own-app.md).
+# (decisions/0023-agents-act-on-github-as-their-own-app.md), and 0025
+# (decisions/0025-pap-runs-as-the-project-manager-by-default.md).
 #
 # Reads the tool-call JSON on stdin. For every git command in a Bash command,
 # works out the directory it runs in: the session's cwd, then any `cd <dir>`
@@ -71,6 +72,27 @@
 #         HOME or XDG_CONFIG_HOME pointed at a copy of the owner's
 #         directory passes; a heredoc line that assigns it is refused.
 #
+#   0025  PAP_MODE changed in assignment position, as GH_CONFIG_DIR above
+#         (= or += as a prefix or after env, export and its kin; unset,
+#         env -u), is refused in every repository, for every caller: pap
+#         claude sets the mode and it stays so. pap-pm.sh, the /pap:pm
+#         script, run by name or path from a sub-agent's command is
+#         refused: /pap:pm needs the main session. In a session pap claude
+#         started in PM mode (PAP_MODE=pm in the hook's own environment), a
+#         `git commit` by the main session, a call with no agent id, is
+#         refused when the work tree it runs in is an adopting
+#         repository's and holds any change outside the PM paths: staged,
+#         unstaged, or untracked and not ignored (rule 25.2; pm-lib.sh has
+#         the paths). The whole work tree is judged because the hook runs
+#         before the command and cannot know what it will stage. Each
+#         refused file is a line in the refusal log. A sub-agent's commit
+#         is never judged. Only `git commit` is: merge, cherry-pick,
+#         revert, am, rebase, commit-tree, update-ref, gh api on a
+#         repository's contents, and a commit with --git-dir or GIT_DIR
+#         pass, as limits of the rule. A call this hook cannot parse is
+#         let through, as before, and in a PM session is said and logged
+#         as an unread line.
+#
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
 # neither blocks commits to another nor lets a commit to a guarded one through.
@@ -107,7 +129,8 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-targets="$(jq -r '
+input="$(cat)"
+targets="$(printf '%s' "$input" | jq -r '
   def unquote: if test("^\".*\"$") or test("^'"'"'.*'"'"'$") then .[1:-1] else . end;
   def resolve($base):
     unquote
@@ -262,6 +285,11 @@ targets="$(jq -r '
             or ((($w[0] // "") | IN("export", "declare", "typeset", "readonly", "local", "unset"))
                 and ($w[1:] | any(test("^GH_CONFIG_DIR(\\+?=|$)"))))
          then .out += ["ghconfig\t\($st.dir)\tGH_CONFIG_DIR"] else . end)
+      # Decision 0025, rule 25.1: pap claude sets the mode, and nothing else.
+      | (if ($lead | any(test("^PAP_MODE(\\+?=|$)")))
+            or ((($w[0] // "") | IN("export", "declare", "typeset", "readonly", "local", "unset"))
+                and ($w[1:] | any(test("^PAP_MODE(\\+?=|$)"))))
+         then .out += ["papmode\t\($st.dir)\tPAP_MODE"] else . end)
       # Rule 23.1: gh run by a path, or with PATH changed, skips the shim.
       | ([$w[] | select(test("^(env|command|exec|nohup|time|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $h
       | (if (($h // "") | test("/gh$")) or ($h == "gh" and ($w | any(test("^PATH="))))
@@ -287,6 +315,9 @@ targets="$(jq -r '
       | ([$w[] | select(test("^(env|command|exec|nohup|time|sh|bash|dash|zsh|source|\\.|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)][0]) as $x
       | (if (($x // "") | test("(^|/)(reviewed|accept)\\.sh$"))
          then .out += ["ownerscript\t\($st.dir)\t\($x)"] else . end)
+      # Decision 0025: the /pap:pm script runs in the main session only.
+      | (if (($x // "") | test("(^|/)pap-pm\\.sh$"))
+         then .out += ["pmscript\t\($st.dir)\t\($x)"] else . end)
       | if ($s | test("^cd(\\s|$)")) then
           .dir = ((($s | capture("^cd\\s+(?<a>" + arg + ")")? | .a) // "~") | resolve($st.dir))
         else
@@ -305,6 +336,7 @@ targets="$(jq -r '
                  ($st.dir; . as $d | $c | resolve($d))) as $t
               | ([$m.rest | scan(arg) | .[0]]) as $args
               | (if $m.sub == "commit" or $m.sub == "push" then .out += ["branch\t\($t)"] else . end)
+              | (if $m.sub == "commit" then .out += ["pmcommit\t\($t)"] else . end)
               | (if $m.sub == "push"
                  then .out += ["push\t\($t)\t\($args | map(unquote) | join("\u001f"))"] else . end)
               # Rule 23.4: git that talks to a remote, through the credential helper.
@@ -323,7 +355,17 @@ targets="$(jq -r '
             end
         end)
     | .out[])
-' | sort -u)" || exit 0
+' | sort -u)" || {
+  # A call that cannot be parsed is let through, as it always was. In a PM
+  # session it is said and logged, so the window can count them.
+  if [ "${PAP_MODE:-}" = pm ]; then
+    # shellcheck source=plugins/pap/hooks/pm-lib.sh
+    . "$(dirname "$0")/pm-lib.sh"
+    printf 'guard-route: could not read the tool call; nothing was checked for it\n' >&2
+    pm_log refusals.log "$(pm_now)" - pm unknown - - unread
+  fi
+  exit 0
+}
 
 [ -n "$targets" ] || exit 0
 
@@ -405,7 +447,60 @@ $(git -C "$1" ls-remote --get-url 2>/dev/null)"
   done | grep -q yes
 }
 
+# Decision 0025: who called, read once and only when a rule needs it. A
+# sub-agent's call carries an agent id; the main session's carries none.
+who=""
+who() {
+  [ -z "$who" ] || return 0
+  who="$(printf '%s' "$input" | jq -r '[.agent_id // "", .agent_type // "", .session_id // "", "end"] | join("\u001f")' 2>/dev/null)" || who=""
+  IFS="$(printf '\037')" read -r agent_id _ session_id _ <<EOF2
+$who
+EOF2
+  who=yes
+}
+pm_lib=""
+pm_lib() {
+  [ -z "$pm_lib" ] || return 0
+  # shellcheck source=plugins/pap/hooks/pm-lib.sh
+  . "$(dirname "$0")/pm-lib.sh"
+  pm_session "${CLAUDE_PROJECT_DIR:-.}"
+  pm_lib=yes
+}
+
 while IFS="$tab" read -r kind target reason file; do
+  if [ "$kind" = papmode ]; then
+    printf 'guard-route: refusing %s set or unset in an agent'"'"'s command in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: rule 25.1: the mode is set by pap claude and stays so; the owner starts a solo session with pap claude --solo, from their own terminal.\n' >&2
+    status=2
+    continue
+  fi
+  if [ "$kind" = pmscript ]; then
+    who
+    [ -n "${agent_id:-}" ] || continue
+    printf 'guard-route: refusing %s run from a sub-agent'"'"'s command in %s\n' "$reason" "$target" >&2
+    printf 'guard-route: decision 0025: /pap:pm needs the PM session, the main one; a cycle launches no cycle and writes no tracker.\n' >&2
+    status=2
+    continue
+  fi
+  if [ "$kind" = pmcommit ]; then
+    [ "${PAP_MODE:-}" = pm ] || continue
+    who
+    [ -z "${agent_id:-}" ] || continue
+    pm_lib
+    out_tmp="$(mktemp)" || continue
+    pm_commit_outside "$target" > "$out_tmp"
+    if [ -s "$out_tmp" ]; then
+      printf 'guard-route: refusing git commit in %s: the whole work tree is judged, and it holds changes outside the PM paths: %s\n' \
+        "$pm_top" "$(head -n 10 "$out_tmp" | tr '\n' ' ' | sed 's/ $//')$([ "$(wc -l < "$out_tmp")" -le 10 ] || printf ' and more')" >&2
+      printf 'guard-route: rule 25.2: a PM session commits only the PM paths. Commit from the change'"'"'s own work tree, or have whoever owns each file move it; never stash, clean, check out or delete a file to clear this. Report the files to the owner and stop.\n' >&2
+      while IFS= read -r f; do
+        pm_log refusals.log "$(pm_now)" "${session_id:--}" pm main "$f" "$pm_top" commit
+      done < "$out_tmp"
+      status=2
+    fi
+    rm -f "$out_tmp"
+    continue
+  fi
   if [ "$kind" = keyring ]; then
     printf 'guard-route: refusing a read of gh'"'"'s keyring entry or token (%s) in %s\n' "$reason" "$target" >&2
     printf 'guard-route: rule 23.4: the owner'"'"'s gh token stays out of agent shells; an agent acts as pap-agent through the gh shim.\n' >&2
