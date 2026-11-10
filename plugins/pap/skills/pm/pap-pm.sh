@@ -200,7 +200,15 @@ rewrite_state() {
     END { if (!found) { print ""; print "## In flight"; print ""; print ENVIRON["BODY"] } }' "$statef" > "$statef.new" &&
     mv "$statef.new" "$statef"
 }
-change_id() { { tgit status --porcelain -- .; tgit diff HEAD -- . 2>/dev/null; } | cksum; }
+# change_id: the uncommitted change as one number, an untracked file's
+# content included, so a discard confirms the change that was shown.
+change_id() {
+  {
+    tgit status --porcelain --untracked-files=all -- .
+    tgit diff HEAD -- . 2>/dev/null
+    (cd "$trk" && git ls-files -z --others --exclude-standard -- . | xargs -0 cksum 2>/dev/null)
+  } | cksum
+}
 
 # --- The commands ------------------------------------------------------------
 
@@ -228,7 +236,7 @@ case "$cmd" in
     if dirty; then
       say "pap-pm: the tracker at $trk has uncommitted changes, shown below file by file." \
         "pap-pm: likely cause: an event line appended and not committed, or a session that ended mid-event." ""
-      tgit status --porcelain -- . | while IFS= read -r l; do
+      tgit status --porcelain --untracked-files=all -- . | while IFS= read -r l; do
         f="${l#???}"
         say "--- $f (${l%"${l#??}"})"
         case "$l" in
@@ -334,6 +342,8 @@ case "$cmd" in
       cp "$pmd/events.bak" "$events"
       if [ -f "$pmd/state.bak" ]; then cp "$pmd/state.bak" "$statef"; else rm -f "$statef"; fi
       rm -f "$pmd/events.bak" "$pmd/state.bak"
+      # tcommit staged the two events; the index goes back with the files.
+      tgit reset -q -- . 2>/dev/null
       die 18 "the tracker could not be committed, so no cycle starts: $(tail -n 1 "$pmd/commit.err")" \
         "the yes and launch events were taken back out."
     fi

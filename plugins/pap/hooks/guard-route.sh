@@ -357,17 +357,19 @@ targets="$(printf '%s' "$input" | jq -r '
             end
         end)
     | .out[])
-' | sort -u)" || {
+')" || {
   # A call that cannot be parsed is let through, as it always was. In a PM
-  # session it is said and logged, so the window can count them.
+  # session it is said and logged, so the window can count them. jq's own
+  # exit status is read here, before sort, whose status would hide it.
   if [ "${PAP_MODE:-}" = pm ]; then
     # shellcheck disable=SC1091 # pm-lib.sh, beside this script
     . "$(dirname "$0")/pm-lib.sh"
     printf 'guard-route: could not read the tool call; nothing was checked for it\n' >&2
     pm_log refusals.log "$(pm_now)" - pm unknown - - unread
   fi
-  exit 0
+  [ -n "$targets" ] || exit 0
 }
+targets="$(printf '%s\n' "$targets" | sort -u)"
 
 [ -n "$targets" ] || exit 0
 

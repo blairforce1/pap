@@ -28,6 +28,9 @@ command -v jq >/dev/null 2>&1 || { printf 'Bail out! jq not found\n'; exit 1; }
 # /private/var), and git and pwd report the resolved path.
 T="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$T"' EXIT INT TERM
+# The hook removes the session's running note under pap's state directory
+# (decision 0025); that is not the machine's own.
+export XDG_STATE_HOME="$T/state"
 
 n=0
 failed=0
