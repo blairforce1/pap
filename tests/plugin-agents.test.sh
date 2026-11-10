@@ -67,7 +67,7 @@ esac
 first=$(awk 'NR == 1 { next } f == 0 && $0 == "---" { f = 1; next }
   f && NF { print; exit }' "$dir/reviewer.md")
 case "$first" in
-  'First, before any other command, ?cd? to the worktree'*) result 0 "reviewer: body starts by changing into the worktree" ;;
+  'First, before any other command, '?cd?' to the worktree'*) result 0 "reviewer: body starts by changing into the worktree" ;;
   *) result 1 "reviewer: body starts by changing into the worktree" ;;
 esac
 
