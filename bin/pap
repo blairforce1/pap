@@ -374,6 +374,41 @@ target_ref() {
   printf '%s\n' "$own_ref"
 }
 
+# pin_text <version>: the pin of pap itself that init writes for a release.
+pin_text() {
+  cat <<EOF
+# pap itself, at the tag this repository applies (decision 0001: app
+# repositories pin the tag). Written once by \`pap init\`. To move to a new
+# template version, bump this line, \`mise install\`, then \`pap sync\`.
+[tools]
+"github:blairforce1/pap" = { version = "$1", asset_pattern = "pap-*.tar.gz" }
+EOF
+}
+
+# init_files <layer>...: the half of init that writes files, at the current
+# directory: the layers merged in, the record, and the pin of pap itself for
+# a release. Sets $recorded and $conflicts. pap new stops here; init goes on
+# to the clone setup.
+init_files() {
+  ref="$(target_ref)" || exit 1
+  workdir
+  old_label="none"
+  if [ -f "$record" ]; then
+    old_ref="$(rec_ref)"
+    # shellcheck disable=SC2046 # the recorded layers are words
+    build "$old_ref" "$work/old" $(rec_layers)
+    old_label="$(describe "$old_ref")"
+  else
+    mkdir "$work/old"
+  fi
+  build "$ref" "$work/new" "$@"
+  apply "$work/old" "$work/new" "$old_label" "$(describe "$ref")"
+  write_record "$ref" "$@"
+  if [ -n "$own_version" ] && [ ! -e "$pin" ]; then
+    pin_text "$own_version" > "$pin"
+  fi
+}
+
 cmd_init() {
   layers=""
   while [ $# -gt 0 ]; do
@@ -388,31 +423,8 @@ cmd_init() {
   case " $layers " in *" base "*) ;; *) die "every repository adopts base; name it first: pap init base$layers" ;; esac
   to_top
   require_clean
-  ref="$(target_ref)" || exit 1
-  workdir
-  old_label="none"
-  if [ -f "$record" ]; then
-    old_ref="$(rec_ref)"
-    # shellcheck disable=SC2046 # the recorded layers are words
-    build "$old_ref" "$work/old" $(rec_layers)
-    old_label="$(describe "$old_ref")"
-  else
-    mkdir "$work/old"
-  fi
   # shellcheck disable=SC2086 # the layers are words
-  build "$ref" "$work/new" $layers
-  apply "$work/old" "$work/new" "$old_label" "$(describe "$ref")"
-  # shellcheck disable=SC2086
-  write_record "$ref" $layers
-  if [ -n "$own_version" ] && [ ! -e "$pin" ]; then
-    cat > "$pin" <<EOF
-# pap itself, at the tag this repository applies (decision 0001: app
-# repositories pin the tag). Written once by \`pap init\`. To move to a new
-# template version, bump this line, \`mise install\`, then \`pap sync\`.
-[tools]
-"github:blairforce1/pap" = { version = "$own_version", asset_pattern = "pap-*.tar.gz" }
-EOF
-  fi
+  init_files $layers
   say "Recorded $(describe "$recorded") with layers:$layers in $record"
   if [ "$conflicts" -gt 0 ]; then
     say "" "$conflicts file(s) have conflict markers. Resolve them, commit, then run pap init$layers again to finish setup."
