@@ -159,6 +159,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.17.0] - 2026-11-10
+
 #### Added
 
 - `scripts/heavy-build.sh` (the .NET layer) logs each heavy build it runs,
