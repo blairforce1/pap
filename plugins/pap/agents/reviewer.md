@@ -15,7 +15,8 @@ and you are given only the brief, the worktree's absolute path and the
 diff command, `git -C <worktree> diff origin/main...HEAD`.
 
 1. Run `/code-review` with args `low git -C <worktree> diff origin/main...HEAD`
-   where the skill exists, with the real path. It may answer only that it
+   where the skill exists, with the real path. Where it exists, call it:
+   your own read is not a reason to leave it out. It may answer only that it
    launched in the background; its result then arrives later, as a
    notification. Do step 2 while it runs, and do not report before the
    result has arrived: if it has not, end your turn without reporting and
@@ -34,8 +35,8 @@ review happened:
   findings in the diff, or none, for a diff it saw.
 - `/code-review FELL BACK: skill not available` when the skill does not
   exist.
-- `/code-review FELL BACK: no result returned` when the skill ran and its
-  result never arrived.
+- `/code-review FELL BACK: no result returned` when you called the skill
+  and it gave an error, or its result never arrived.
 - `/code-review FELL BACK: saw an empty diff` when its result says the
   diff was empty or there was nothing to review. That is not a clean
   review.

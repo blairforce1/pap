@@ -87,6 +87,10 @@ for f in "$dir/reviewer.md" "$skill"; do
     result $? "$b: fallback reason '$why'"
   done
 done
+has "$skill" "Verification gets one row: the review ran, the reviewer's first line word for word"
+result $? "SKILL.md: the Verification row carries the reviewer's first line"
+has "$dir/reviewer.md" 'Where it exists, call it'
+result $? "reviewer: calls /code-review where it exists"
 has "$dir/reviewer.md" 'do not report before the result has arrived'
 result $? "reviewer: waits for a /code-review launched in the background"
 
