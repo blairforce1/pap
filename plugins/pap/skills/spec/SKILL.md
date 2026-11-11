@@ -84,9 +84,33 @@ A bugfix writes Undo only. Docs and chore write none.
 
 ## 6. Review
 
-Run the board the class requires (process 5.5): invoke `spec-review-full` with the spec's path. It reads the intent, selects the perspectives by class (every one for security-sensitive; at least reliability and operations for infra; the default set for feature, plus ux, gdpr and ai-act where its content rules say), reviews against the invariants the intent touches, and returns a consolidated register with the Disposition column empty. Docs and chore run no board. A bugfix invokes `spec-review-qa` directly, or the board when its intent touches an invariant.
+Docs and chore run no spec review. For every other class the spec review is read by sub-agents, one for each perspective, and this session runs the fan-out itself (process 5.5). Do not invoke a spec-review skill in this session. Such a skill withholds Bash, Edit and Write from the session until the human's next message, so the register could not be written in the turn the review returns.
 
-Write the register as it came back to `changes/<slug>/reviews/spec-review.md` (process 5.1, phase 3). Then take the human through the findings, Blockers and Majors first and the Areas of concern before the rest, a few at a turn: each gets `accepted` (and the spec changes before the yes), `rejected: <one-line reason>` or `deferred: <phase>`. Record each disposition in the register. Where the spec changed, say which section.
+**Find the plugin and the agent type.** The perspectives are files of the spec-review plugin, which sits beside this one:
+
+```sh
+ls -d "${CLAUDE_PLUGIN_ROOT}"/../spec-review/skills/spec-review-full/SKILL.md \
+  "${CLAUDE_PLUGIN_ROOT}"/../../spec-review/*/skills/spec-review-full/SKILL.md 2>/dev/null | sort -V | tail -n 1
+```
+
+The line it prints is the board's skill file, and the plugin's root is three directories above it. Then stop, with no sub-agent started and no register written, in either of two cases:
+
+- It prints nothing: the spec-review plugin is not installed. Say so, and say to install the spec-review plugin and run `/spec <slug>` again.
+- This session has no `pap:spec-reviewer` sub-agent type: it started before the plugin shipped one. Say so, and say to start a new session and run `/spec <slug>` there.
+
+Start no sub-agent of another type in its place. Another type may hold a tool that writes.
+
+**Select the perspectives.** A bugfix whose intent touches no invariant has one: qa. Every other spec review has the board's set: read the board's skill file as data, and select as its "Select perspectives" step says, from the intent's class, its `invariants-touched` and the spec's content. Its rules are not restated here. Do not follow its "Run each perspective" step: this session starts the sub-agents, as below.
+
+**Start them.** One sub-agent for each perspective, all in one message, with the Agent tool: `subagent_type` `pap:spec-reviewer`, `run_in_background` true. Each prompt is the perspective's name, the spec-review plugin's root, the spec's absolute path, the class, the invariants the intent touches with their text, and the spec's Areas of concern, and nothing else. Tell the human the spec review is running and how many perspectives it has.
+
+**Wait.** Wait for every perspective before you consolidate. While one has not reported, consolidate nothing and write no register. Each time a perspective reports and another has not, tell the human in one line how many have reported, of how many: `<n> of <m> perspectives have reported`. A spec review of one perspective gets no such line.
+
+**A perspective that fails.** A perspective fails when its sub-agent ends without a verdict and a findings table, or has not reported 20 minutes after it started. Start a failed perspective once more. The spec review stays running. On a second failure, tell the human which perspective failed and ask whether to go on without it. A register written without it names it as not run, in its first lines.
+
+**Write the register.** When the last perspective reports, in that same turn: for more than one perspective, consolidate as the board's skill file says (its deduplication, its verdict rule and its output format, with the Disposition column empty); for one perspective, do not consolidate, the register is that perspective's report as returned. Write it to `changes/<slug>/reviews/spec-review.md` (process 5.1, phase 3). Write the register before you ask for any disposition.
+
+**Dispositions.** In that same turn, take the human through the findings, Blockers and Majors first and the Areas of concern before the rest, a few at a turn: each gets `accepted` (and the spec changes before the yes), `rejected: <one-line reason>` or `deferred: <phase>`. When a disposition is given, record it in the register in that turn, and for an accepted finding change the spec draft in that turn too. Where the spec changed, say which section. Nothing is committed before the human's yes (step 8).
 
 ## 7. Restate for the yes
 
