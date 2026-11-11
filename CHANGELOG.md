@@ -188,6 +188,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.19.1] - 2026-11-11
+
 #### Fixed
 
 - `/spec` could not write the spec review register in the turn the review
