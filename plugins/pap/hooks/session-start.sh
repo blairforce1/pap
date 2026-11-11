@@ -17,7 +17,8 @@
 #   unset  nothing: a session not started by pap claude has no mode.
 #
 # The role is at most 80 lines and 8 KB, with the plan lines of decision
-# 0026 (where /pap:plan sits, and what a build's brief leaves to the plan). Each part opens with a marker
+# 0026 (where /pap:plan sits, and what a build's brief leaves to the
+# plan). Each part opens with a marker
 # line, [pap-pm:<part>], that a test can find: role, first-line, routing,
 # no-route, paths, blocked-commit, launch, tracker, and warning when the
 # guard is not binding. Claude Code caps one hook's context at 10,000
