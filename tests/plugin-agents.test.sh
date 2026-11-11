@@ -6,7 +6,8 @@
 #
 # For each expected file in plugins/pap/agents/, checks the frontmatter
 # opens on line 1 and closes, carries `name` matching the file name,
-# `tools` and `model`, and that the reviewer has no Edit, Write or Agent.
+# `tools` and `model`, and that the reviewer, the planner and the plan
+# reviewer (decision 0026) have no Edit, Write, NotebookEdit or Agent.
 # Nothing in CI runs `claude plugin validate`, so this is the structure
 # check. Prints one TAP-style line per case and exits 1 if any fails. No
 # network; touches nothing.
@@ -39,7 +40,7 @@ field() {
     NR > 1 && index($0, k ": ") == 1 { print substr($0, length(k) + 3); exit }' "$1"
 }
 
-for a in cycle cycle-mechanical reviewer; do
+for a in cycle cycle-mechanical reviewer planner plan-reviewer; do
   f="$dir/$a.md"
   if [ ! -f "$f" ]; then
     result 1 "$a: file exists"
@@ -56,11 +57,14 @@ for a in cycle cycle-mechanical reviewer; do
   result $? "$a: model present"
 done
 
-tools=$(field "$dir/reviewer.md" tools)
-case ", $tools," in
-  *", Edit,"* | *", Write,"* | *", Agent,"*) result 1 "reviewer: no Edit, Write or Agent" ;;
-  *) [ -n "$tools" ]; result $? "reviewer: no Edit, Write or Agent" ;;
-esac
+# Read-only by the tool list: no tool that edits, writes or starts an agent.
+for a in reviewer planner plan-reviewer; do
+  tools=$(field "$dir/$a.md" tools)
+  case ", $tools," in
+    *", Edit,"* | *", Write,"* | *", NotebookEdit,"* | *", Agent,"*) result 1 "$a: no Edit, Write, NotebookEdit or Agent" ;;
+    *) [ -n "$tools" ]; result $? "$a: no Edit, Write, NotebookEdit or Agent" ;;
+  esac
+done
 
 # The reviewer starts in its launcher's directory, where /code-review sees
 # no diff, so its body must open by changing into the worktree.
