@@ -5,7 +5,8 @@
 #
 # Usage: guard-branch.sh <mode>
 #
-#   branch  Exit 1 unless the current branch matches change/<id>.
+#   branch  Exit 1 unless the current branch matches change/<id>. The
+#           refusal names the way through: a worktree made by /change.
 #   push    Run the branch check, then read the git pre-push ref list from
 #           stdin (<local ref> <local sha> <remote ref> <remote sha> per
 #           line) and exit 1 if any ref targets refs/heads/main.
@@ -36,9 +37,11 @@ set -eu
 mode="${1:-}"
 id_pattern='^change/[A-Za-z0-9][A-Za-z0-9._-]*$'
 
+# refuse <message> [exit code] [way through]
 refuse() {
   printf 'guard-branch: %s\n' "$1" >&2
   printf 'guard-branch: decision 0002: work on change/<id> and open a draft PR; main changes only by PR.\n' >&2
+  [ -z "${3:-}" ] || printf 'guard-branch: %s\n' "$3" >&2
   exit "${2:-1}"
 }
 
@@ -53,7 +56,8 @@ current_branch() {
 check_branch() {
   branch="$(current_branch)"
   if ! printf '%s\n' "$branch" | grep -Eq "$id_pattern"; then
-    refuse "refusing on branch '$branch'; expected change/<id>" "$1"
+    refuse "refusing on branch '$branch'; expected change/<id>" "$1" \
+      'the way through is a worktree on change/<id>, made by /change; never switch the branch of the main checkout.'
   fi
 }
 

@@ -126,6 +126,8 @@ Then, in risk mode, answer the protected-path box as above. Start the CI wait in
 
 ## 7. Report in chat, then stop
 
+Before the report, read the result of each required check that has finished (`gh pr checks --required --json name,bucket,link`). Do not wait for one still running: the report names it as running. For each one that failed, read its log (`gh run view <run id> --log-failed`), quote every error line in Verification and name each in the chat report. A failure is expected only when every one of its error lines is: one expected error does not excuse the others.
+
 The verification table lives in the pull request body only. The chat report is exactly:
 
 ```text
@@ -136,6 +138,8 @@ Deviations from the brief:
   one line each, or "none"
 Plan: <the pull request's Plan: line>
   one line each deviation from the plan (its increment, what differed and why); none for 0 or no plan
+Failed required checks:
+  one line each error line of a failed check, with the check's name and whether it is expected; "none"; or "running: <names>"
 Decisions left to you:
   one line each, or "none"
 Revisits due: <record numbers, or "none">

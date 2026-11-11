@@ -188,6 +188,28 @@ not carry.
 
 ### [Unreleased]
 
+#### Fixed
+
+- A cycle a project-manager session launched could carry its change by
+  hand: no `/change`, a branch switched in the main checkout, a pull
+  request with no `class:*` label. `pap:cycle` and `pap:cycle-mechanical`
+  now say that the first act after the `cd` is the `/change` skill with
+  the brief's first line, that no step of a change is done by hand, that
+  a cycle without the skill ends with `ASK:`, and that it never works in,
+  or changes the branch of, the main checkout.
+- `scripts/guard-branch.sh` refused a commit or push off a change branch
+  without naming the way through. The refusal has a third line: a
+  worktree on `change/<id>`, made by `/change`, never a branch switched in
+  the main checkout. Its first two lines and every exit code are
+  unchanged. The script is the template's too, so adopters get the line
+  at their next `pap sync`.
+- `/change` could report a failed required check as expected when only
+  one of its errors was. Before its report the skill reads each required
+  check that has finished, without waiting for one still running, quotes
+  every error line of a failed one in Verification and names each in the
+  chat report, on a new `Failed required checks:` line. A failure is
+  expected only when every one of its error lines is.
+
 ### [0.19.0] - 2026-11-11
 
 #### Added
