@@ -64,15 +64,22 @@ nothing carries it.
 Over the first 10 changes with an accepted plan, across pap and the two
 arapsys repositories, against earlier changes of the same three classes:
 
-- Commits pushed to the change's pull request after it opens: half the
-  baseline or fewer. Read from GitHub.
+- Pull requests with a commit pushed after they open: half the baseline
+  share or fewer (53 of 112, 47%, so at most 2 of 10), with the mean
+  number of such commits at half the baseline (1.41) or less. Merge
+  commits are not counted. Read from GitHub.
 - Cycles that get a message after their first report: under 10% (18% in
   decision 0018). Read from the tracker.
 - Cost guard: the time from the spec's yes to the plan's yes, read from
   the two files' commits. If agreeing plans costs more time than the
   rework saved, the step is refuted.
 
-The baseline is counted from history during the spec.
+The baseline was counted during the spec, over 112 merged change pull
+requests of the three classes in the three repositories, 2026-09-22 to
+2026-11-11.
+
+Edited 2026-11-11 after the yes (churn): the baseline median of commits
+after open is 0, so the first measure reads as a share and a mean.
 
 ## Open questions
 
