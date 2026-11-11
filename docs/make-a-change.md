@@ -2,8 +2,9 @@
 
 One change is one branch, `change/<slug>`, one folder, `changes/<slug>/`,
 and one draft pull request that carries the intent, the spec, the plan
-where the change needs one, and the code, in that order. The skills carry the branch, the worktree, the commits and
-the pull request; you supply the intent and the judgement. The reference
+where the change needs one, and the code, in that order. The skills carry
+the branch, the worktree, the commits and the pull request; you supply the
+intent and the judgement. The reference
 is the process document's [change layer](../process/personal-agentic-process.md#5-change-layer),
 [`rules.md`](../rules.md) and decisions
 [0002](../decisions/0002-skills-stop-at-draft-pr.md),
@@ -18,7 +19,7 @@ and [0026](../decisions/0026-a-reviewed-plan-sits-between-the-spec-and-the-code.
 ```text
 /intent <slug> <class> <what you want>     main session; your yes is recorded
 /spec <slug>                               main session; review board; your yes is recorded
-/pap:plan <slug>                           main session; feature, infra, security-sensitive; your yes is recorded
+/pap:plan <slug>                           main session; three classes only; your yes is recorded
 /change <slug> <class> [Record: NNNN]      any context; builds, checks, cold review, draft PR
 review by risk label                       you read; /pap:reviewed on risk:high
 merge                                      you, squash; then mise run tidy
@@ -149,7 +150,8 @@ Any context, a background agent included. It resumes the branch in a
 worktree at `../<repo>-<slug>`, reads the intent and the spec (their class
 and hypothesis stand; a different `<class>` argument is reported as a
 contradiction), reads the accepted plan where there is one and builds its
-increments in order (on a plan draft it stops and reports), reads the rules and records that bear on the files it
+increments in order (on a plan draft it stops and reports), reads the
+rules and records that bear on the files it
 touches, and reports only contradictions. Then it builds: a commit per
 logical step, a conventional commit subject, a co-author trailer on
 generated content, never bypassing a hook. The scenarios are its
@@ -166,8 +168,9 @@ changelog moves) skips the review, and Verification says so. Each finding is fix
 
 Then it pushes and opens the draft pull request with the `class:<class>`
 label and a body in the template's order: `Change:`, `Record:` and
-`Plan:` lines, Summary with the deviations to review, a Verification table (every check
-run, and the cold review's row), "How to revert" copied from the spec's
+`Plan:` lines, Summary with the deviations to review, a Verification
+table (every check run, and the cold review's row), "How to revert" copied
+from the spec's
 Undo, and the Checks section with every box answered. It reads the
 `risk:*` label `pr-checks` set and answers the protected-path box from it.
 Its report names the revisits `pap revisits` says are due, the

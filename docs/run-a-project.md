@@ -77,8 +77,8 @@ launched. An ask that is not ripe is talked through. A ripe ask gets one
 proposed route: `/envision` when there is no product layer; `/intent`,
 then `/spec`, when rule 20.2 says the change needs one, both run by the PM
 itself, and `/pap:plan` after `/spec` for a feature, infra or
-security-sensitive change; a cycle for everything else. A skill you invoke yourself runs as
-invoked. An ask no route covers stops (rule 25.4): in an adopting
+security-sensitive change; a cycle for everything else. A skill you
+invoke yourself runs as invoked. An ask no route covers stops (rule 25.4): in an adopting
 repository the PM hands you the text of an issue for pap, and you file
 it.
 
