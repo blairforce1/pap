@@ -159,6 +159,20 @@ not carry.
 
 ### [Unreleased]
 
+#### Changed
+
+- `pap coverage` checks a `rules.md` sentence that claims a "required
+  check" against `.github/rulesets/main.json` and the repository's own
+  `.github/required-checks.yml`, the two lists `pap repo apply` requires
+  from. It read `main.json` only, so a check that only
+  `required-checks.yml` names was a false disagreement. The line for a
+  check in neither now names both files.
+- pap's own repository requires `tests (macos)` to merge, through its
+  `.github/required-checks.yml` (decision 0002, note of 2026-11-10). A
+  pull request could merge while the macOS job was still running, or after
+  it failed. Adopting repositories are not affected: the template has no
+  macOS job and `main.json` is unchanged.
+
 #### Fixed
 
 - `pap doctor` said `ok  pap plugin installed` for a plugin many releases

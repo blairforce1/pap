@@ -101,9 +101,11 @@
 #         one line per rules.md "Enforced by" entry that disagrees with the
 #         repository: a linked or backticked path that does not exist, or a
 #         sentence claiming a "required check" (or one that "does not
-#         block") against .github/rulesets/main.json's required status
-#         checks. Ends with the two counts. Always exits 0: it reports and
-#         never blocks.
+#         block") against the required status checks: those of
+#         .github/rulesets/main.json and those the repository's own
+#         .github/required-checks.yml lists, the two `pap repo apply`
+#         requires. Ends with the two counts. Always exits 0: it reports
+#         and never blocks.
 # measure Prints, as TSV, the per-pull-request data behind a counted
 #         revisit (decision 0001's ten a side): one row per change PR in
 #         two windows, `before`, the last ten merged before the start the
@@ -1986,7 +1988,14 @@ IDS
   done
   if [ -f rules.md ]; then
     ruleset=.github/rulesets/main.json
+    # The repository's own list, read as repo-sync.sh's simple form without
+    # yq: one "- name" a line, quotes and a trailing comment optional.
+    declared_file=.github/required-checks.yml
+    declared=""
+    [ ! -f "$declared_file" ] || declared="$(sed -n 's/^- *//p' "$declared_file" |
+      sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\\(.*\\)'\$/\\1/")"
     contexts="$( [ -f "$ruleset" ] && sed -n 's/.*"context": *"\([^"]*\)".*/\1/p' "$ruleset")"
+    [ -z "$declared" ] || contexts="$(printf '%s\n' "$contexts" "$declared")"
     required="$(printf '%s\n' "$contexts" | sed 's| / .*||'; printf '%s\n' "$contexts")"
     known="$(printf '%s\n' "$required"; for w in .github/workflows/*.yml; do
       [ -f "$w" ] || continue; basename "$w" .yml; sed -n 's/^name: *//p' "$w"; done)"
@@ -2009,7 +2018,9 @@ IDS
           for c in $checks; do
             if printf '%s\n' "$required" | grep -qxF "$c"; then is=required; else is=optional; fi
             [ "$is" = "$kind" ] || {
-              if [ "$kind" = required ]; then why="$c is not a required check in $ruleset"; else why="$c is a required check in $ruleset, so it blocks"; fi
+              src="$ruleset"
+              ! printf '%s\n' "$declared" | grep -qxF "$c" || src="$declared_file"
+              if [ "$kind" = required ]; then why="$c is not a required check in $ruleset or $declared_file"; else why="$c is a required check in $src, so it blocks"; fi
               say "rule $rule disagrees ($why)"; disagree=$((disagree + 1)); }
           done ;;
       esac

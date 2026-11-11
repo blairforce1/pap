@@ -224,6 +224,17 @@ them.
   new trigger rather than to a `measured:` status; whether 0001 names
   that step is open. 0004 and 0005 also predate the first tag and have
   no before side, so they can be judged only on their triggers.
+- Recorded 2026-11-10: the main ruleset required `tests` and not
+  `tests (macos)`, so a pull request could merge while pap's macOS job was
+  still running, or after it failed. Asked whether the tests were
+  mandatory and told this, the owner decided: require it. The reason: pap
+  targets macOS, and a macOS-only break could reach main. The cost: the
+  macOS job takes about five minutes against two, so each merge waits
+  about three minutes longer. It is pap's own check, not the template's:
+  `.github/required-checks.yml` names it, `.github/rulesets/main.json`
+  does not, because `pap repo apply` gives that file's checks to every
+  adopting repository and none of them has a macOS job. `pap coverage`
+  reads both files.
 
 ## Where it is taught or enforced
 
