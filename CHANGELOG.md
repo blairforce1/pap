@@ -195,6 +195,17 @@ not carry.
   2026-11-11). The macOS code paths stay, untested: macOS may work.
   Adopting repositories are not affected.
 
+#### Fixed
+
+- `/change`'s cold review gives `/code-review` the worktree's diff command,
+  `low git -C <worktree> diff origin/main...HEAD`, and waits for its
+  result. The skill runs in the launcher's directory and may launch in the
+  background, so the bare worktree path could review an empty diff and the
+  reviewer could report before the result came. The reviewer's first line
+  is now fixed words: `/code-review low: reviewed the diff`, or
+  `/code-review FELL BACK:` and the reason, and step 5's Verification row
+  carries it.
+
 ### [0.18.2] - 2026-11-11
 
 #### Added
