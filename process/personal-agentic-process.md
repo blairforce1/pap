@@ -12,7 +12,7 @@ This document describes what must happen. It does not prescribe tools.
 2. **Proportional ceremony.** The amount of specification, review, and testing is set by the class of change, not applied uniformly. A typo fix and a security-sensitive feature do not get the same treatment. <!-- id: P-ceremony -->
 3. **Small, shippable increments.** Every change must be independently deployable and have a success measure that can be observed after release. If a success measure cannot be written, the change is too large or too vague. <!-- id: P-increments -->
 4. **Direction is preserved by invariants, not by re-reading the vision.** Constraints that must not be violated are written down, kept short, and checked at review. <!-- id: P-invariants -->
-5. **Acceptance is recorded, and the record is a trigger.** Each phase ends by committing an artefact. Accepting that artefact is what starts the next phase: for intent and spec, the human's yes recorded in the file on the change branch; for the rest, the merge or the closed review. Nothing starts because someone remembered to start it. <!-- id: P-merge-trigger -->
+5. **Acceptance is recorded, and the record is a trigger.** Each phase ends by committing an artefact. Accepting that artefact is what starts the next phase: for intent, spec and plan, the human's yes recorded in the file on the change branch; for the rest, the merge or the closed review. Nothing starts because someone remembered to start it. <!-- id: P-merge-trigger -->
 6. **Every generated artefact records what produced it.** Model, skill or policy versions, and the prompt or command that produced a spec, plan, or review are recorded with it. Without this, no change to the process can be attributed to an outcome. <!-- id: P-provenance -->
 7. **Going backwards is normal and is recorded.** When work returns to an earlier phase, the return and its reason are noted. Returns are the raw material for improvement. <!-- id: P-returns -->
 8. **Every escaped defect is attributed to a phase.** Not "we had a bug" but "the specification omitted a failure mode" or "the test plan did not cover this path". Attribution is what turns defects into process changes. <!-- id: P-attribution -->
@@ -130,7 +130,7 @@ prompt:            # the prompt or command that produced it
 | 1 | Intent | `intent.md` | The human's yes to the intent, restated in 5.3's sections, recorded in the file (who, when): class declared, hypothesis linked, success measure written, invariants touched listed. Committed on the change branch before the spec; the change's one pull request carries intent, spec and code in that order | Human |
 | 2 | Specification | `spec.md` | The human's yes after spec review, recorded in the file (who, when): covers the sections the class requires, with acceptance scenarios where the class asks for them (5.4); every open question from intent is answered or explicitly carried forward; a feature, infra or security-sensitive change says how it is monitored and undone (5.4, Operations). Committed on the change branch after the intent and before the code | Agent drafts, human edits |
 | 3 | Spec review | `reviews/` | Every finding has a disposition (accepted, rejected, deferred), recorded with the spec on the change branch; the human's approval is the spec's recorded yes (phase 2) | Reviewers + human |
-| 4 | Planning | `plan.md`, `test-plan.md` | Merged: increments and test tiers match the class matrix | Agent drafts, human approves |
+| 4 | Planning | `plan.md` | The human's yes after plan review, recorded in the file (who, when): every plan review finding is fixed or has a disposition, and the increments and test tiers match the class matrix (5.6). Committed on the change branch after the spec and before the code. Feature, infra and security-sensitive changes only | Agent drafts, human approves |
 | 5 | Generation | Code, tests, design notes | All planned increments implemented with their tests | Agent |
 | 6 | Self-check | CI results, agent self-review | Build green, tests pass, agent has run the checks and shown the output, and reviewed its own diff against spec | Automated |
 | 7 | Code review | Review record | All review passes run, findings ranked; human has read the attention plan and approved | Reviewers + human |
@@ -147,7 +147,7 @@ Each phase has one leading and one lagging measure, all derivable from version c
 | Intent | Time from first idea to accepted `intent.md` | Survival rate: share of intents accepted rather than closed; intent edits after `spec.md` exists (intent churn) |
 | Specification | Time from `intent.md` acceptance to `spec.md` acceptance | `spec.md` commits after `plan.md` or code exists on the branch (spec rework) |
 | Spec review | Findings per review, by severity | Escapes later attributed to spec review miss |
-| Planning | Time from `spec.md` acceptance to `plan.md` merge | Increments that were split or merged after build started |
+| Planning | Time from the spec's yes to the plan's yes | `plan.md` commits after code exists on the branch (plan rework); increments that were split or merged after build started |
 | Generation | Sessions per increment; rework share | Escapes attributed to generation |
 | Self-check | First-pass CI success rate for agent-written changes | Defects found in code review that self-check should have caught |
 | Code review | Time to first review; share of review comments resolved without a human touching the branch | Defects caught before merge vs escaped to production |
@@ -197,9 +197,17 @@ A spec is accepted when the human says yes to it after spec review (5.5) and the
 
 Run the reviewer perspectives the class requires (the `spec-review` plugin in this marketplace provides them; `spec-review-full` runs the whole board). Each finding is recorded with reviewer, severity, and the human's disposition, in `reviews/` on the change branch before the spec's yes. Rejected findings need a one-line reason. Work through flagged areas of concern first. Review specifically against the invariants the intent declared it touches.
 
-### 5.6 `plan.md` and `test-plan.md` <!-- id: S-plan -->
+### 5.6 `plan.md` <!-- id: S-plan -->
 
-The plan breaks the change into increments that can each be built and tested. The test plan states, per tier the class requires, what will be tested and what evidence passes.
+The plan says how an accepted spec will be built. A feature, infra or security-sensitive change has one; a bugfix, chore, docs or spike change, and a change exempt from intent, has none. It is at most two pages (1000 words) and has five sections, in this order:
+
+- **Increments**: ordered; each can be built, tested and committed on its own, and names the scenarios of the spec it satisfies.
+- **Design**: the types, functions, events and infrastructure added or changed.
+- **Fit**: the existing code it touches and the seams it uses, what it leaves alone, how coupling is kept low, the invariants touched, and every protected path the build will touch.
+- **Tests**: the test plan. For every scenario and non-functional row of the spec, per tier the class requires, what will be tested and what evidence passes. There is no separate `test-plan.md`.
+- **Observation**: for every signal in the spec's Operations, the increment that builds it, and how the change is known to work once merged.
+
+An agent drafts it and another, which did not draft it, reviews it against the spec and the code as it is: conformance, design and verification, and security for a security-sensitive change. Each finding is recorded with its viewpoint, severity and disposition in `reviews/` on the change branch before the plan's yes. The build reads the accepted plan and reports where it deviated; a deviation is reported, never refused.
 
 ### 5.7 Generation and self-check <!-- id: S-generation -->
 
@@ -329,7 +337,7 @@ Everything not listed here should be generated, derived, or automated.
 
 1. Vision, invariants, backlog, and conventions (product layer)
 2. `intent.md`, including class and success measure
-3. Dispositions on review findings, at spec review and code review
+3. Dispositions on review findings, at spec review, plan review and code review
 4. Return records (from, to, trigger)
 5. Phase attribution on escapes
 6. Intervention pre-registration
