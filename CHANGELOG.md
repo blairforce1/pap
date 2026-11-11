@@ -188,6 +188,13 @@ not carry.
 
 ### [Unreleased]
 
+#### Changed
+
+- pap's own suite no longer runs on macOS, and `tests (macos)` is no
+  longer a required check in pap's own repository (decision 0002, note of
+  2026-11-11). The macOS code paths stay, untested: macOS may work.
+  Adopting repositories are not affected.
+
 ### [0.18.2] - 2026-11-11
 
 #### Added
