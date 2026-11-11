@@ -9,7 +9,9 @@
 // - Class band: while a change command (/intent, /change, /spec, /pap:pm launch)
 //   is typed, a band above the prompt lists the classes; a bad class or slug
 //   is painted red and refused at submit.
-// - /pm exit: the PM pauses every cycle and saves, then /exit is put in the box.
+// - Exit: `/pap:pm exit` has the PM pause every cycle and save, then call
+//   exit_ready, which puts /exit in the box. `/pap:pm console` calls
+//   console_open. The console registers no command of its own.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
@@ -51,7 +53,8 @@ const CLASSES = [
 const CLASS_NAMES: readonly string[] = CLASSES.map(c => c[0])
 // Words people reach for that are not classes, with what to use instead.
 const NOT_A_CLASS: Record<string, string> = { process: 'not a class; process records use infra' }
-const SLUG_OK = /^[A-Za-z0-9._-]+$/
+// As the pap skills check it: worktree.sh and the launch script refuse a slug that starts with "." or "-".
+const SLUG_OK = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const draftRef = { plugin: 'pm-console', key: 'draft' } as const
 const draft = atom(draftRef, '')
 const branchRef = { plugin: 'pm-console', key: 'branch' } as const
@@ -82,7 +85,7 @@ function classProblem(t: Token): string {
   if (!t.isDone && CLASS_NAMES.some(c => c.startsWith(t.word))) return ''
   return NOT_A_CLASS[t.word] ?? `not a class; the classes are ${CLASS_NAMES.join(', ')}`
 }
-const slugProblem = (t: Token) => (SLUG_OK.test(t.word) ? '' : 'a slug takes only letters, digits, ".", "_" and "-"')
+const slugProblem = (t: Token) => (SLUG_OK.test(t.word) ? '' : 'a slug takes only letters, digits, ".", "_" and "-", and starts with a letter or digit')
 
 // Warn, never refuse, when change/<slug> is already a branch here or on a remote.
 // One run per slug while typing; `fresh` (at submit) asks git again.
@@ -356,16 +359,9 @@ async function refreshCi($: EngineInterface) {
 
 const toolText = (text: string) => ({ result: text })
 
-// `/pm exit`: the PM pauses everything, then the console puts /exit in the prompt box.
+// `/pap:pm exit`: the PM pauses everything and calls exit_ready, then the console puts /exit in the prompt box.
 const STORE_UNSAFE_EXIT = 'unsafe-exit'
 const STORE_EXIT_READY = 'exit-ready'
-const EXIT_PROMPT = [
-  'The Project Lead typed `/pm exit`: they want to stop. Run the pause protocol now, then hand back. Ask nothing else first; keep the final message short.',
-  '1. Send `PAUSE` to every running cycle (background agent) and wait for each `PAUSED:` reply with its save point.',
-  '2. Record every pause and what is next in the tracker; commit and push it. A failed push is not safe: say so.',
-  "3. Update the save point in the PM's memory: what is running, the open pull requests, the resume order.",
-  '4. Last, and never skipped: call the pm-console tool `exit_ready`, `ok: true` when all of it is done and pushed, else `ok: false` with what is not. Without that call the Project Lead is never told it is safe to exit.',
-].join('\n')
 const isRunning = (status: string) => ['running', 'pending', 'waiting'].includes(status)
 
 export const register: Register = on => {
@@ -386,21 +382,38 @@ export const register: Register = on => {
           ref: 'exit',
           at: now,
           isDone: false,
-          detail: `The session ended at ${new Date(unsafe.at).toISOString()} with these cycles still running:\n${unsafe.running.map(r => `- ${r}`).join('\n')}\n\nThe PM checks each branch and save point, then relaunches. Next time use /pm exit.`,
+          detail: `The session ended at ${new Date(unsafe.at).toISOString()} with these cycles still running:\n${unsafe.running.map(r => `- ${r}`).join('\n')}\n\nThe PM checks each branch and save point, then relaunches. Next time use /pap:pm exit.`,
         },
       ])
       await $.store.delete(STORE_UNSAFE_EXIT)
     }
     await $.store.delete(STORE_EXIT_READY)
 
-    await $.command.register({
-      name: 'pm',
-      description: 'Open the PM console; `/pm exit` pauses every cycle and saves before you quit',
+    // Each tool registers on its own: one the engine refuses is logged and the rest still load.
+    const refused: string[] = []
+    const tool = async (spec: Parameters<typeof $.tool.register>[0]) => {
+      try {
+        await $.tool.register(spec)
+      } catch (err) {
+        refused.push(spec.name)
+        const why = err instanceof Error ? err.message : String(err)
+        // Saying so must not throw out of the hook either.
+        await Promise.resolve()
+          .then(() => $.ui.log(`pm-console: tool ${spec.name} not registered: ${why}`))
+          .catch(() => undefined)
+      }
+    }
+    await tool({
+      name: 'console_open',
+      description:
+        'Open the PM console pane and refresh its PAP and CI figures. Call when the Project Lead types `/pap:pm console`.',
+      inputSchema: { type: 'object', properties: {} },
+      isDeferred: false,
     })
-    await $.tool.register({
+    await tool({
       name: 'exit_ready',
       description:
-        'Call at the end of a `/pm exit` pause: ok true once every cycle has PAUSED and the tracker and memory are committed and pushed; ok false with what is not done. The console then puts /exit in the prompt box for the Project Lead.',
+        'Call at the end of a `/pap:pm exit` pause: ok true once every cycle has PAUSED and the tracker and memory are committed and pushed; ok false with what is not done. The console then puts /exit in the prompt box for the Project Lead.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -411,7 +424,7 @@ export const register: Register = on => {
       },
       isDeferred: false,
     })
-    await $.tool.register({
+    await tool({
       name: 'inbox_add',
       description:
         'Add what a cycle report asks of the Project Lead to the PM console (one short imperative line per item: review, decide, merge, run). Call when a cycle reports.',
@@ -433,7 +446,7 @@ export const register: Register = on => {
       },
       isDeferred: false,
     })
-    await $.tool.register({
+    await tool({
       name: 'inbox_note',
       description:
         'Set or replace the detail text and link on every PM console item with this ref (to fill in or correct what the detail view shows).',
@@ -448,7 +461,7 @@ export const register: Register = on => {
       },
       isDeferred: false,
     })
-    await $.tool.register({
+    await tool({
       name: 'inbox_done',
       description: 'Mark PM console items done by id (the Project Lead did them).',
       inputSchema: {
@@ -458,13 +471,13 @@ export const register: Register = on => {
       },
       isDeferred: false,
     })
-    await $.tool.register({
+    await tool({
       name: 'inbox_list',
       description: 'List the PM console items still waiting on the Project Lead, with ids.',
       inputSchema: { type: 'object', properties: {} },
       isDeferred: false,
     })
-    await $.tool.register({
+    await tool({
       name: 'ci_repos',
       description: 'Set the GitHub repos (owner/name) whose CI timings the PM console shows.',
       inputSchema: {
@@ -475,7 +488,7 @@ export const register: Register = on => {
     })
 
     $.clock.every(15_000, () => void refreshLanes($))
-    await $.tool.register({
+    await tool({
       name: 'pap_repos',
       description: 'Set the repos the PM console PAP tab reads: GitHub owner/name plus the local checkout path of each.',
       inputSchema: {
@@ -495,6 +508,12 @@ export const register: Register = on => {
       },
     })
 
+    if (refused.length) {
+      await Promise.resolve()
+        .then(() => $.ui.toast(`PM console: ${refused.join(', ')} not registered; the debug log says why`))
+        .catch(() => undefined)
+    }
+
     $.clock.every(600_000, () => void refreshCi($))
     $.clock.every(1_800_000, () => void refreshPap($))
     void refreshLanes($)
@@ -505,31 +524,11 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'pm' }, async ($, e) => {
-    if (e.args.trim().toLowerCase() === 'exit') {
-      $.ui.status('PM ▸ pausing everything before exit…')
-      // Submit once the command has finished, and never silently: a dropped prompt
-      // is logged and put in the prompt box, so one Enter sends it.
-      $.clock.after(300, async () => {
-        let reason = ''
-        try {
-          const sent = await $.prompt.submit({ text: EXIT_PROMPT })
-          if ('drop' in sent && sent.drop) reason = sent.drop
-        } catch (err) {
-          reason = err instanceof Error ? err.message : String(err)
-        }
-        if (reason) {
-          $.ui.log(`pm-console: /pm exit prompt not sent: ${reason}`)
-          await $.prompt.fill({ text: EXIT_PROMPT })
-          $.ui.toast('Pause instructions are in the prompt box: press Enter')
-        }
-      })
-      return { text: 'Pausing every cycle and saving. /exit will appear in the prompt box when it is safe.' }
-    }
+  on('tool.call', { tool: 'mcp__pm-console__console_open' }, async $ => {
     await $.ui.open({ id: PANE, title: 'PM console' })
     void refreshCi($)
     void refreshPap($)
-    return { text: 'PM console opened; CI and PAP figures refreshing.' }
+    return toolText('PM console opened; CI and PAP figures refreshing.') as never
   })
 
   on('tool.call', { tool: 'mcp__pm-console__exit_ready' }, async ($, e) => {
@@ -547,7 +546,7 @@ export const register: Register = on => {
     return toolText('/exit is in the prompt box; the Project Lead presses Enter.') as never
   })
 
-  // Safety net: an exit without `/pm exit` while cycles run is noted for the next session.
+  // Safety net: an exit without `/pap:pm exit` while cycles run is noted for the next session.
   on('session.end', async ($, e, next) => {
     try {
       if (e.reason !== 'clear' && !(await $.store.get(STORE_EXIT_READY))) {
@@ -597,11 +596,13 @@ export const register: Register = on => {
       return next(e)
     }
     const cls = line?.cls
-    if (!slug || !cls) {
+    // A launch takes its class from the brief, which the pap skill's script checks: one typed here is optional.
+    if (isLaunch && !slug) return { drop: '/pap:pm launch needs <slug>' }
+    if (!slug || (!cls && !isLaunch)) {
       return { drop: `/${e.command?.name} needs <slug> <class>; the classes are ${CLASS_NAMES.join(', ')}` }
     }
     if (slugProblem(slug)) return { drop: `"${slug.word}": ${slugProblem(slug)}` }
-    if (classProblem(cls)) return { drop: `"${cls.word}": ${classProblem(cls)}` }
+    if (cls && classProblem(cls)) return { drop: `"${cls.word}": ${classProblem(cls)}` }
     if (await checkBranch($, slug.word, true)) $.ui.toast(`change/${slug.word} already exists; the skill will resume it`)
     return next(e)
   })
@@ -622,9 +623,14 @@ export const register: Register = on => {
         </Box>
       )
     }
+    const isLaunch = line.command === 'pm launch'
     return (
       <Box flexDirection="column">
-        <Text dimColor>{`/${line.command} <slug> <class>: the class sets the ceremony`}</Text>
+        <Text dimColor>
+          {isLaunch
+            ? cut('/pap:pm launch <slug>: the class comes from the brief; typing one here is optional', width)
+            : `/${line.command} <slug> <class>: the class sets the ceremony`}
+        </Text>
         {CLASSES.map(([c, note]) => (
           <Text key={`class-${c}`}>
             <Text bold={c === typed} color={c === typed ? 'success' : undefined}>{`${c.padEnd(19)}`}</Text>
@@ -901,7 +907,7 @@ export const register: Register = on => {
             </Box>
           )
         })}
-        {papStats.at > 0 && <Text dimColor>{`updated ${ago(papStats.at, now)} ago · /pm to refresh`}</Text>}
+        {papStats.at > 0 && <Text dimColor>{`updated ${ago(papStats.at, now)} ago · /pap:pm console to refresh`}</Text>}
       </Box>
     )
 
@@ -917,7 +923,7 @@ export const register: Register = on => {
           </Text>
         ))}
         {stats.error !== '' && <Text color="warning">{cut(stats.error, width)}</Text>}
-        {stats.at > 0 && <Text dimColor>{`updated ${ago(stats.at, now)} ago · /pm to refresh`}</Text>}
+        {stats.at > 0 && <Text dimColor>{`updated ${ago(stats.at, now)} ago · /pap:pm console to refresh`}</Text>}
       </Box>
     )
 

@@ -9,6 +9,35 @@ not carry.
 
 ## pm-console
 
+### [0.3.0] - 2026-11-11
+
+#### Changed
+
+- The console registers no command. `/pm exit` is now `/pap:pm exit` and
+  bare `/pm` is now `/pap:pm console`, both forms of the pap plugin's skill
+  (pap 0.18.2). The pause steps the console used to submit as a prompt are
+  the skill's; the console keeps `exit_ready` and gains the tool
+  `console_open`, which opens the pane and refreshes the PAP and CI
+  figures. The pane's "to refresh" lines and the skipped-pause inbox item
+  name the new commands.
+- `/pap:pm launch` takes a slug and an optional class. The band says the
+  class comes from the brief. A class that is typed is still checked, and
+  a word there that is not a class is refused.
+- A slug that starts with `.` or `-` is refused, as `/change`'s worktree
+  script and the launch already refuse it.
+
+#### Fixed
+
+- The console did not load beside pap 0.18.0 or later. pap's skill `pm`
+  took the name `/pm`, Claude Code refused the console's command of that
+  name, and the start-up hook threw before any tool registered: no
+  `exit_ready`, `inbox_*`, `ci_repos` or `pap_repos` in any session.
+  Each tool now registers on its own; one that is refused is logged by
+  name and toasted once, and the rest load.
+- `/pap:pm launch <slug>`, the form the pap skill and the docs give, was
+  dropped at Enter with "needs <slug> <class>". The class is on the
+  brief's first line, not on the typed line.
+
 ### [0.2.0] - 2026-11-05
 
 #### Added
@@ -159,6 +188,18 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `/pap:pm exit`: the pause before the owner quits, as steps of the skill.
+  The PM sends `PAUSE` to every cycle in flight and waits for each
+  `PAUSED:`, appends a `pause` event for each, commits the tracker, saves
+  its memory, and then calls pm-console's `exit_ready` tool, or without the
+  console says in one line whether it is safe to type `/exit`. It replaces
+  the console's `/pm exit`.
+- `/pap:pm console`: opens the pm-console pane and refreshes its figures
+  through the console's `console_open` tool, or says the console is not
+  loaded and names the check. It replaces the console's bare `/pm`.
+
 #### Changed
 
 - `pap coverage` checks a `rules.md` sentence that claims a "required
@@ -175,6 +216,11 @@ not carry.
 
 #### Fixed
 
+- The skill `pm` of 0.18.0 took the name `/pm` from the pm-console
+  plugin's command, so the console loaded nothing and `/pm exit` ran this
+  skill, which knew only `start` and `launch`. The console (0.3.0)
+  registers no command now, and `tests/plugin-names.test.sh` fails when a
+  mod's command in `plugins/` has the name of another plugin's skill.
 - `pap doctor` said `ok  pap plugin installed` for a plugin many releases
   behind the pap running it: a 0.5.0 plugin under pap 0.18.0 has none of the
   hooks that pap relies on, and nothing said so. doctor now reads the

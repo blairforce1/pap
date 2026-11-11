@@ -18,6 +18,10 @@ A command today:
   the mode. It is refused in an agent shell.
 - `/pap:pm start` starts the tracker, or reports where things stand.
 - `/pap:pm launch <slug>` launches one cycle. You type it; the PM cannot.
+- `/pap:pm exit` pauses every cycle in flight, commits the tracker and
+  tells you whether it is safe to stop (see
+  [Pause and relaunch](#pause-and-relaunch)).
+- `/pap:pm console` opens the console's pane and refreshes its figures.
 - `/envision`, `/intent`, `/spec` and `/change`, as before. The cycle
   agents ship in the pap plugin (decision
   [0024](../decisions/0024-cycles-run-as-slim-plugin-agents.md)):
@@ -27,7 +31,7 @@ A command today:
 Still by hand: `/pap:pm event`, `audit` and a full `relaunch` are planned,
 backlog item H-012. Until they ship the PM appends the event lines itself
 (see [The tracker](#the-tracker)), audits from the rules below, and
-relaunches from the save points. Pausing is the console's `/pm exit`.
+relaunches from the save points.
 
 Not pap's at all: the model and its version. pap ships no model. Both
 come from your own Claude Code install and account, and pap pins
@@ -226,8 +230,9 @@ On pause the PM sends `PAUSE` to every running cycle and waits for each
 safe point, commits what passes the hooks, pushes, writes its save point
 (worktree, branch, head, done, next, open questions) and ends with
 `PAUSED:` and what is uncommitted. The PM commits the tracker and tells
-you it is safe to stop. In the console, `/pm exit` runs this sequence and
-puts `/exit` in the prompt box when it is done.
+you it is safe to stop. `/pap:pm exit` runs this sequence. With the
+console loaded it puts `/exit` in the prompt box when it is done; without
+it the PM says in one line whether it is safe to type `/exit`.
 
 A relaunch is still by hand. The PM reads the tracker and the save
 points, and you launch a fresh member on the same `/change`; the worktree script prints `resumed`
@@ -278,12 +283,14 @@ repository, the pinned version against the latest release, `pap repo
 status` drift, records still `proposed`, revisits due, backlog hypotheses
 by state, open pull requests and `risk:high` ones waiting for
 `owner-reviewed`, and median lead time; **CI**, the average and slowest
-run per workflow. `/pm` opens the pane and refreshes the figures.
+run per workflow. `/pap:pm console` opens the pane and refreshes the
+figures. The console registers no command of its own.
 
 A **class band** shows above the prompt while you type `/intent`,
 `/change` or `/pap:pm launch`: the seven classes with the ceremony each
 gets, the one typed in bold. A bad class or slug is refused before the
-skill runs (`process` says: not a class; process records use `infra`). The
+skill runs (`process` says: not a class; process records use `infra`). A
+launch needs no class on the line: it comes from the brief. The
 status line always shows cycles running, items waiting on you, decisions
 proposed, revisits due and the slowest CI workflow.
 
