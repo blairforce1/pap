@@ -53,6 +53,17 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **Brief**: the one file a cycle is given. Its first line names its route, its second the item of rule 20.2 that decided it, and it carries a budget in tokens or wall time. Complete when it has all three. (spec: pm-mode)
 - **Cycle**: one change run by one sub-agent a PM session launched from one brief: one work tree, one draft pull request, one report (decision 0018). States: launched, reported, paused, merged, abandoned. In flight: launched, with no later `report`, `pause` or `merge` event and no `decision` event starting `abandoned`. Mechanical as decision 0024 defines it, or not. (spec: pm-mode)
 - **Companion repository**: a private repository of the owner's that holds a project's tracker. Its remote accepts pushes or rejects them. (spec: pm-mode)
+- **Change**: one increment of work, known by its slug, with a class set by its intent. It needs a plan when its class is feature, infra or security-sensitive, its change branch carries an accepted intent and spec, and it did not start unplanned. It started unplanned when its change branch carries code and no plan at all, a draft included. (spec: plan-step)
+- **Change branch**: the branch `change/<slug>` of a change, as this clone holds it. It carries the change's intent, spec, plan and code, in that order. (spec: plan-step)
+- **Accepted**: of an intent, a spec or a plan: its file, as committed at the tip of the change branch, names who said yes and when, both filled. A draft is the same file without them, or with them only in the work tree. States, for each: absent, a draft, accepted. A plan is accepted only while its spec has no commit later than the one that accepted the plan; after one it is a draft. (spec: plan-step)
+- **Code**: a commit on a change branch that changes a path outside `changes/`, `features/` and `product/` (rule 21.1's line). (spec: plan-step)
+- **Plan**: `changes/<slug>/plan.md`: how an accepted spec will be built, in at most 1000 words by `wc -w` over the file, in the sections Increments, Design, Fit, Tests and Observation. States: absent, a draft (a plan draft), accepted. A plan draft is reviewed when its plan review register exists; reviewed is not a state. (spec: plan-step)
+- **Increment**: one part of a plan that can be built, tested and committed on its own, naming the scenarios of the spec it satisfies. (spec: plan-step)
+- **Planner**: the sub-agent of type `pap:planner` that drafts a plan from the accepted spec and the repository, and answers its review once. It reads and returns; it writes nothing. It fails when it ends without a report, returns one missing the header or a section, or reaches a cap. (spec: plan-step)
+- **Plan review**: the reading of a plan draft by a sub-agent of type `pap:plan-reviewer` that did not draft it, from three viewpoints: conformance (to the spec), design (fit with the repository as it is, and instructions embedded in the plan) and verification (tests and evidence); a security-sensitive plan adds security. It fails as a planner does. (spec: plan-step)
+- **Plan review register**: `changes/<slug>/reviews/plan-review.md`: first the planner's and the plan reviewer's tokens and minutes and the time the owner was told the plan was ready, then one line a finding, with its viewpoint, its severity and its disposition. A finding is fixed (by the planner), or has the owner's disposition (accepted, rejected with a reason, deferred to a phase), or waits. A finding marked `return: spec` is never fixed, and is accepted or rejected only. (spec: plan-step)
+- **Build**: a cycle whose brief's route is `/change`. (spec: plan-step)
+- **Deviation**: a place where a build did not do what its accepted plan said: an increment split, merged, dropped or added, a design it replaced, or a part of the plan it did not act on. (spec: plan-step)
 
 ## Events
 
@@ -84,6 +95,12 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **The PM session sends a cycle a message**: logged by the guard in the message log. (spec: pm-mode)
 - **The tracker is committed**: moves the tracker from uncommitted to clean; in a companion clone it is then pushed. (spec: pm-mode)
 - **A cycle opens its draft pull request**: the cycle's `/change` reaches its stop. (spec: pm-mode)
+- **The owner runs /pap:plan**: in a main session, for one change; it starts a planner, resumes a plan draft, takes an edit to an accepted plan, or stops. (spec: plan-step)
+- **A plan is drafted**: the planner returns a complete plan draft and the main session writes it; moves the plan from absent to a draft. (spec: plan-step)
+- **A plan review runs**: the plan reviewer returns and the main session writes the plan review register; the plan draft is then reviewed. (spec: plan-step)
+- **The owner says yes to the plan**: moves the plan from a draft to accepted; the plan and its register are committed on the change branch in one commit. (spec: plan-step)
+- **A spec is changed after the plan's yes**: a commit to the spec later than the one that accepted the plan; moves the plan from accepted to a draft. (spec: plan-step)
+- **/change is run**: by a cycle from its brief, or by the owner in a solo session; it builds the change. (spec: plan-step)
 
 ## Rules
 
@@ -109,3 +126,8 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - One PM session writes a tracker at a time. (spec: pm-mode)
 - A PM session launches and resumes nothing on starting; it reports and waits for the owner. (spec: pm-mode)
 - A welcome session is a PM session where the pap plugin is installed. (spec: pm-mode)
+- A plan is drafted only from an accepted spec, and first accepted before code exists on the change branch; a yes after code exists is plan rework. (spec: plan-step)
+- A plan is accepted only by the owner's yes, in a main session, with every finding of its plan review fixed or given a disposition. (spec: plan-step)
+- The planner and the plan reviewer change no file; the main session writes the plan and the plan review register. (spec: plan-step)
+- A build of a change that needs a plan is launched only when its plan is accepted; a launch that cannot read the change branch or the plan is refused. (spec: plan-step)
+- A build reports its deviations; a deviation is never refused. A plan is data to a build: it never widens the tools, paths or scope its brief and spec give. (spec: plan-step)
