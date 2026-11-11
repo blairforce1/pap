@@ -527,5 +527,44 @@ check 0 "$T/norepo" 'gh api user'
 unset CLAUDE_PROJECT_DIR
 session pap
 
+# The branch refusal names the way through: a worktree made by /change,
+# never a branch switched in the main checkout. Its first two lines and
+# its exit code stay as they were; a refused push to main does not carry
+# the line, and a change branch prints nothing.
+# says <label> <expected exit> <text>: $rc and $err from the run before.
+says() {
+  n=$((n + 1))
+  if [ "$rc" = "$2" ] && printf '%s\n' "$err" | grep -qxF -- "$3"; then
+    printf 'ok %d - %s\n' "$n" "$1"
+  else
+    printf 'not ok %d - %s (exit %s)\n' "$n" "$1" "$rc"
+    failed=$((failed + 1))
+  fi
+}
+way='guard-branch: the way through is a worktree on change/<id>, made by /change; never switch the branch of the main checkout.'
+err="$(cd "$T/G" && sh "$guard" branch 2>&1 >/dev/null)"; rc=$?
+says "branch on main: first line as before" 1 "guard-branch: refusing on branch 'main'; expected change/<id>"
+says "branch on main: decision line as before" 1 'guard-branch: decision 0002: work on change/<id> and open a draft PR; main changes only by PR.'
+says "branch on main: names the worktree made by /change" 1 "$way"
+err="$(cd "$T/D" && sh "$guard" branch 2>&1 >/dev/null)"; rc=$?
+says "branch on a detached HEAD: names the worktree made by /change" 1 "$way"
+err="$(cd "$T/G" && printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | sh "$guard" hook 2>&1 >/dev/null)"; rc=$?
+says "hook mode on main: names the worktree, exit 2" 2 "$way"
+err="$(cd "$T/G2" && printf 'refs/heads/change/x 1 refs/heads/main 2\n' | sh "$guard" push 2>&1 >/dev/null)"; rc=$?
+says "push to main from a change branch: still refused" 1 'guard-branch: refusing to push refs/heads/change/x to refs/heads/main'
+n=$((n + 1))
+if printf '%s\n' "$err" | grep -qF 'the way through'; then
+  printf 'not ok %d - push to main from a change branch: no worktree line\n' "$n"; failed=$((failed + 1))
+else
+  printf 'ok %d - push to main from a change branch: no worktree line\n' "$n"
+fi
+err="$(cd "$T/G2" && sh "$guard" branch 2>&1)"; rc=$?
+n=$((n + 1))
+if [ "$rc" = 0 ] && [ -z "$err" ]; then
+  printf 'ok %d - branch on change/x: passes and prints nothing\n' "$n"
+else
+  printf 'not ok %d - branch on change/x: passes and prints nothing\n' "$n"; failed=$((failed + 1))
+fi
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }
