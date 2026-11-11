@@ -46,7 +46,7 @@
   not exempt, 0. The planner's and reviewer's tokens and minutes a plan,
   and `spec.md` commits after `plan.md` exists with findings marked
   `return: spec`, are reported and carry no band
-- **Introduced in:** not yet released; the release that ships `/pap:plan`
+- **Introduced in:** v0.19.0, the release that ships `/pap:plan`
 - **Revisit:** when 10 change PRs with an accepted plan have merged across pap, arapsys-ap and business-os
 
 The accepted spec is
