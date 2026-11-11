@@ -32,7 +32,8 @@ Your first returned line is one of these, word for word, and says which
 review happened:
 
 - `/code-review low: reviewed the diff` when the skill's result names
-  findings in the diff, or none, for a diff it saw.
+  findings in the diff, or is `(none)` alone, its word for no findings in
+  a diff it saw.
 - `/code-review FELL BACK: skill not available` when the skill does not
   exist.
 - `/code-review FELL BACK: no result returned` when you called the skill

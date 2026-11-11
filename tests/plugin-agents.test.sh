@@ -89,6 +89,8 @@ for f in "$dir/reviewer.md" "$skill"; do
 done
 has "$skill" "Verification gets one row: the review ran, the reviewer's first line word for word"
 result $? "SKILL.md: the Verification row carries the reviewer's first line"
+has "$dir/reviewer.md" 'or is `(none)` alone, its word for no findings'
+result $? "reviewer: a bare (none) from /code-review is a review, not a fallback"
 has "$dir/reviewer.md" 'Where it exists, call it'
 result $? "reviewer: calls /code-review where it exists"
 has "$dir/reviewer.md" 'do not report before the result has arrived'
