@@ -184,7 +184,10 @@ Under a project-manager session ([Run a project](run-a-project.md)), each
 or `pap:cycle-mechanical` (a smaller model) for a version bump or a
 template sync, never as general-purpose (decision 0024). A cycle's first
 command is a `cd` to the repository its brief names, so its worktree is
-made there and not in the PM's repository (pap 0.16.1). A mechanical
+made there and not in the PM's repository (pap 0.16.1). Its first act
+after that is to invoke `/change` with the brief's first line: it does no
+step of a change by hand, and never works in, or changes the branch of,
+the main checkout. A mechanical
 cycle's diff (version strings, unedited sync output, changelog moves)
 skips the cold review; anything else gets `pap:reviewer`. The cycle opens
 one draft pull request, reports, and stops.

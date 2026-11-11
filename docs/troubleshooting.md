@@ -126,7 +126,9 @@ and needs no label.
 
 **The guard hook refuses `git push` from main, or `git push --delete`.**
 In an agent session, a commit or push is refused unless the current branch
-is `change/<id>` (decision 0002); `git push origin --delete change/<slug>`
+is `change/<id>` (decision 0002). The refusal names the way through: a
+worktree on `change/<id>`, made by `/change`, never a branch switched in
+the main checkout, which parallel sessions share. `git push origin --delete change/<slug>`
 from main is a push from main. Delete the branch on GitHub instead (the
 repository deletes a merged pull request's branch on merge; otherwise the
 Branches page or `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>`
