@@ -20,7 +20,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | infra              |
         | security-sensitive |
 
-    @id:plan-step-2 @pending:plan-step
+    @id:plan-step-2
     Scenario Outline: /pap:plan is refused without an accepted spec
       Given a change of class feature whose spec is <state>
       When the owner runs /pap:plan for the change
@@ -32,7 +32,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | absent  |
         | a draft |
 
-    @id:plan-step-3 @pending:plan-step
+    @id:plan-step-3
     Scenario Outline: A change that needs no plan gets none
       Given a change that needs no plan because <reason>
       When the owner runs /pap:plan for the change
@@ -84,7 +84,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | reaches its cap of 200000 tokens across its runs      |
         | reaches its cap of 20 minutes for a run               |
 
-    @id:plan-step-8 @pending:plan-step
+    @id:plan-step-8
     Scenario: Plan files left uncommitted by an ended session are not silently reused
       Given a change whose work tree holds a plan draft that is not committed
       When the owner runs /pap:plan for the change
@@ -93,7 +93,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
 
   Rule: The plan says how the change will be built, in two pages
 
-    @id:plan-step-9 @pending:plan-step
+    @id:plan-step-9
     Scenario: A plan draft carries the plan's header and sections
       Given a change whose spec is accepted
       When its plan is drafted
@@ -110,7 +110,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
       And Observation names, for every signal of the spec, the increment that builds it
       And Fit lists every protected path the build will touch, or says "none"
 
-    @id:plan-step-11 @pending:plan-step
+    @id:plan-step-11
     Scenario Outline: A plan is at most 1000 words
       Given a plan draft whose file, header included, counts <words> words by wc -w
       When the main session has written it
@@ -121,7 +121,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | 1000  | the plan review starts                              |
         | 1001  | the planner is sent back once to shorten it         |
 
-    @id:plan-step-12 @pending:plan-step
+    @id:plan-step-12
     Scenario: A plan draft still over 1000 words is kept and not put to the owner
       Given a plan draft the planner has already shortened once, or revised after its review, that counts more than 1000 words
       When the main session has written it
@@ -211,7 +211,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
       And the owner is shown, in this order: what the planner changed in its answer, any finding marked "return: spec", the findings waiting with Blockers and Majors first, the protected paths in Fit, then the plan
       And each finding waiting comes with a proposed disposition
 
-    @id:plan-step-22 @pending:plan-step
+    @id:plan-step-22
     Scenario: The owner's yes is recorded in the plan and committed
       Given a reviewed plan draft whose every finding is fixed or has the owner's disposition
       When the owner says yes to the plan
@@ -234,7 +234,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
       Then the change is made, the changed part is shown, and the owner is asked for a yes again
       And an edited plan of more than 1000 words is not accepted
 
-    @id:plan-step-25 @pending:plan-step
+    @id:plan-step-25
     Scenario Outline: A plan the owner does not accept
       Given a reviewed plan draft put to the owner, on a change branch where the plan was <before>
       When the owner answers <answer>
@@ -247,7 +247,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | absent  | no     | the owner is told the draft and the review are lost, nothing is committed, and the work tree holds no plan and no register               |
         | a draft | no     | the owner is told the new draft and review are lost, nothing is committed, and the work tree holds the plan draft as it was committed    |
 
-    @id:plan-step-26 @pending:plan-step
+    @id:plan-step-26
     Scenario Outline: A committed plan draft is resumed
       Given a change whose change branch carries a plan draft and its register, and whose spec <spec>
       When the owner runs /pap:plan for the change
@@ -258,7 +258,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | has no commit later than the draft's  | the owner is shown the draft and the register with the dispositions already given, and asked for a yes    |
         | has a commit later than the draft's   | a planner redrafts against the spec as it is now and a plan review runs again                             |
 
-    @id:plan-step-27 @pending:plan-step
+    @id:plan-step-27
     Scenario Outline: An edit to an accepted plan needs the owner's yes
       Given a change whose plan is accepted and whose change branch <code>
       When the owner runs /pap:plan for the change and asks for an edit that is <kind>
@@ -272,7 +272,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | carries no code | more than wording | re-reads the part the edit bears on    | starts "plan(<slug>): "                                    |
         | carries code    | more than wording | re-reads the part the edit bears on    | says it is plan rework and what the code surfaced          |
 
-    @id:plan-step-28 @pending:plan-step
+    @id:plan-step-28
     Scenario: A spec changed after the plan's yes makes the plan a draft again
       Given a change whose plan was accepted
       When its spec gains a commit later than the commit that accepted the plan
@@ -281,7 +281,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
 
   Rule: The build is launched only with an accepted plan
 
-    @id:plan-step-29 @pending:plan-step
+    @id:plan-step-29
     Scenario Outline: A build launched without an accepted plan is refused
       Given a PM session whose event log has a restate event for "trial"
       And a complete brief for "trial" whose route is /change, whose class is <class> and whose second line names item 1 or item 2 of rule 20.2
@@ -307,7 +307,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | feature            | this clone has no change branch for "trial"                                        | the change branch cannot be read               |
         | feature            | the plan's header cannot be read                                                   | the plan cannot be read                        |
 
-    @id:plan-step-30 @pending:plan-step
+    @id:plan-step-30
     Scenario: The plan is checked last
       Given a PM session whose event log has no restate event for "trial"
       And the plan of "trial" is absent
@@ -315,7 +315,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
       Then the launch is refused, saying the ask is restated first
       And nothing is said of the plan
 
-    @id:plan-step-31 @pending:plan-step
+    @id:plan-step-31
     Scenario Outline: A build with an accepted plan is launched
       Given a PM session whose event log has a restate event for "trial"
       And a complete brief for "trial" whose route is /change, whose class is <class> and whose second line names item 1 of rule 20.2
@@ -331,7 +331,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
         | infra              |
         | security-sensitive |
 
-    @id:plan-step-32 @pending:plan-step
+    @id:plan-step-32
     Scenario Outline: A launch that needs no plan is not refused for want of one
       Given a PM session whose event log has a restate event for "trial"
       And a complete brief for "trial" where <case>
@@ -383,7 +383,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
 
   Rule: The PM and /spec know where the plan sits
 
-    @id:plan-step-37 @pending:plan-step
+    @id:plan-step-37
     Scenario: A PM session is told where the plan sits
       Given a PM session in an adopting repository with a product layer
       When the PM session starts
