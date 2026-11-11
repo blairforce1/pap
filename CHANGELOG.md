@@ -9,6 +9,35 @@ not carry.
 
 ## pm-console
 
+### [0.3.0] - 2026-11-11
+
+#### Changed
+
+- The console registers no command. `/pm exit` is now `/pap:pm exit` and
+  bare `/pm` is now `/pap:pm console`, both forms of the pap plugin's skill
+  (pap 0.18.2). The pause steps the console used to submit as a prompt are
+  the skill's; the console keeps `exit_ready` and gains the tool
+  `console_open`, which opens the pane and refreshes the PAP and CI
+  figures. The pane's "to refresh" lines and the skipped-pause inbox item
+  name the new commands.
+- `/pap:pm launch` takes a slug and an optional class. The band says the
+  class comes from the brief. A class that is typed is still checked, and
+  a word there that is not a class is refused.
+- A slug that starts with `.` or `-` is refused, as `/change`'s worktree
+  script and the launch already refuse it.
+
+#### Fixed
+
+- The console did not load beside pap 0.18.0 or later. pap's skill `pm`
+  took the name `/pm`, Claude Code refused the console's command of that
+  name, and the start-up hook threw before any tool registered: no
+  `exit_ready`, `inbox_*`, `ci_repos` or `pap_repos` in any session.
+  Each tool now registers on its own; one that is refused is logged by
+  name and toasted once, and the rest load.
+- `/pap:pm launch <slug>`, the form the pap skill and the docs give, was
+  dropped at Enter with "needs <slug> <class>". The class is on the
+  brief's first line, not on the typed line.
+
 ### [0.2.0] - 2026-11-05
 
 #### Added
