@@ -190,6 +190,23 @@ not carry.
 
 #### Fixed
 
+- `/spec` could not write the spec review register in the turn the review
+  returned. It invoked a `spec-review-*` skill in the main session, and
+  such a skill withholds Bash, Edit and Write until the owner's next
+  message, so the register lived only in the conversation until then.
+  `/spec` now invokes no skill of the spec-review plugin. It starts one
+  read-only sub-agent for each perspective, the new `pap:spec-reviewer`
+  (Read, Grep and Glob only), selects and consolidates by the board's own
+  rules, and writes the register before it asks for any disposition.
+- `/spec` waits for every perspective before it consolidates, and says in
+  one line how many have reported. A perspective that fails, or has not
+  reported after 20 minutes, is started once more; on a second failure
+  the owner is asked whether to go on without it, and the register names
+  it as not run.
+- `/spec` stops where the spec-review plugin is not installed, or the
+  session has no `pap:spec-reviewer` sub-agent type, and says which. It
+  starts no sub-agent of another type in its place. A session started
+  before this release needs a restart to run `/spec`.
 - A cycle a project-manager session launched could carry its change by
   hand: no `/change`, a branch switched in the main checkout, a pull
   request with no `class:*` label. `pap:cycle` and `pap:cycle-mechanical`

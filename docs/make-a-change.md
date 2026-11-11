@@ -101,10 +101,11 @@ class requires:
 - **Open questions** carried from the intent, each answered or still open
   with an owner.
 
-It runs the spec review board the class requires, through
-`spec-review-full`, writes the register to
-`changes/<slug>/reviews/spec-review.md`, and takes you through the
-findings a few at a time: each gets `accepted` (the spec changes),
+It runs the spec review the class requires: one read-only sub-agent for
+each perspective of the `spec-review` plugin, selected and consolidated
+by the rules of `spec-review-full`. When the last one reports it writes
+the register to `changes/<slug>/reviews/spec-review.md` in that turn, and
+then takes you through the findings a few at a time: each gets `accepted` (the spec changes),
 `rejected: <reason>` or `deferred: <phase>`. Then it shows what you are
 accepting and asks for your yes. On yes it fills `accepted-by:` and
 `accepted-on:`, commits `spec(<slug>): ...`, and stops. "Later" commits a
