@@ -188,6 +188,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.19.0] - 2026-11-11
+
 #### Added
 
 - The plan step (decision 0026, proposed; rules 26.1 to 26.3). A feature,
