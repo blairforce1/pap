@@ -41,7 +41,7 @@ consolidating and gives the owner a short progress line.
 
 ## Constraints
 
-- Whatever runs the review can read and cannot edit, write or run shell.
+- Each sub-agent that reads a perspective can read and cannot edit, write, run shell or start a sub-agent. The main session selects the perspectives and consolidates what they return.
 - Invoking any `spec-review-*` skill directly keeps working as it does today.
 - The `spec-review` plugin stays usable without the `pap` plugin installed.
 - The register's content and columns come back unchanged.
