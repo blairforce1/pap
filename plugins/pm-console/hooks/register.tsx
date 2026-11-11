@@ -396,7 +396,11 @@ export const register: Register = on => {
         await $.tool.register(spec)
       } catch (err) {
         refused.push(spec.name)
-        $.ui.log(`pm-console: tool ${spec.name} not registered: ${err instanceof Error ? err.message : String(err)}`)
+        const why = err instanceof Error ? err.message : String(err)
+        // Saying so must not throw out of the hook either.
+        await Promise.resolve()
+          .then(() => $.ui.log(`pm-console: tool ${spec.name} not registered: ${why}`))
+          .catch(() => undefined)
       }
     }
     await tool({
@@ -504,7 +508,11 @@ export const register: Register = on => {
       },
     })
 
-    if (refused.length) $.ui.toast(`PM console: ${refused.join(', ')} not registered; the debug log says why`)
+    if (refused.length) {
+      await Promise.resolve()
+        .then(() => $.ui.toast(`PM console: ${refused.join(', ')} not registered; the debug log says why`))
+        .catch(() => undefined)
+    }
 
     $.clock.every(600_000, () => void refreshCi($))
     $.clock.every(1_800_000, () => void refreshPap($))
