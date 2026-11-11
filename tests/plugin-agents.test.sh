@@ -6,13 +6,16 @@
 #
 # For each expected file in plugins/pap/agents/, checks the frontmatter
 # opens on line 1 and closes, carries `name` matching the file name,
-# `tools` and `model`, and that the reviewer has no Edit, Write or Agent.
+# `tools` and `model`, that the reviewer has no Edit, Write or Agent, and
+# that the reviewer and /change step 5 give /code-review the same args and
+# the same fixed first lines.
 # Nothing in CI runs `claude plugin validate`, so this is the structure
 # check. Prints one TAP-style line per case and exits 1 if any fails. No
 # network; touches nothing.
 
 # SC2319: each case passes the exit status of its condition on purpose.
-# shellcheck disable=SC2319
+# SC2016: the backticks in the pinned texts are literal markdown.
+# shellcheck disable=SC2319,SC2016
 
 set -u
 # shellcheck disable=SC1091 # tests/clean-env.sh, sourced from this directory
@@ -62,14 +65,36 @@ case ", $tools," in
   *) [ -n "$tools" ]; result $? "reviewer: no Edit, Write or Agent" ;;
 esac
 
-# The reviewer starts in its launcher's directory, where /code-review sees
-# no diff, so its body must open by changing into the worktree.
-first=$(awk 'NR == 1 { next } f == 0 && $0 == "---" { f = 1; next }
-  f && NF { print; exit }' "$dir/reviewer.md")
-case "$first" in
-  'First, before any other command, '?cd?' to the worktree'*) result 0 "reviewer: body starts by changing into the worktree" ;;
-  *) result 1 "reviewer: body starts by changing into the worktree" ;;
-esac
+# The reviewer starts in its launcher's directory, where a `cd` does not
+# carry and /code-review runs too, so the args must name the worktree's
+# diff outright. The agent and /change step 5 give the same args and the
+# same fixed first lines; a run that fell back must not read as a review.
+skill="$here/plugins/pap/skills/change/SKILL.md"
+# has <file> <text>: the text is in the file, line breaks read as spaces.
+has() { tr '\n' ' ' <"$1" | tr -s ' ' | grep -qF -- "$2"; }
+for f in "$dir/reviewer.md" "$skill"; do
+  b=$(basename "$f")
+  has "$f" 'args `low git -C <worktree> diff origin/main...HEAD`'
+  result $? "$b: /code-review is given the worktree's diff command"
+  ! has "$f" 'args `low <worktree>`'
+  result $? "$b: /code-review is not given the bare worktree path"
+  has "$f" '`/code-review low: reviewed the diff`'
+  result $? "$b: fixed first line for a review that saw the diff"
+  has "$f" '/code-review FELL BACK:'
+  result $? "$b: fixed first line for a fallback"
+  for why in 'skill not available' 'no result returned' 'saw an empty diff'; do
+    has "$f" "$why"
+    result $? "$b: fallback reason '$why'"
+  done
+done
+has "$skill" "Verification gets one row: the review ran, the reviewer's first line word for word"
+result $? "SKILL.md: the Verification row carries the reviewer's first line"
+has "$dir/reviewer.md" 'or is `(none)` alone, its word for no findings'
+result $? "reviewer: a bare (none) from /code-review is a review, not a fallback"
+has "$dir/reviewer.md" 'Where it exists, call it'
+result $? "reviewer: calls /code-review where it exists"
+has "$dir/reviewer.md" 'do not report before the result has arrived'
+result $? "reviewer: waits for a /code-review launched in the background"
 
 [ "$(field "$dir/cycle-mechanical.md" model)" = haiku ]
 result $? "cycle-mechanical: model is haiku"
