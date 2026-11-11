@@ -25,7 +25,8 @@ one:
 | The product layer | `/envision`, then `pap codeowners` | The agent asks, the human answers      |
 
 Each of the first and third lands as a draft pull request. From then on
-every change is `/intent`, `/spec`, `/change`
+every change is `/intent`, `/spec`, `/change`, with `/pap:plan` before
+`/change` for a feature, infra or security-sensitive change
 ([Make a change](make-a-change.md)).
 
 Four rules bind the agent from the moment the template is in. Hooks
@@ -158,7 +159,8 @@ choose another name, or use the brownfield runbook. `pap new` never
 deletes a repository. Read-only checks before a re-run: `pap repo status
 --repo <owner>/<name>`, and `pap doctor` in the clone.
 
-Every later change is `/intent`, `/spec`, `/change`
+Every later change is `/intent`, `/spec`, `/change`, with `/pap:plan`
+before `/change` for a feature, infra or security-sensitive change
 ([Make a change](make-a-change.md)). The first pull request should need
 no ruleset bypass, because the template is on `main` from the first
 commit.
@@ -313,7 +315,7 @@ full.
    The body is step 6's, with one difference: this pull request touches
    a protected path, `product/invariants.md`, so leave the second box
    unticked with its reason beneath
-   ([Review by risk label](make-a-change.md#4-review-by-risk-label)).
+   ([Review by risk label](make-a-change.md#5-review-by-risk-label)).
 
    Check: as step 6, and this time `pr-checks` reports on the pull
    request. With the `risk` layer it is labelled `risk:high`, and the

@@ -1,22 +1,25 @@
 # Make a change
 
 One change is one branch, `change/<slug>`, one folder, `changes/<slug>/`,
-and one draft pull request that carries the intent, the spec and the code
-in that order. The skills carry the branch, the worktree, the commits and
-the pull request; you supply the intent and the judgement. The reference
+and one draft pull request that carries the intent, the spec, the plan
+where the change needs one, and the code, in that order. The skills carry
+the branch, the worktree, the commits and the pull request; you supply the
+intent and the judgement. The reference
 is the process document's [change layer](../process/personal-agentic-process.md#5-change-layer),
 [`rules.md`](../rules.md) and decisions
 [0002](../decisions/0002-skills-stop-at-draft-pr.md),
 [0016](../decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md),
 [0019](../decisions/0019-a-cold-review-runs-before-every-draft-pr.md),
-[0020](../decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md)
-and [0021](../decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md).
+[0020](../decisions/0020-intent-is-accepted-by-a-recorded-yes-on-the-change-branch.md),
+[0021](../decisions/0021-a-spec-is-accepted-after-review-with-its-operation-designed-in.md)
+and [0026](../decisions/0026-a-reviewed-plan-sits-between-the-spec-and-the-code.md).
 
 ## The flow
 
 ```text
 /intent <slug> <class> <what you want>     main session; your yes is recorded
 /spec <slug>                               main session; review board; your yes is recorded
+/pap:plan <slug>                           main session; three classes only; your yes is recorded
 /change <slug> <class> [Record: NNNN]      any context; builds, checks, cold review, draft PR
 review by risk label                       you read; /pap:reviewed on risk:high
 merge                                      you, squash; then mise run tidy
@@ -46,6 +49,10 @@ There is no `process` class. A change that ships a decision record is
 class `infra`, its pull request title starts with `process:`, and the body
 carries `Record: NNNN`; `pr-checks` refuses a `process:` title without
 one. `/change` takes it as `/change <slug> infra Record: NNNN`.
+
+A `feature`, `infra` or `security-sensitive` change also needs a plan
+before the build ([step 3](#3-papplan)). The other four classes need
+none.
 
 ## 1. `/intent`
 
@@ -103,7 +110,36 @@ accepting and asks for your yes. On yes it fills `accepted-by:` and
 `accepted-on:`, commits `spec(<slug>): ...`, and stops. "Later" commits a
 draft without acceptance lines; the next `/spec <slug>` resumes it.
 
-## 3. `/change`
+## 3. `/pap:plan`
+
+```text
+/pap:plan widget-export
+```
+
+For a `feature`, `infra` or `security-sensitive` change that has an
+accepted intent and spec. A `bugfix`, `chore`, `docs` or `spike` needs no
+plan, and nor does a change rule 20.2 exempted or one whose branch
+already carries code and no plan; for those the command stops and names
+what comes next. Write it `/pap:plan`, always: Claude Code has a plan
+mode of its own.
+
+Main session only, and it refuses without an accepted spec. A sub-agent,
+`pap:planner`, drafts `changes/<slug>/plan.md` in the background: how the
+accepted spec will be built, in the sections Increments, Design, Fit,
+Tests and Observation, in at most 1000 words. Another, `pap:plan-reviewer`,
+which did not draft it, reads the draft against the spec and the code and
+returns findings. The planner answers them once. The findings go in
+`changes/<slug>/reviews/plan-review.md`, and each one left gets your
+disposition: `accepted`, `rejected: <reason>` or `deferred: <phase>`.
+Then it asks for your yes. On yes it fills `accepted-by:` and
+`accepted-on:` and commits the plan and the register together as
+`plan(<slug>): ...`. Nothing is pushed and no pull request opens. "Later"
+commits a draft; the next `/pap:plan <slug>` resumes it.
+
+A commit to `spec.md` after the plan's yes makes the plan a draft again,
+and it needs a second yes.
+
+## 4. `/change`
 
 ```text
 /change widget-export feature
@@ -113,7 +149,9 @@ The brief: one line is enough once intent.md and spec.md are on the branch.
 Any context, a background agent included. It resumes the branch in a
 worktree at `../<repo>-<slug>`, reads the intent and the spec (their class
 and hypothesis stand; a different `<class>` argument is reported as a
-contradiction), reads the rules and records that bear on the files it
+contradiction), reads the accepted plan where there is one and builds its
+increments in order (on a plan draft it stops and reports), reads the
+rules and records that bear on the files it
 touches, and reports only contradictions. Then it builds: a commit per
 logical step, a conventional commit subject, a co-author trailer on
 generated content, never bypassing a hook. The scenarios are its
@@ -129,9 +167,10 @@ it. A mechanical change (version strings, unedited sync output,
 changelog moves) skips the review, and Verification says so. Each finding is fixed or answered in the pull request.
 
 Then it pushes and opens the draft pull request with the `class:<class>`
-label and a body in the template's order: `Change:` and `Record:` lines,
-Summary with the deviations to review, a Verification table (every check
-run, and the cold review's row), "How to revert" copied from the spec's
+label and a body in the template's order: `Change:`, `Record:` and
+`Plan:` lines, Summary with the deviations to review, a Verification
+table (every check run, and the cold review's row), "How to revert" copied
+from the spec's
 Undo, and the Checks section with every box answered. It reads the
 `risk:*` label `pr-checks` set and answers the protected-path box from it.
 Its report names the revisits `pap revisits` says are due, the
@@ -150,7 +189,7 @@ cycle's diff (version strings, unedited sync output, changelog moves)
 skips the cold review; anything else gets `pap:reviewer`. The cycle opens
 one draft pull request, reports, and stops.
 
-## 4. Review by risk label
+## 5. Review by risk label
 
 In a repository with `.github/risk.yml` on its base branch (the `risk`
 layer), `pr-checks` sets one of `risk:high`, `risk:medium` or `risk:low`
@@ -191,7 +230,7 @@ the head you approve; every push needs a new one.
 An agent never adds `owner-reviewed`, never writes `Approved-by:` and
 never merges (rule 16.2). The `pap` plugin's hook refuses the attempt.
 
-## 5. Merge
+## 6. Merge
 
 Mark the pull request ready and squash-merge it; the ruleset allows
 nothing else. The merge is the acceptance of every phase the branch
@@ -211,7 +250,7 @@ then the pull request's "How to revert" section, copied from the spec's
 Undo, lists the steps in order. Write that section before you need it;
 `/spec` makes you.
 
-## 6. Findings
+## 7. Findings
 
 At the end of the operation window (30 days by default) or on the first
 escape, write `changes/<slug>/findings.md` (process

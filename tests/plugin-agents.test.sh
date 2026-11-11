@@ -103,5 +103,12 @@ result $? "reviewer: waits for a /code-review launched in the background"
 [ "$(field "$dir/cycle-mechanical.md" model)" = haiku ]
 result $? "cycle-mechanical: model is haiku"
 
+# The plan reviewer is pinned to sonnet, as the reviewer is; the planner
+# inherits.
+[ "$(field "$dir/plan-reviewer.md" model)" = sonnet ]
+result $? "plan-reviewer: model is sonnet"
+[ "$(field "$dir/planner.md" model)" = inherit ]
+result $? "planner: model is inherit"
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]
