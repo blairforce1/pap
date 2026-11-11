@@ -63,11 +63,11 @@ reads it, and `--marketplace` is refused there
 
 Three plugins live in this marketplace:
 
-| Plugin        | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pap`         | One skill per phase: `/envision`, `/intent`, `/spec`, `/change`; two the owner invokes, `/pap:reviewed` and `/pap:accept`; and the hooks that refuse what an agent must not do (a commit or push off a `change/` branch, a hook bypass, a force push, an `Approved-by:` line in a pull request body, the `owner-reviewed` label, a merge). The hooks act only on an agent's tool calls, never on you at a shell. |
-| `spec-review` | Eleven reviewer perspectives for a design spec, from security to the EU AI Act, and `spec-review-full` to run the board. `/spec` calls it; you can also run any perspective on any design document.                                                                                                                                                                                                              |
-| `pm-console`  | A pane beside the chat for the project-manager session: what the cycles ask of you, the running cycles, each repository's PAP state and CI timings.                                                                                                                                                                                                                                                              |
+| Plugin        | What it gives you                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pap`         | One skill per phase: `/envision`, `/intent`, `/spec`, `/pap:plan`, `/change`; two the owner invokes, `/pap:reviewed` and `/pap:accept`; and the hooks that refuse what an agent must not do (a commit or push off a `change/` branch, a hook bypass, a force push, an `Approved-by:` line in a pull request body, the `owner-reviewed` label, a merge). The hooks act only on an agent's tool calls, never on you at a shell. |
+| `spec-review` | Eleven reviewer perspectives for a design spec, from security to the EU AI Act, and `spec-review-full` to run the board. `/spec` calls it; you can also run any perspective on any design document.                                                                                                                                                                                                                           |
+| `pm-console`  | A pane beside the chat for the project-manager session: what the cycles ask of you, the running cycles, each repository's PAP state and CI timings.                                                                                                                                                                                                                                                                           |
 
 ## The `pap` command
 
@@ -141,7 +141,8 @@ applies that commit's templates and records `version = "unreleased"`.
    protected paths. [Start a project](start-a-project.md) has the detail.
 
 5. **Make the first change.** `/intent <slug> <class>` followed by what
-   you want, then `/spec <slug>`. In a PM session the build is a cycle:
+   you want, then `/spec <slug>`, then `/pap:plan <slug>` for a feature,
+   infra or security-sensitive change. In a PM session the build is a cycle:
    type `/pap:pm start` once, then `/pap:pm launch <slug>` when the PM
    has written the brief. In a solo session it is `/change <slug>
    <class>` with a brief. [Make a change](make-a-change.md) walks the

@@ -22,7 +22,10 @@ A command today:
   tells you whether it is safe to stop (see
   [Pause and relaunch](#pause-and-relaunch)).
 - `/pap:pm console` opens the console's pane and refreshes its figures.
-- `/envision`, `/intent`, `/spec` and `/change`, as before. The cycle
+- `/envision`, `/intent`, `/spec` and `/change`, as before, and
+  `/pap:plan <slug>` for the plan of a feature, infra or
+  security-sensitive change (decision
+  [0026](../decisions/0026-a-reviewed-plan-sits-between-the-spec-and-the-code.md)). The cycle
   agents ship in the pap plugin (decision
   [0024](../decisions/0024-cycles-run-as-slim-plugin-agents.md)):
   `pap:cycle`, `pap:cycle-mechanical` for bumps and syncs, and
@@ -73,7 +76,8 @@ claude` in every PAP repository.
 launched. An ask that is not ripe is talked through. A ripe ask gets one
 proposed route: `/envision` when there is no product layer; `/intent`,
 then `/spec`, when rule 20.2 says the change needs one, both run by the PM
-itself; a cycle for everything else. A skill you invoke yourself runs as
+itself, and `/pap:plan` after `/spec` for a feature, infra or
+security-sensitive change; a cycle for everything else. A skill you invoke yourself runs as
 invoked. An ask no route covers stops (rule 25.4): in an adopting
 repository the PM hands you the text of an issue for pap, and you file
 it.
@@ -147,6 +151,19 @@ It also refuses a slug with no `restate` event, a slug already in flight,
 and an event log with a line it cannot read. Nothing caps how many cycles
 run at once; each is a line you typed.
 
+Last, it refuses a build whose plan is not accepted, with exit 20. That
+applies to a `/change` brief of class feature, infra or
+security-sensitive whose second line names item 1 or 2 of rule 20.2,
+unless the change's branch already carries code and no plan. It reads the
+tip of the local `change/<slug>` and fetches nothing. It says which of
+five things it found: the plan is absent, the plan is a draft, the spec
+changed after the plan's yes, the change branch cannot be read, or the
+plan cannot be read. Then run `/pap:plan <slug>`, give your yes, and type
+the launch again; the refused line is used up. A launch from
+another clone needs the branch there first. If you believe the refusal
+is wrong, run the build as `/change` in a solo session. The plan itself
+is in [Make a change](make-a-change.md#3-papplan).
+
 On a pass the cycle starts in the background as `pap:cycle`, or
 `pap:cycle-mechanical` when the brief says `Mechanical: yes`, and never
 as general-purpose (decision 0024). It is given the brief and nothing
@@ -154,7 +171,8 @@ else, so the brief also carries what to build; the standing rules (the
 worktree, the paths it may touch, push after every commit, a save point
 after every commit, the report format, `ASK:` and `PAUSED:`); and the
 model and effort for the task. The cycle's pull request carries the
-brief's first two lines as a `Route:` line (rule 25.5).
+brief's first two lines as a `Route:` line (rule 25.5), and a `Plan:`
+line: `Plan: changes/<slug>/plan.md, <n> deviations`, or `Plan: none`.
 
 Decision 0018 lists the eleven rules the first sixteen days produced, each
 from a miss. A brief template that carries them is part of H-012. Until
@@ -244,12 +262,12 @@ the cycle's save point is.
 The guard keeps four logs under `${XDG_STATE_HOME:-~/.local/state}/pap/pm/`,
 one line an event, each line naming its repository:
 
-| Log            | One line for                                                         |
-| -------------- | -------------------------------------------------------------------- |
-| `sessions.log` | each start, with its mode, and each time a role was given            |
-| `refusals.log` | each refused write or commit, and each call the guard could not read |
-| `messages.log` | each message the PM sent a sub-agent, and each sub-agent stop        |
-| `launches.log` | each `/pap:pm launch <slug>` you typed                               |
+| Log            | One line for                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| `sessions.log` | each start, with its mode, and each time a role was given                                   |
+| `refusals.log` | each refused write or commit, and each call the guard could not read                        |
+| `messages.log` | each message the PM sent a sub-agent, and each sub-agent stop                               |
+| `launches.log` | each `/pap:pm launch <slug>` you typed, and each launch refused for its plan (`refused-20`) |
 
 First checks, all read-only:
 
