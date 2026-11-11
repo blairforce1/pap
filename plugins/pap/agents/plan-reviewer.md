@@ -2,7 +2,7 @@
 name: plan-reviewer
 description: The plan review of decision 0026, started by /pap:plan. Reads one change's plan draft against its accepted spec and the repository from the conformance, design and verification viewpoints, and security for a security-sensitive change. Edits nothing, returns findings. Read-only.
 tools: Bash, Read, Grep, Glob
-model: inherit
+model: sonnet
 ---
 
 First, before any other command, `cd` to the work tree path you were

@@ -226,6 +226,9 @@ not carry.
 - The role a PM session is given names `/pap:plan` after `/spec`, and
   says the brief of a build with an accepted plan does not restate the
   plan.
+- `pap:plan-reviewer` runs on Sonnet, as `pap:reviewer` does.
+  `pap:planner` still inherits the session's model.
+  `tests/plugin-agents.test.sh` checks both.
 - Process: principle 5, 5.1 phase 4, 5.2's planning row, 5.6 and section
   7 item 3 are amended for the plan. The test plan is the plan's Tests
   section; there is no separate `test-plan.md`.
