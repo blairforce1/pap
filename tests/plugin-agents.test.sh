@@ -9,7 +9,9 @@
 # `tools` and `model`, that the reviewer, the planner and the plan reviewer
 # (decision 0026) have no Edit, Write, NotebookEdit or Agent, and that the
 # reviewer and /change step 5 give /code-review the same args and the same
-# fixed first lines.
+# fixed first lines, that both cycle definitions say in the same fixed words
+# to carry the change with /change and stay out of the main checkout, and
+# that /change reports a failed required check by its error lines.
 # Nothing in CI runs `claude plugin validate`, so this is the structure
 # check. Prints one TAP-style line per case and exits 1 if any fails. No
 # network; touches nothing.
@@ -99,6 +101,33 @@ has "$dir/reviewer.md" 'Where it exists, call it'
 result $? "reviewer: calls /code-review where it exists"
 has "$dir/reviewer.md" 'do not report before the result has arrived'
 result $? "reviewer: waits for a /code-review launched in the background"
+
+# A cycle carries its change with /change, in a worktree (decisions 0018
+# and 0024). Both definitions say so in the same fixed words.
+for a in cycle cycle-mechanical; do
+  f="$dir/$a.md"
+  has "$f" 'Your first act after that `cd` is to invoke the `/change` skill with the brief'"'"'s first line.'
+  result $? "$a: the first act after cd is the /change skill with the brief's first line"
+  has "$f" 'Do no step of a change by hand: no branch, commit or pull request outside the skill.'
+  result $? "$a: no step of a change by hand"
+  has "$f" 'If the skill is not available, end with `ASK:`.'
+  result $? "$a: ends with ASK: when the skill is not available"
+  has "$f" 'Never work in, or change the branch of, the repository'"'"'s main checkout.'
+  result $? "$a: never works in, or changes the branch of, the main checkout"
+done
+
+# /change reports a failed required check by its error lines, all of them,
+# and does not wait for one still running.
+has "$skill" 'read the result of each required check that has finished'
+result $? "SKILL.md: the report reads each finished required check"
+has "$skill" 'Do not wait for one still running'
+result $? "SKILL.md: the report does not wait for a running check"
+has "$skill" 'quote every error line in Verification and name each in the chat report'
+result $? "SKILL.md: a failed check's error lines are quoted and named"
+has "$skill" 'A failure is expected only when every one of its error lines is'
+result $? "SKILL.md: a failure is expected only when every error line is"
+has "$skill" 'Failed required checks:'
+result $? "SKILL.md: the chat report has a line for failed required checks"
 
 [ "$(field "$dir/cycle-mechanical.md" model)" = haiku ]
 result $? "cycle-mechanical: model is haiku"
