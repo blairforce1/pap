@@ -33,7 +33,7 @@ review happened:
 
 - `/code-review low: reviewed the diff` when the skill's result names
   findings in the diff, or is `(none)` alone, its word for no findings in
-  a diff it saw.
+  a diff it saw, and your own run of the diff command printed a diff.
 - `/code-review FELL BACK: skill not available` when the skill does not
   exist.
 - `/code-review FELL BACK: no result returned` when you called the skill
