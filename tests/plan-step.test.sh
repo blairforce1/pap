@@ -261,7 +261,7 @@ result $? "plan-step-9: a report with no header is a failed planner: write nothi
 plan 1000
 pp check trial
 [ "$rc" = 0 ] && said "words: 1000" && [ "$(wc -w < "$W/$dir/plan.md" | tr -d ' ')" = 1000 ]
-result $? "plan-step-11: a plan draft of 1000 words by wc -w, header included, passes: the plan review starts (unit row: at most 1000 words)" "exit $rc; $out"
+result $? "plan-step-11: a plan draft of 1000 words by wc -w, header included, not counting who accepted it, when, and what reviewed it, passes: the plan review starts (unit row: at most 1000 words)" "exit $rc; $out"
 plan 1001
 pp check trial
 [ "$rc" = 14 ] && said "1001 words, over 1000" && said "goes back to the planner once" && [ "$(wc -w < "$W/$dir/plan.md" | tr -d ' ')" = 1001 ]
