@@ -29,7 +29,7 @@ Run `start`.
 
 Run `launch <slug>`.
 
-- **Not 0.** The launch is refused and no cycle starts. Say why, as printed, with its rule. Exit 10 means the owner did not type the command: give them `/pap:pm launch <slug>` to type, and stop. For 11 to 14, fix what it names (the restate event, the brief), commit the tracker, and ask the owner to type the launch again: a typed line serves one launch.
+- **Not 0.** The launch is refused and no cycle starts. Say why, as printed, with its rule. Exit 10 means the owner did not type the command: give them `/pap:pm launch <slug>` to type, and stop. For 11 to 14, fix what it names (the restate event, the brief), commit the tracker, and ask the owner to type the launch again: a typed line serves one launch. Exit 20 means the build needs a plan and its plan is not accepted (rule 26.2): say which of the five it found, as printed, and that `/pap:plan <slug>` comes first; edit nothing to get past it, and if the owner believes the refusal is wrong, the way through is theirs, `/change` in a solo session. Once the plan is accepted the owner types the launch again.
 - **0.** The yes and launch events are logged and the tracker is committed. Now start exactly one cycle with the Agent tool: `subagent_type` the `agent:` line it printed, `run_in_background` true, and as the prompt the contents of the file on its `brief:` line and nothing else. If the cycle fails to start, append a `decision` event for the slug with the text `abandoned: did not start` and run `commit`.
 
 ## exit
