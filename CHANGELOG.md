@@ -188,6 +188,18 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `/pap:pm exit`: the pause before the owner quits, as steps of the skill.
+  The PM sends `PAUSE` to every cycle in flight and waits for each
+  `PAUSED:`, appends a `pause` event for each, commits the tracker, saves
+  its memory, and then calls pm-console's `exit_ready` tool, or without the
+  console says in one line whether it is safe to type `/exit`. It replaces
+  the console's `/pm exit`.
+- `/pap:pm console`: opens the pm-console pane and refreshes its figures
+  through the console's `console_open` tool, or says the console is not
+  loaded and names the check. It replaces the console's bare `/pm`.
+
 #### Changed
 
 - `pap coverage` checks a `rules.md` sentence that claims a "required
@@ -204,6 +216,11 @@ not carry.
 
 #### Fixed
 
+- The skill `pm` of 0.18.0 took the name `/pm` from the pm-console
+  plugin's command, so the console loaded nothing and `/pm exit` ran this
+  skill, which knew only `start` and `launch`. The console (0.3.0)
+  registers no command now, and `tests/plugin-names.test.sh` fails when a
+  mod's command in `plugins/` has the name of another plugin's skill.
 - `pap doctor` said `ok  pap plugin installed` for a plugin many releases
   behind the pap running it: a 0.5.0 plugin under pap 0.18.0 has none of the
   hooks that pap relies on, and nothing said so. doctor now reads the

@@ -1275,6 +1275,19 @@ grep -q 'Now start exactly one cycle with the Agent tool' "$skill" && grep -q '`
 result $? "pm-mode-30: the skill text says: on exit 0 start exactly one cycle, of the printed agent type, in the background, with the brief and nothing else; on any other exit none" ""
 grep -q 'append a `decision` event for the slug with the text `abandoned: did not start`' "$skill"
 result $? "pm-mode-43: the skill text says a cycle that fails to start is logged as a decision, abandoned: did not start" ""
+# The exit and console forms have no scenario in the feature file: these two cases read the skill's text only.
+grep -q '^argument-hint: start | launch <slug> | exit | console$' "$skill" && grep -q '^## exit$' "$skill" &&
+  grep -q 'Send `PAUSE` to every cycle it lists and wait for each `PAUSED:`' "$skill" &&
+  grep -q 'Append a `pause` event for each cycle that paused' "$skill" && grep -q 'then run `commit`, which also pushes a companion tracker' "$skill" &&
+  grep -q 'With no cycle in flight, still run `commit`' "$skill" && grep -q '^3. Save your memory' "$skill" &&
+  grep -q 'If the tool `exit_ready` is present' "$skill" && grep -q '`ok` true when every step above is done, else `ok` false and a `note` naming what is not done' "$skill" &&
+  grep -q 'If it is absent, tell the owner in one line whether it is safe to type `/exit`' "$skill" &&
+  grep -q 'Ask nothing else first, and keep the final message short' "$skill"
+result $? "text: the skill's exit form says: PAUSE every cycle in flight and wait for PAUSED, a pause event each, commit, save memory, then exit_ready or one line on /exit" ""
+grep -q '^## console$' "$skill" && grep -q 'If the tool `console_open` is present' "$skill" &&
+  grep -q 'If it is absent, say the console is not loaded in this session, and name the check: `pap doctor`' "$skill" &&
+  grep -q 'a session started with `--debug` logs why a mod.s start-up hook was skipped' "$skill"
+result $? "text: the skill's console form says: call console_open if present; if not, say the console is not loaded and name the check" ""
 
 ready trial
 printf '#!/bin/sh\necho "this tracker takes no commit" >&2\nexit 1\n' > "$trk/.git/hooks/pre-commit"
