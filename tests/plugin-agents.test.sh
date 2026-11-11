@@ -11,7 +11,10 @@
 # reviewer and /change step 5 give /code-review the same args and the same
 # fixed first lines, that both cycle definitions say in the same fixed words
 # to carry the change with /change and stay out of the main checkout, and
-# that /change reports a failed required check by its error lines.
+# that /change reports a failed required check by its error lines, and the
+# scenarios of features/spec-board-keeps-tools.feature: the spec reviewer's
+# tool list, the spec-review skills' withheld tools against the list pinned
+# here, and the five sentences /spec step 6 carries word for word.
 # Nothing in CI runs `claude plugin validate`, so this is the structure
 # check. Prints one TAP-style line per case and exits 1 if any fails. No
 # network; touches nothing.
@@ -45,7 +48,7 @@ field() {
     NR > 1 && index($0, k ": ") == 1 { print substr($0, length(k) + 3); exit }' "$1"
 }
 
-for a in cycle cycle-mechanical reviewer planner plan-reviewer; do
+for a in cycle cycle-mechanical reviewer planner plan-reviewer spec-reviewer; do
   f="$dir/$a.md"
   if [ ! -f "$f" ]; then
     result 1 "$a: file exists"
@@ -138,6 +141,56 @@ result $? "cycle-mechanical: model is haiku"
 result $? "plan-reviewer: model is sonnet"
 [ "$(field "$dir/planner.md" model)" = inherit ]
 result $? "planner: model is inherit"
+
+# /spec runs its spec review in read-only sub-agents and keeps its own
+# tools (features/spec-board-keeps-tools.feature). Scenarios 3 and 4 are
+# structure. Scenarios 1, 2 and 5 to 8 are what a session does, and pap has
+# no harness to run one in (backlog H-010): they are bound to five sentences
+# step 6 carries word for word.
+spec="$here/plugins/pap/skills/spec/SKILL.md"
+# step6: step 6 of /spec on one line, line breaks read as spaces.
+step6() { awk '/^## 6\. /{ f = 1 } /^## 7\. /{ f = 0 } f' "$spec" | tr '\n' ' ' | tr -s ' '; }
+has6() { step6 | grep -qF -- "$1"; }
+
+# spec-board-keeps-tools-3: an allow-list, so a tool added later fails here
+# unless it is one that only reads.
+tools=$(field "$dir/spec-reviewer.md" tools 2>/dev/null)
+bad=$(printf '%s\n' "$tools" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -vxE 'Read|Grep|Glob')
+[ -n "$tools" ] && [ -z "$bad" ]
+result $? "spec-board-keeps-tools-3: the spec reviewer holds only Read, Grep and Glob: no tool that edits, writes, runs a shell or starts a sub-agent"
+has6 '`subagent_type` `pap:spec-reviewer`' && has6 'One sub-agent for each perspective'
+result $? "spec-board-keeps-tools-3: step 6 starts one pap:spec-reviewer sub-agent for each perspective"
+has6 'Do not invoke a spec-review skill in this session.' && ! step6 | grep -qE 'invokes? `spec-review-'
+result $? "spec-board-keeps-tools-3: step 6 says: Do not invoke a spec-review skill in this session. And it invokes none"
+
+# spec-board-keeps-tools-4: a perspective or the board invoked directly runs
+# in the conversation with the same tools withheld. The list is pinned here,
+# not read from main. The board is the one skill that may start sub-agents.
+withheld='Agent Artifact AskUserQuestion Bash CronCreate CronDelete CronList Edit EnterPlanMode EnterWorktree ExitPlanMode ExitWorktree ListAgents ListMcpResourcesTool LSP Monitor NotebookEdit PowerShell PushNotification ReadMcpResourceTool RemoteTrigger ReportFindings ScheduleWakeup SendMessage SendUserFile ShareOnboardingGuide Skill TaskCreate TaskGet TaskList TaskOutput TaskStop TaskUpdate TodoWrite ToolSearch WaitForMcpServers WebFetch WebSearch Workflow Write'
+review="$here/plugins/spec-review/skills"
+seen=0
+for p in ai-act cost full gdpr iso27001 operations performance qa reliability security soc2 ux; do
+  f="$review/spec-review-$p/SKILL.md"
+  want="$withheld"
+  [ "$p" = full ] && want="${withheld#Agent }"
+  got=$(awk 'NR > 1 && $0 == "---" { exit } /^disallowed-tools:/ { f = 1; next } f && /^  - / { printf "%s%s", s, $2; s = " "; next } f { exit }' "$f" 2>/dev/null)
+  [ "$got" = "$want" ]
+  result $? "spec-board-keeps-tools-4: spec-review-$p withholds the pinned tools, Bash, Edit and Write among them"
+  [ -f "$f" ] && [ -z "$(field "$f" context)" ] && [ -z "$(field "$f" agent)" ]
+  result $? "spec-board-keeps-tools-4: spec-review-$p runs in the conversation, not in a sub-agent of its own"
+  seen=$((seen + 1))
+done
+[ "$(find "$review" -name SKILL.md -path '*/spec-review-*/*' | wc -l | tr -d ' ')" = "$seen" ]
+result $? "spec-board-keeps-tools-4: every spec-review skill is one of the $seen checked"
+
+has6 'Write the register before you ask for any disposition.'
+result $? "spec-board-keeps-tools-1, spec-board-keeps-tools-2: step 6 says: Write the register before you ask for any disposition."
+has6 'Wait for every perspective before you consolidate.'
+result $? "spec-board-keeps-tools-5: step 6 says: Wait for every perspective before you consolidate."
+has6 'Start a failed perspective once more.'
+result $? "spec-board-keeps-tools-6, spec-board-keeps-tools-7: step 6 says: Start a failed perspective once more."
+has6 'Start no sub-agent of another type in its place.'
+result $? "spec-board-keeps-tools-8: step 6 says: Start no sub-agent of another type in its place."
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

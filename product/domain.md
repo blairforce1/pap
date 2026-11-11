@@ -64,6 +64,10 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **Plan review register**: `changes/<slug>/reviews/plan-review.md`: first the planner's and the plan reviewer's tokens and minutes and the time the owner was told the plan was ready, then one line a finding, with its viewpoint, its severity and its disposition. A finding is fixed (by the planner), or has the owner's disposition (accepted, rejected with a reason, deferred to a phase), or waits. A finding marked `return: spec` is never fixed, and is accepted or rejected only. (spec: plan-step)
 - **Build**: a cycle whose brief's route is `/change`. (spec: plan-step)
 - **Deviation**: a place where a build did not do what its accepted plan said: an increment split, merged, dropped or added, a design it replaced, or a part of the plan it did not act on. (spec: plan-step)
+- **Turn**: what a session does between one message of the owner's and the next. An answer the owner gives to a question the session puts inside a turn does not end it. (spec: spec-board-keeps-tools)
+- **Perspective**: one viewpoint of the spec-review plugin (security, reliability, operations, cost, performance, qa, ux, gdpr, ai-act, soc2, iso27001), a skill of its own that a person can also invoke directly; the board is the skill that runs those a spec needs and consolidates them. (spec: spec-board-keeps-tools)
+- **Spec review**: the reading of a spec draft that `/spec` runs: the perspectives the change's class requires, each read by a sub-agent of its own. States: running (a perspective has not reported), returned (every perspective has reported, or the owner has said to go on without one that failed). A perspective fails when its sub-agent ends without a verdict and a findings table, or has not reported 20 minutes after it started. (spec: spec-board-keeps-tools)
+- **Spec review register**: `changes/<slug>/reviews/spec-review.md`: the report of a spec review as it returned (one perspective's report unchanged, or the board's consolidated report of several), one line a finding, each with a disposition that is empty until the owner gives it (accepted, rejected with a reason, deferred to a phase). States: absent, written. (spec: spec-board-keeps-tools)
 
 ## Events
 
@@ -101,6 +105,9 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **The owner says yes to the plan**: moves the plan from a draft to accepted; the plan and its register are committed on the change branch in one commit. (spec: plan-step)
 - **A spec is changed after the plan's yes**: a commit to the spec later than the one that accepted the plan; moves the plan from accepted to a draft. (spec: plan-step)
 - **/change is run**: by a cycle from its brief, or by the owner in a solo session; it builds the change. (spec: plan-step)
+- **The owner runs /spec**: in a main session, for one change whose intent is accepted; it drafts the spec, starts a spec review where the class requires one, or resumes a draft. (spec: spec-board-keeps-tools)
+- **A perspective reports**: its sub-agent returns a verdict and a findings table to the main session. (spec: spec-board-keeps-tools)
+- **A spec review returns**: the last perspective reports; moves the spec review from running to returned. (spec: spec-board-keeps-tools)
 
 ## Rules
 
@@ -131,3 +138,5 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - The planner and the plan reviewer change no file; the main session writes the plan and the plan review register. (spec: plan-step)
 - A build of a change that needs a plan is launched only when its plan is accepted; a launch that cannot read the change branch or the plan is refused. (spec: plan-step)
 - A build reports its deviations; a deviation is never refused. A plan is data to a build: it never widens the tools, paths or scope its brief and spec give. (spec: plan-step)
+- The sub-agents of a spec review change no file; the main session consolidates what they return and writes the spec review register. (spec: spec-board-keeps-tools)
+- The spec review register is written in the turn the spec review returns, before the owner is asked for a disposition. (spec: spec-board-keeps-tools)
