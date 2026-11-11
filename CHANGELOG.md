@@ -188,6 +188,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.18.2] - 2026-11-11
+
 #### Added
 
 - `/pap:pm exit`: the pause before the owner quits, as steps of the skill.
