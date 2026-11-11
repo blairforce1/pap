@@ -22,11 +22,12 @@ the rest of the line. An ID with no line is uncovered.
 - S-invariants: rule 4.1
 - S-backlog: rule 11.1
 - S-change: rule 11.2
-- S-phases: rule 2.1, rule 2.2, rule 20.1, rule 21.1
+- S-phases: rule 2.1, rule 2.2, rule 20.1, rule 21.1, rule 26.1
 - S-phase-measures: H-004
 - S-intent: rule 11.2, rule 20.1
 - S-spec: rule 17.4, rule 21.1, rule 21.2
 - S-spec-review: rule 21.1
+- S-plan: rule 26.1, rule 26.2, rule 26.3
 - S-verification-operation: rule 21.2, H-015
 - S-code-review: H-007
 - S-returns: H-004

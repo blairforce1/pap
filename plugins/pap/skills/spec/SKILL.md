@@ -1,6 +1,6 @@
 ---
 name: spec
-description: "Write the spec for one change and get it accepted (decision 0021): read the accepted intent, draft changes/<slug>/spec.md with the sections its class requires, acceptance scenarios in Given/When/Then in the domain vocabulary, and for feature, infra and security-sensitive changes an Operations section (signals, control band, what wrong looks like, undo) with operational scenarios; run the spec review board by class, record each finding's disposition, and on the human's yes commit on change/<slug> and hand on to /change. Use when the human invokes /spec <slug>, or asks to write, draft, specify or review the spec of a change in a repository that adopts PAP. Runs in the main session only; it needs the human's dispositions and yes."
+description: "Write the spec for one change and get it accepted (decision 0021): read the accepted intent, draft changes/<slug>/spec.md with the sections its class requires, acceptance scenarios in Given/When/Then in the domain vocabulary, and for feature, infra and security-sensitive changes an Operations section (signals, control band, what wrong looks like, undo) with operational scenarios; run the spec review board by class, record each finding's disposition, and on the human's yes commit on change/<slug> and hand on to /pap:plan (feature, infra, security-sensitive) or to the build. Use when the human invokes /spec <slug>, or asks to write, draft, specify or review the spec of a change in a repository that adopts PAP. Runs in the main session only; it needs the human's dispositions and yes."
 argument-hint: "<slug>"
 ---
 
@@ -103,13 +103,18 @@ git add changes/<slug>   # and features/<slug>.feature, product/domain.md: only 
 git commit -m "spec(<slug>): <what the change does, in a few words>"
 ```
 
-A review edit (step 1) commits as `spec(<slug>): <what changed>`, or `spec(<slug>): rework, <what the code surfaced>` after code exists.
+A review edit (step 1) commits as `spec(<slug>): <what changed>`, or `spec(<slug>): rework, <what the code surfaced>` after code exists. Where the branch carries `changes/<slug>/plan.md`, say so in your reply to that commit: a spec commit after the plan's yes voids that yes (decision 0026), so the plan is a draft again; tell the owner to run `/pap:plan <slug>` before the build, which redrafts, reviews again and asks for a second yes.
 
-Then `git worktree remove <path>`, keeping the branch. No push and no pull request: `/change` opens the one draft pull request that carries intent, spec and code in order (decision 0020, rule 2.2).
+Then `git worktree remove <path>`, keeping the branch. No push and no pull request: `/change` opens the one draft pull request that carries intent, spec, plan and code in order (decision 0020, rule 2.2).
 
 ## 9. Hand on, then stop
 
-Say what is next: `/change <slug> <class>` in a fresh context, with a brief that can be one line, because `/change` reads `intent.md` and `spec.md` from the branch: the scenarios are its acceptance criteria and the Undo is its "How to revert".
+Say what comes next, by the intent's class (decision 0026):
+
+- **feature, infra, security-sensitive:** `/pap:plan <slug>` comes next, in this session. It drafts and reviews the plan in the background and asks for a yes; `/pap:pm launch` refuses the build until then (rule 26.2).
+- **bugfix, docs, chore:** the build comes next: `/change <slug> <class>` in a fresh context, launched with `/pap:pm launch <slug>` from a PM session. They need no plan.
+
+Either way the build's brief can be short, because `/change` reads `intent.md`, `spec.md` and an accepted `plan.md` from the branch: the scenarios are its acceptance criteria and the Undo is its "How to revert".
 
 Stop. One spec per invocation; do not start the plan, the brief or the change.
 

@@ -38,7 +38,7 @@
 #          on exit 0. It refuses, changing nothing, with:
 #            10  the owner did not type /pap:pm launch <slug> (rule 18.2);
 #                pm-log.sh records the typed command, and one record serves
-#                one attempt: a refusal 11 to 15 uses it up
+#                one attempt: a refusal 11 to 15, or 20, uses it up
 #            11  the event log has no restate event for the slug (rule 18.2)
 #            12  the brief is missing or its first line names no route
 #                (rule 18.8)
@@ -49,6 +49,21 @@
 #            17  another session holds the tracker
 #            18  the tracker could not be committed
 #            19  the tracker is not started
+#            20  the build needs a plan and its plan is not accepted (rule
+#                26.2, decision 0026). Checked after every check above, so
+#                a launch refused for anything else says nothing of the
+#                plan; only 18, a commit git refuses, can still follow.
+#                It applies to a brief whose route is /change, whose class
+#                is feature, infra or security-sensitive and whose second
+#                line names item 1 or 2, unless the change started
+#                unplanned: its branch carries code and no plan. It reads
+#                the tip of the local change/<slug> (../plan/plan-lib.sh),
+#                never the work tree, and fetches nothing. It says which
+#                it found: the plan is absent, the plan is a draft, the
+#                spec changed after the plan's yes, the change branch
+#                cannot be read, or the plan cannot be read. Besides using
+#                up the typed line it adds a line to launches.log: time,
+#                session, repository, slug, refused-20, the reason
 #          Then it writes the yes and launch events, rewrites In flight and
 #          commits, and prints the agent type and the brief's path.
 # commit   Commits the tracker as it stands, and pushes.
@@ -58,14 +73,18 @@
 #
 # Exits 2 for a misuse: no repository, not an adopting one, a bad slug.
 
-# SC2154: pm_top, pm_common and pm_companion are set by pm-lib.sh's functions.
+# SC2154: pm_top, pm_common and pm_companion are set by pm-lib.sh's functions,
+# and pl_state by plan-lib.sh's. SC2034: pl_dir, pl_ref and pl_slug are read
+# by plan-lib.sh's.
 # SC2015: each `a && b || die` here dies when either fails, on purpose.
-# shellcheck disable=SC2154,SC2015
+# shellcheck disable=SC2154,SC2015,SC2034
 
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091 # pm-lib.sh, beside the hooks
 . "$here/../../hooks/pm-lib.sh"
+# shellcheck disable=SC1091 # plan-lib.sh, beside /pap:plan's script
+. "$here/../plan/plan-lib.sh"
 
 say() { printf '%s\n' "$@"; }
 die() { # die <code> <line>...
@@ -310,7 +329,7 @@ case "$cmd" in
     last="$(awk -F '\t' -v s="$slug" '$2 == "launch" && $3 == s { t = $1 } END { print t }' "$events")"
     [ -f "$pmd/launches.log" ] &&
       awk -F '\t' -v ses="$session" -v k="$key" -v s="$slug" -v t="$last" \
-        '$2 == ses && $3 == k && $4 == s { f = ($5 != "used" && ($1 "") > (t "")) } END { exit !f }' "$pmd/launches.log" ||
+        '$2 == ses && $3 == k && $4 == s { f = ($5 == "" && ($1 "") > (t "")) } END { exit !f }' "$pmd/launches.log" ||
       die 10 "the owner types the command: /pap:pm launch $slug (rule 18.2). That typed line is the owner's yes, and this launch has none" \
         "give the owner the command and stop; do not invoke it yourself."
     # The typed line serves this one attempt: a refusal below uses it up,
@@ -336,6 +355,28 @@ case "$cmd" in
     ! inflight | awk -F '\t' -v s="$slug" '$1 == s { f = 1 } END { exit !f }' ||
       refuse 15 "\"$slug\" is in flight: launched, with no later report, pause, merge or abandoned decision" \
         "a dead cycle is cleared on the owner's word, by a decision event whose text starts \"abandoned\"."
+    # The plan, last of the checks (rule 26.2): what it cannot read it refuses.
+    if printf '%s\n' "$l1" | grep -Eq "^/(pap:)?change +$re +(feature|infra|security-sensitive)( |\$)" &&
+      printf '%s\n' "$l2" | grep -Eq '^Rule 20\.2: item [12]([^0-9]|$)'; then
+      pl_dir="$pm_top" pl_ref="refs/heads/change/$slug" pl_slug="$slug"
+      plan_state
+      why=""
+      case "$pl_state" in
+        accepted) ;;
+        absent) plan_code || why="the plan is absent" ;;
+        draft) why="the plan is a draft" ;;
+        spec-changed) why="the spec changed after the plan's yes" ;;
+        nobranch) why="the change branch cannot be read" ;;
+        *) why="the plan cannot be read" ;;
+      esac
+      if [ -n "$why" ]; then
+        pm_log launches.log "$(pm_now)" "$session" "$key" "$slug" refused-20 "$why"
+        refuse 20 "the build of \"$slug\" is not launched: $why, and a build is launched only with an accepted plan (rule 26.2)" \
+          "it is read from the tip of this clone's change/$slug, never from a work tree, and nothing is fetched." \
+          "run /pap:plan $slug and say yes to the plan; then the owner types the launch again." \
+          "if the owner believes this refusal is wrong, the owner runs the build as /change in a solo session (pap claude --solo)."
+      fi
+    fi
     agent=pap:cycle
     ! grep -Eq '^Mechanical: *yes' "$brief" || agent=pap:cycle-mechanical
     cp "$events" "$pmd/events.bak" && { [ ! -f "$statef" ] || cp "$statef" "$pmd/state.bak"; } ||
