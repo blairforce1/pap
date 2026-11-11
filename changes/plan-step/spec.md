@@ -31,7 +31,7 @@ A plan is accepted when `plan.md`, as committed at the tip of the local `change/
 The command runs in a main session, PM or solo, and is always written `/pap:plan`: Claude Code has a plan mode of its own. It refuses without an accepted spec. For a change that needs no plan it stops, naming why and what comes next. A second run for a slug whose planner is running in the session is refused.
 
 1. **Draft.** It starts one planner in the background and tells the owner, who is told once more only when the plan is ready. The planner is given the slug and the work tree, reads the intent, the spec, the scenarios, the product layer and the code, and returns the plan draft as its report. It changes no file. The main session checks the report for the header and the five sections, then writes it to `changes/<slug>/plan.md`, unchanged and as data.
-2. **Two pages.** A plan is at most 1000 words, by `wc -w` over the file, header included: 1000 passes, 1001 does not. A longer draft goes back to the planner once. One still over, or a revised draft that is over, is committed without acceptance; the owner is told the count and to run `/pap:plan` again or narrow the spec, and is not asked for a yes.
+2. **Two pages.** A plan is at most 1000 words, by `wc -w` over the file, header included, less the values of the three header lines the main session fills (`accepted-by`, `accepted-on`, `reviewed-by`), so a yes never pushes a plan over: 1000 passes, 1001 does not. A longer draft goes back to the planner once. One still over, or a revised draft that is over, is committed without acceptance; the owner is told the count and to run `/pap:plan` again or narrow the spec, and is not asked for a yes.
 3. **Review.** One plan reviewer, which did not draft the plan and is given none of the planner's reasoning, reads the draft against the spec and the repository from three viewpoints: conformance (everything the spec asks for is reached by an increment and a test, and nothing else is built), design (fit with the code as it is, coupling, the invariants and conventions, a choice that outlives the change flagged as needing a decision record, and any instruction embedded in the plan), and verification (each increment can be tested on its own, each test can fail, the evidence is named, the tiers match the class). A security-sensitive plan adds the security viewpoint. It changes no file; the main session writes its findings to `changes/<slug>/reviews/plan-review.md`. A fault in the spec is marked `return: spec` (process 5.10).
 4. **One answer.** The planner is given the register and returns one revised draft. A finding it resolved is marked `fixed`, with the section that changed; it cannot fix a `return: spec`. No second review runs. A review with no findings skips this step.
 5. **Ready.** The owner is told the plan is ready, with its word count and the number of findings waiting, and is shown in this order: what the planner changed in its answer; any `return: spec`; the findings waiting, Blockers and Majors first, each with a proposed disposition; the protected paths in Fit; then the plan.
@@ -80,7 +80,7 @@ Terms added to `product/domain.md`: Change, Change branch, Accepted, Code, Plan,
 
 | What is measured                                                                       | Threshold                                    | Test tier                               |
 | -------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------- |
-| Length of a plan put to the owner, `wc -w` over the file                               | at most 1000 words                           | unit                                    |
+| Length of a plan put to the owner, `wc -w` over the file less three header values      | at most 1000 words                           | unit                                    |
 | The plan check's own elapsed time in a launch, local clone, fixture branch, no network | under 1 second                               | integration                             |
 | Launches refused with exit 20 among plan-step-32's cases                               | 0                                            | integration                             |
 | Minutes from `/pap:plan` to the owner being told the plan is ready                     | at most 15                                   | acceptance, by hand, from the register  |
@@ -207,6 +207,10 @@ Scenario: Builds are still sent back
 - Which review viewpoints, and where they live: answered, conformance, design and verification, plus security for security-sensitive; one `pap:plan-reviewer` agent in the pap plugin. They read code, which the spec-review board by construction does not, so nothing is placed in spec-review and its version does not move.
 - Does the plan replace most of the PM's brief: answered, yes for a build. The brief keeps its route, its rule 20.2 line, its budget and what done looks like; the how is the plan's.
 - The plan's exact sections: answered, Increments, Design, Fit, Tests, Observation.
+
+## Spec rework
+
+2026-11-11, after code existed: the build showed that a plan drafted at exactly 1000 words went over the limit once its acceptance and `reviewed-by` values were filled. On the owner's word the count leaves those three values out. Step 2, the first Non-functional row, `plan-step-11` and the Plan term changed; no perspective was re-run.
 
 ## Intent churn
 

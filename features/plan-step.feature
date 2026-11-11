@@ -112,7 +112,7 @@ Feature: A reviewed plan sits between an accepted spec and the code
 
     @id:plan-step-11
     Scenario Outline: A plan is at most 1000 words
-      Given a plan draft whose file, header included, counts <words> words by wc -w
+      Given a plan draft whose file, header included, counts <words> words by wc -w, not counting who accepted it, when, and what reviewed it
       When the main session has written it
       Then <outcome>
 
