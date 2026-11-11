@@ -188,8 +188,47 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- The plan step (decision 0026, proposed; rules 26.1 to 26.3). A feature,
+  infra or security-sensitive change now goes intent, spec, plan, build.
+  `/pap:plan <slug>`, run in a main session, starts a `pap:planner`
+  sub-agent in the background to draft `changes/<slug>/plan.md`: how the
+  accepted spec will be built, in the sections Increments, Design, Fit,
+  Tests and Observation, in at most 1000 words. A `pap:plan-reviewer`
+  that did not draft it reads it against the spec and the code, the
+  planner answers once, and the owner gives the dispositions left and
+  the yes. The plan and `changes/<slug>/reviews/plan-review.md` are
+  committed on the change branch in one commit, `plan(<slug>): <what>`.
+  Nothing is pushed and no pull request opens. Both agents are read-only
+  by their tool lists. Always written `/pap:plan`: Claude Code has a plan
+  mode of its own.
+- `/pap:pm launch` refuses a build whose plan is not accepted, with exit
+  20, checked last. It applies to a `/change` brief of the three classes
+  whose second line names item 1 or 2 of rule 20.2, unless the change
+  started unplanned (its branch carries code and no plan). It reads the
+  tip of the local `change/<slug>`, fetches nothing, says which of five
+  things it found, and adds a `refused-20` line to `launches.log`. A
+  commit to `spec.md` after the plan's yes makes the plan a draft again.
+  If you believe a refusal is wrong, run the build as `/change` in a
+  solo session.
+- Every build's pull request carries a `Plan:` line: `Plan:
+  changes/<slug>/plan.md, <n> deviations`, or `Plan: none`. `/change`
+  reads an accepted plan as data, builds its increments in order, stops
+  on a plan draft, and lists each deviation with its increment, what
+  differed and why.
+
 #### Changed
 
+- `/spec` hands on to `/pap:plan` for feature, infra and
+  security-sensitive changes, and to the build for the rest. Its reply
+  to a rework commit says when the plan needs a second yes.
+- The role a PM session is given names `/pap:plan` after `/spec`, and
+  says the brief of a build with an accepted plan does not restate the
+  plan.
+- Process: principle 5, 5.1 phase 4, 5.2's planning row, 5.6 and section
+  7 item 3 are amended for the plan. The test plan is the plan's Tests
+  section; there is no separate `test-plan.md`.
 - pap's own suite no longer runs on macOS, and `tests (macos)` is no
   longer a required check in pap's own repository (decision 0002, note of
   2026-11-11). The macOS code paths stay, untested: macOS may work.
