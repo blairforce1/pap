@@ -235,6 +235,15 @@ them.
   does not, because `pap repo apply` gives that file's checks to every
   adopting repository and none of them has a macOS job. `pap coverage`
   reads both files.
+- Recorded 2026-11-11: the owner dropped the macOS job and with it the
+  required check `tests (macos)`. The reason: each merge waited about
+  three minutes longer and macOS runner minutes cost more, with no user on
+  macOS yet. The cost accepted: a macOS-only break can reach main unseen.
+  The macOS code paths stay; they are no longer tested. What brings the
+  job back: a first macOS user, or a macOS-only bug report.
+  `.github/required-checks.yml` is removed, since it named only that
+  check; `pap repo apply` and `pap coverage` both read a missing file as
+  no added checks.
 
 ## Where it is taught or enforced
 

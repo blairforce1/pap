@@ -6,7 +6,8 @@ interview.
 
 ## What you need
 
-PAP runs on Linux and macOS; Windows through WSL2.
+PAP runs on Linux, and on Windows through WSL2. macOS is not tested as of
+2026-11-11 and may work.
 
 - [git](https://git-scm.com/downloads).
 - [mise](https://mise.jdx.dev/getting-started.html), which installs every
