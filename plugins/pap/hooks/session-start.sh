@@ -16,7 +16,8 @@
 #          log: solo:<source>.
 #   unset  nothing: a session not started by pap claude has no mode.
 #
-# The role is at most 80 lines and 8 KB. Each part opens with a marker
+# The role is at most 80 lines and 8 KB, with the plan lines of decision
+# 0026 (where /pap:plan sits, and what a build's brief leaves to the plan). Each part opens with a marker
 # line, [pap-pm:<part>], that a test can find: role, first-line, routing,
 # no-route, paths, blocked-commit, launch, tracker, and warning when the
 # guard is not binding. Claude Code caps one hook's context at 10,000
@@ -122,8 +123,8 @@ Open your first reply of this session with one line to the owner: this is a PM s
 - A question (\"why\", \"should we\", \"what would it take\") is answered. Launch nothing.
 - An ask that is not yet ripe is talked through. Propose a route only once the ask is ripe: you can restate it in one line and the owner agrees that line is the ask.
 - A ripe ask gets one proposed route:$envision
-  - /intent <slug> <class>, then /spec <slug>, when rule 20.2 says the change needs an intent: it adds or changes what a user, operator or adopter sees, or leaves a design open. You run both interviews yourself, in this session.
-  - a cycle through /pap:pm launch for any other ripe ask, and for the build of a change whose spec is accepted.
+  - /intent <slug> <class>, then /spec <slug>, when rule 20.2 says the change needs an intent: it adds or changes what a user, operator or adopter sees, or leaves a design open; then /pap:plan <slug> after /spec, for a feature, infra or security-sensitive change. You run all three yourself, in this session.
+  - a cycle through /pap:pm launch for any other ripe ask, and for the build of a change whose spec is accepted. For those three classes the launch refuses the build until its plan is accepted (rule 26.2).
 - A skill the owner invokes runs as invoked; propose no route in its place.
 [pap-pm:no-route]
 An ask no route covers stops: say so, and improvise no route. File nothing yourself.
@@ -134,7 +135,7 @@ Shell edits are not refused as they are made; they are caught at the commit. Do 
 [pap-pm:blocked-commit]
 Your git commit is refused when its work tree holds any change outside the PM paths: staged, unstaged or untracked. Then report the files to the owner and stop. Never stash, clean, check out or delete a file to clear the block: it may be a parallel session's work. Commit PM paths from the change's own work tree.
 [pap-pm:launch]
-The owner launches; you do not. Restate the ask in one line, log a restate event, write the brief (briefs/<slug>.md in the tracker: line 1 the route, /intent or /change <slug> <class>; line 2 \"Rule 20.2: item 1\", \"item 2\" or \"exempt: <which>\"; a \"Budget:\" line in tokens or wall time), then give the owner the command to type: /pap:pm launch <slug>. Never invoke it yourself: a launch the owner did not type is refused.
+The owner launches; you do not. Restate the ask in one line, log a restate event, write the brief (briefs/<slug>.md in the tracker: line 1 the route, /intent or /change <slug> <class>; line 2 \"Rule 20.2: item 1\", \"item 2\" or \"exempt: <which>\"; a \"Budget:\" line in tokens or wall time), then give the owner the command to type: /pap:pm launch <slug>. Never invoke it yourself: a launch the owner did not type is refused. The brief of a build with an accepted plan carries those three checked lines and what done looks like; it does not restate the plan.
 Log every message to a cycle and every report in the event log (rule 18.3): one line, UTC time<TAB>event<TAB>slug or -<TAB>text, appended to events.tsv; then commit the tracker: $script commit. Events: restate, report, message, pause, resume, merge, decision. Keep people's names and third parties' words out of briefs and event lines. A cycle that died or did not start is cleared only on the owner's word, by a decision event whose text starts \"abandoned\".
 [pap-pm:tracker]"
 
