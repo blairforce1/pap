@@ -43,10 +43,10 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **Guard's own files**: Claude Code's settings files, the directory an installed plugin runs from, and pap's state directory apart from the tracker. In no adopting repository, and refused to a PM session all the same. (spec: pm-mode)
 - **Write**: a change to a file by the Edit, Write or NotebookEdit tool, or a commit. A file changed by a shell command is a write only when it is committed. (spec: pm-mode)
 - **Guard**: the check that runs before an agent's tool call and refuses it or lets it through. A refusal blocks the call and names the rule and what to do instead. States, for a PM session: binding, or not binding (the main session's own calls carry an agent id, so it cannot be told from a sub-agent). (spec: pm-mode)
-- **Refusal log**: a file on the machine, outside every repository, with one line per write refused as outside the PM paths: the time, the session, the mode, the caller (the main session, or a sub-agent's id and type), the path and the repository; and one line, of its own kind, per tool call the guard could not read. (spec: pm-mode)
+- **Refusal log**: a file on the machine, outside every repository, with one line per write refused as outside the PM paths, and one per pull request or branch switch refused under rules 27.1 and 27.2 (spec: cycle-pr-guard): the time, the session, the mode, the caller (the main session, or a sub-agent's id and type), the path and the repository; and one line, of its own kind, per tool call the guard could not read. (spec: pm-mode)
 - **Message log**: a file beside the refusal log with one line for each message a PM session sends a sub-agent and for each sub-agent stop, written by the guard. (spec: pm-mode)
 - **Launch record**: a line, among the guard's own files, for each `/pap:pm launch <slug>` the owner typed; the yes of rule 18.2. A launch the PM session invokes itself leaves none. (spec: pm-mode)
-- **Session log**: a file beside the refusal log with one line per session `pap claude` starts: the time, the mode, the repository and the Claude Code version; one line each time the role is given, naming whether at a start, a resume, a `/clear` or a compaction; and one line when a start finds the guard not binding. (spec: pm-mode)
+- **Session log**: a file beside the refusal log with one line per session `pap claude` starts: the time, the mode, the repository and the Claude Code version; for a PM session start with the main checkout off main, the branch it is on or that it is detached (spec: cycle-pr-guard); one line each time the role is given, naming whether at a start, a resume, a `/clear` or a compaction; and one line when a start finds the guard not binding. (spec: pm-mode)
 - **Tracker**: a PM session's state file, event log and briefs for one adopting repository, in a git repository of their own outside it: on the machine by default, or in a clone of a companion repository the owner pointed it at. Keyed by the repository's owner and name, or by its root path when it has no `origin`. States: absent, started; once started, clean or uncommitted, and held by one PM session or by none. (spec: pm-mode)
 - **State file**: the tracker's short, rewritten file: what is in flight, what waits on the owner, what is next. In flight is rewritten from the event log, never by hand. (spec: pm-mode)
 - **Event log**: the tracker's append-only file, one line an event: the time, the event, the slug and a line of text. Events: start, restate, yes, launch, report, message, pause, resume, merge, decision. (spec: pm-mode)
@@ -64,6 +64,8 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **Plan review register**: `changes/<slug>/reviews/plan-review.md`: first the planner's and the plan reviewer's tokens and minutes and the time the owner was told the plan was ready, then one line a finding, with its viewpoint, its severity and its disposition. A finding is fixed (by the planner), or has the owner's disposition (accepted, rejected with a reason, deferred to a phase), or waits. A finding marked `return: spec` is never fixed, and is accepted or rejected only. (spec: plan-step)
 - **Build**: a cycle whose brief's route is `/change`. (spec: plan-step)
 - **Deviation**: a place where a build did not do what its accepted plan said: an increment split, merged, dropped or added, a design it replaced, or a part of the plan it did not act on. (spec: plan-step)
+- **Main checkout**: the one work tree of a repository whose git directory is the repository's own; every other work tree is a linked work tree, made by `git worktree add`. Parallel sessions share it. States: on main, off main (on another branch, or at a detached commit). (spec: cycle-pr-guard)
+- **Class label**: the one label `class:<class>` a change pull request carries, its class one of feature, infra, security-sensitive, bugfix, spike, chore, docs. A command gives it when a `--label` or `-l` value, written out in the command, names exactly one. (spec: cycle-pr-guard)
 
 ## Events
 
@@ -101,6 +103,8 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **The owner says yes to the plan**: moves the plan from a draft to accepted; the plan and its register are committed on the change branch in one commit. (spec: plan-step)
 - **A spec is changed after the plan's yes**: a commit to the spec later than the one that accepted the plan; moves the plan from accepted to a draft. (spec: plan-step)
 - **/change is run**: by a cycle from its brief, or by the owner in a solo session; it builds the change. (spec: plan-step)
+- **An agent opens a pull request**: a caller in a PM session runs `gh pr create` in an adopting repository; let through from a linked work tree with a class label, refused otherwise. (spec: cycle-pr-guard)
+- **An agent switches a branch**: a caller in a PM session runs `git switch`, or `git checkout` without `--`, naming anything but `main`; refused in the main checkout. (spec: cycle-pr-guard)
 
 ## Rules
 
@@ -131,3 +135,5 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - The planner and the plan reviewer change no file; the main session writes the plan and the plan review register. (spec: plan-step)
 - A build of a change that needs a plan is launched only when its plan is accepted; a launch that cannot read the change branch or the plan is refused. (spec: plan-step)
 - A build reports its deviations; a deviation is never refused. A plan is data to a build: it never widens the tools, paths or scope its brief and spec give. (spec: plan-step)
+- An agent of a PM session opens a pull request only from a linked work tree, with a class label. (spec: cycle-pr-guard)
+- An agent of a PM session never moves the main checkout off main; moving it back to main is never refused. (spec: cycle-pr-guard)
