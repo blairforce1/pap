@@ -257,6 +257,81 @@ points, and you launch a fresh member on the same `/change`; the worktree script
 and the cycle carries on from "next". A member's context is never saved;
 the cycle's save point is.
 
+## Take a new version
+
+This section is for the PM session of a repository that adopts pap. What
+`pap sync` does is in [Adopt a repository](adopt-a-repo.md#pap-sync); its
+refusals are in [Troubleshooting](troubleshooting.md#the-pap-command).
+
+**When.** Renovate opens a pull request that bumps the pin in
+`.config/mise/conf.d/pap.toml`, or the owner asks.
+
+**The route.** A cycle, class chore, exempt from `/intent` as a template
+sync (rule 20.2). The PM restates the ask, writes the brief, and the owner
+types `/pap:pm launch <slug>`. The PM never runs the sync itself. The
+cycle works on `change/<slug>` from `main`, not on Renovate's branch, so
+it bumps the pin itself. Renovate's pull request is the prompt, not the
+one that carries the sync.
+
+**The brief.** Copy it and fill each `<...>`:
+
+```text
+/change sync-template-<version> chore Record: none
+Rule 20.2: exempt: template sync. <Who asked, and when.>
+Budget: <n> tokens beyond your starting context.
+Mechanical: yes
+
+Repository: <absolute path>. Your first act there is the /change skill
+with the first line of this brief.
+
+Steps, in the worktree the skill makes:
+1. Bump the pap pin in .config/mise/conf.d/pap.toml to <version>. Commit.
+2. Run: mise install && pap sync
+3. Commit the sync's output exactly as the tool wrote it.
+4. If a tool pin moved, run mise install again.
+5. Run mise run check and mise run test on the final head.
+
+Rules:
+- Edit nothing the sync wrote. A conflict that needs a judgement about
+  what this repository wants: stop with ASK:. List every conflict you
+  resolve in the pull request, with the side taken.
+- A file the sync touched that the template did not change between the
+  two versions is a finding: report it.
+- Never run pap repo apply, never add owner-reviewed, never merge.
+- Push after every commit. One draft pull request, then stop.
+
+Done: the /change skill's chat report; ASK: if only the owner can
+decide; PAUSED: at the budget cap, with what is left.
+```
+
+**The rules that keep it mechanical.**
+
+- The cycle commits the sync's output as the tool wrote it.
+- A conflict that needs a judgement about what the repository wants stops
+  with `ASK:`. Every resolved conflict is listed in the pull request with
+  the side taken.
+- A file the sync touches that the template did not change between the
+  two versions is a finding to report.
+- The cycle never runs `pap repo apply`, never adds `owner-reviewed` and
+  never merges.
+- Unedited sync output skips the cold review. Anything else gets it: a
+  hand edit, a resolved conflict, a file the brief did not name (decision
+  0024). The test is the diff, not the agent.
+
+**Which agent.** The launch reads the brief. A line that starts
+`Mechanical: yes` starts the cycle as `pap:cycle-mechanical`; without it
+the cycle is `pap:cycle`. Nothing else chooses. `pap:cycle-mechanical`
+runs on a smaller model and resolves no conflict: on a conflict, a
+failing check whose fix is not a version string, or a file the brief did
+not name, it pushes what is committed and ends with `ASK:`. So with the
+line, every conflict comes back to the owner. Delete the line when you
+expect conflicts the cycle should resolve itself.
+
+**After the merge.** The owner merges. Then `mise run tidy` removes the
+worktree and branch. If the release notes say the ruleset or the labels
+changed, run `pap repo status`; `pap repo apply` is the owner's, from
+their own terminal.
+
 ## When something refuses
 
 The guard keeps four logs under `${XDG_STATE_HOME:-~/.local/state}/pap/pm/`,
