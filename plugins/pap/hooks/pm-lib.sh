@@ -10,7 +10,12 @@
 #                     session id, mode, repository, Claude Code version, what
 #   pm/refusals.log   one line a refusal: UTC time, session id, mode, caller
 #                     (main, or a sub-agent's id and type), path, repository,
-#                     kind (write, commit, unread)
+#                     kind (write, commit, unread; and, by decision 0027,
+#                     pr-main-checkout, pr-label, branch-switch,
+#                     path-without-dashes, unplaced, whose path is the
+#                     directory the command ran in and which carry an eighth
+#                     field, the form refused: gh pr create, or git switch
+#                     or git checkout with its options, never the command)
 #   pm/messages.log   UTC time, session id, message or stop, the sub-agent's
 #                     id, its type
 #   pm/launches.log   one line for each /pap:pm launch <slug> the owner
@@ -52,19 +57,25 @@ pm_conf_get() {
 }
 
 # pm_log <file> <field>...: one tab-separated line appended to pm/<file>;
-# tabs and newlines inside a field become spaces. Never fails its caller.
+# tabs and newlines inside a field become spaces. Never fails its caller:
+# pm_logged is false when the line could not be written.
 pm_log() {
   l_f="$1"
   shift
   l_d="$(pm_dir)"
-  [ -d "$l_d" ] || { mkdir -p "$l_d" 2>/dev/null && chmod 700 "$(pm_state)" "$l_d" 2>/dev/null; } || return 0
+  pm_logged=true
+  [ -d "$l_d" ] || { mkdir -p "$l_d" 2>/dev/null && chmod 700 "$(pm_state)" "$l_d" 2>/dev/null; } || {
+    pm_logged=false
+    return 0
+  }
   l_line=""
   l_first=true
   for l_x in "$@"; do
     l_x="$(printf '%s' "$l_x" | tr '\t\n\r' '   ')"
     if [ "$l_first" = true ]; then l_line="$l_x"; l_first=false; else l_line="$l_line$pm_tab$l_x"; fi
   done
-  printf '%s\n' "$l_line" >> "$l_d/$l_f" 2>/dev/null || true
+  { printf '%s\n' "$l_line" >> "$l_d/$l_f"; } 2>/dev/null || pm_logged=false
+  return 0
 }
 
 # pm_repo <dir>: sets pm_top (the work tree's root) and pm_common (the git

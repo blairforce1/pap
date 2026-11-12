@@ -59,7 +59,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: An agent never switches the branch of the main checkout
 
-    @id:cycle-pr-guard-4 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-4
     Scenario Outline: A switch of the main checkout's branch is refused
       Given a PM session
       When <caller> runs <command> in the main checkout
@@ -83,7 +83,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | a sub-agent      | git checkout -                        |
         | a sub-agent      | git switch -                          |
 
-    @id:cycle-pr-guard-5 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-5
     Scenario Outline: What the main checkout is for keeps working
       Given a PM session
       When a sub-agent runs <command> in the main checkout
@@ -107,7 +107,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | git fetch --prune                                   |
         | git fetch --quiet --tags origin main                |
 
-    @id:cycle-pr-guard-13 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-13
     Scenario Outline: A directory the guard cannot place is refused
       Given a PM session whose project is the adopting repository
       When a sub-agent runs <command>
@@ -132,7 +132,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | no label             | the guard refuses it, naming rule 27.1 and /change  |
         | --label class:bugfix | the guard does not refuse it under rule 27.1        |
 
-    @id:cycle-pr-guard-6 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-6
     Scenario: A branch switched in a linked work tree is not this rule's
       Given a PM session
       When a sub-agent runs git switch -c change/other in the linked work tree
@@ -140,7 +140,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: The rules bind the agents of a PM session, in an adopting repository
 
-    @id:cycle-pr-guard-7 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-7
     Scenario Outline: Outside a PM session, or outside an adopting repository, nothing new is refused
       Given <session> in <repository>
       When it runs gh pr create with no label, or git switch change/x in the main checkout
@@ -152,7 +152,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | a session with no mode             | an adopting repository             |
         | a PM session                       | a repository that does not adopt PAP |
 
-    @id:cycle-pr-guard-8 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-8
     Scenario: Whatever the guard refused before it refuses still
       Given the guard's test suite as it stood before this change
       When it is run against the guard as changed
@@ -160,7 +160,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: Each refusal is logged
 
-    @id:cycle-pr-guard-9 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-9
     Scenario Outline: A refusal leaves one line in the refusal log
       Given a PM session
       When the guard refuses <what>
@@ -174,7 +174,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | git checkout README.md in the main checkout  | path-without-dashes |
         | a command whose directory it cannot place    | unplaced         |
 
-    @id:cycle-pr-guard-17 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-17
     Scenario: A refusal whose log line cannot be written is still made
       Given a PM session whose refusal log cannot be written
       When a sub-agent runs git switch change/add-thing in the main checkout

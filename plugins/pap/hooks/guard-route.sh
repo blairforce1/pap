@@ -4,9 +4,10 @@
 # (decisions/0005-agent-sessions-do-not-bypass-hooks.md), 0012
 # (decisions/0012-protected-paths-need-an-owners-approved-by-line.md),
 # 0016 (decisions/0016-risk-labels-and-an-owner-reviewed-label-replace-approved-by.md),
-# 0022 (decisions/0022-no-branch-takes-a-force-push.md) and 0023
-# (decisions/0023-agents-act-on-github-as-their-own-app.md), and 0025
-# (decisions/0025-pap-runs-as-the-project-manager-by-default.md).
+# 0022 (decisions/0022-no-branch-takes-a-force-push.md), 0023
+# (decisions/0023-agents-act-on-github-as-their-own-app.md), 0025
+# (decisions/0025-pap-runs-as-the-project-manager-by-default.md) and 0027
+# (decisions/0027-an-agent-opens-its-pull-request-from-a-worktree-with-its-class-label.md).
 #
 # Reads the tool-call JSON on stdin. For every git command in a Bash command,
 # works out the directory it runs in: the session's cwd, then any `cd <dir>`
@@ -92,6 +93,30 @@
 #         pass, as limits of the rule. A call this hook cannot parse is
 #         let through, as before, and in a PM session is said and logged
 #         as an unread line.
+#
+#   0027  In a session pap claude started in PM mode only, for its main
+#         session and its sub-agents alike. Rule 27.2: a `git switch` or
+#         `git checkout` that runs in the main checkout of an adopting
+#         repository (the work tree whose git directory is the
+#         repository's own) is refused, but for `git switch main`, `git
+#         checkout main`, a path restore (`git checkout [<tree>] --
+#         <path>`) and `git checkout` with no word. Any -c, -C, -d,
+#         --create, --force-create, --detach or --orphan (for checkout -b,
+#         -B, -d, --detach, --orphan), or an abbreviation of a long one,
+#         makes it a branch switch. A checkout of one word with no `--`
+#         may be a path: it is refused, and logged as path-without-dashes.
+#         Nothing is refused in a linked work tree. A directory the guard
+#         cannot place is refused when the session's project adopts PAP:
+#         one that does not exist as the guard runs, one written with a
+#         variable, `cd -`, pushd or popd, and a git directory given by
+#         GIT_DIR, GIT_WORK_TREE, --git-dir or --work-tree. The forms let
+#         through in the main checkout are let through there too. Each
+#         refusal is a line in the refusal log, with its kind and the form
+#         refused. Placing a directory is one git call, made only for
+#         these verbs. `git branch -m`, `git stash branch`, `git rebase
+#         <upstream> <branch>`, `git bisect start` and `git symbolic-ref
+#         HEAD` pass, as limits of the rule, as does git reached through
+#         bash -c, a script or an alias.
 #
 # The rules live here and in each repository's guard-branch.sh; this script
 # decides which repository a command targets, so a session in one repository
@@ -242,6 +267,100 @@ targets="$(printf '%s' "$input" | jq -r '
              else text("gh api body="; .) end),
           (opt($i; "--input"; "--input") | unword | file("jsonfile"; "gh api --input"; .))
       else empty end;
+  # Decision 0027: where a git switch or checkout runs, and what it is.
+  def dyn: test("[$`]");
+  # The words of one command less its redirections and their targets.
+  def noredir:
+    reduce .[] as $t ({skip: false, out: []};
+      if .skip then .skip = false
+      elif ($t | test("^(<<<|[0-9]*[<>]+&?)$")) then .skip = true
+      elif ($t | test("^<<@HD[0-9]+$")) then .
+      else .out += [$t] end)
+    | .out;
+  def pieces:
+    [foreach (.[], "|") as $t ({cur: [], done: null};
+       if $t == "|" then {cur: [], done: .cur} else {cur: (.cur + [$t]), done: null} end;
+       .done // empty)];
+  def headat:
+    . as $q
+    | first(range(0; length) | select($q[.] | test("^(env|-.*|[A-Za-z_][A-Za-z0-9_]*=.*)$") | not)) // null;
+  # GIT_DIR or GIT_WORK_TREE in assignment position: the word, or null.
+  def gitenv:
+    . as $w
+    | (headat // length) as $k
+    | (if ($w[0] // "" | IN("export", "declare", "typeset", "readonly", "local")) then $w[1:] else $w[:$k] end)
+    | [.[] | select(test("^(GIT_DIR|GIT_WORK_TREE)\\+?="))][0] // null;
+  # The words after `git`: its global options skipped and -C applied. un is
+  # the word that makes the directory one the guard cannot place.
+  def gitsub($dir):
+    . as $a
+    | {i: 0, dir: $dir, un: null, done: false}
+    | until(.done or .i >= ($a | length);
+        $a[.i] as $x
+        | if ($x | startswith("-") | not) then .done = true
+          elif $x == "-C" then
+            ($a[.i + 1] // "") as $v
+            | (if ($v | dyn) then .un = (.un // $v) else . end)
+            | .dir = (.dir as $d | $v | unword | resolve($d))
+            | .i += 2
+          elif ($x | test("^--(git-dir|work-tree)(=|$)")) then
+            .un = (.un // $x) | .i += (if ($x | contains("=")) then 1 else 2 end)
+          elif ($x | IN("-c", "--namespace", "--config-env", "--super-prefix", "--attr-source")) then .i += 2
+          else .i += 1 end)
+    | {dir, un, sub: ($a[.i] // "" | unword), rest: $a[.i + 1:]};
+  def shortopt($letters): test("^-[^-]") and (.[1:] | test("[" + $letters + "]"));
+  # A long option or an abbreviation of one; --force is its own option.
+  def longopt($names):
+    sub("=.*"; "") as $o
+    | ($o | test("^--[a-z]")) and $o != "--force" and ($names | any(startswith($o)));
+  # verdict($verb): of the words after git switch or git checkout. ok is a
+  # form rule 27.2 lets through in the main checkout.
+  def verdict($verb):
+    [.[] | unword] as $u
+    | def nonopts: [.[] | select((startswith("-") | not) or . == "-")];
+      if $verb == "switch" then
+        if ($u | any(shortopt("cCd") or longopt(["--create", "--force-create", "--detach", "--orphan"])))
+        then "branch-switch"
+        elif ($u | nonopts) == ["main"] then "ok"
+        else "branch-switch" end
+      else
+        ($u | index("--")) as $dd
+        | if ((if $dd == null then $u else $u[:$dd] end)
+              | any(shortopt("bBd") or longopt(["--detach", "--orphan"])))
+          then "branch-switch"
+          elif $dd != null then (if ($u | length) > $dd + 1 then "ok" else "branch-switch" end)
+          else
+            ($u | nonopts) as $n
+            | if $n == [] or $n == ["main"] then "ok"
+              elif ($n | length) == 1 then "path-without-dashes"
+              else "branch-switch" end
+          end
+      end;
+  # The form refused, for the log: the verb and its options, never a value.
+  def form($verb):
+    "git " + $verb
+    + ([.[] | unword
+        | if IN("main", "--", "-") then .
+          elif test("^-") then (capture("^(?<o>-[-A-Za-z0-9]*)") | .o)
+          else "<word>" end
+        | " " + .] | add // "");
+  # at27($dir; $un; $cdw; $i): the target the word at $i starts, if any.
+  def at27($dir; $un; $cdw; $i):
+    . as $q
+    | if $q[$i] == "git" then
+        ($q[$i + 1:] | gitsub($dir)) as $g
+        | select($g.sub | IN("switch", "checkout"))
+        | ($g.rest | verdict($g.sub)) as $v
+        | select($v != "ok")
+        | "sw\t\($g.dir)\tgit \($g.sub)\t"
+          + ([$v, (if ($un // $g.un) != null then "unplaced" else "placed" end),
+              ($un // $g.un // $cdw // "-"), ($g.rest | form($g.sub)), "end"] | join("\u001f"))
+      else empty end;
+  def targets27($dir; $un; $cdw):
+    noredir as $q
+    | ($q | headat) as $h
+    | select($h != null)
+    | ($q | at27($dir; $un; $cdw; $h));
   def prbodies($cwd):
     lift as $l
     | [$l.cmd | scan("&&|\\|\\||[;&|()\\n]|<<@HD[0-9]+|<<<|[0-9]*[<>]+&?|" + word)]
@@ -249,11 +368,18 @@ targets="$(printf '%s' "$input" | jq -r '
         if ($t | IN("&&", "||", ";", "&", "\n")) then .stmts += [[]]
         elif ($t | IN("(", ")")) then .
         else .stmts[-1] += [$t] end)
-    | reduce .stmts[] as $st ({dir: $cwd, out: []};
-        . as $s
-        | ([$st | .[] | select(. != "|")]) as $w
-        | if $w[0] == "cd" then .dir = (($w[1] // "~" | unword) | resolve($s.dir))
+    | reduce .stmts[] as $st ({dir: $cwd, out: [], un: null, cdw: null};
+        ([$st | .[] | select(. != "|")]) as $w
+        | .un = (.un // ($w | gitenv))
+        | . as $s
+        | if $w[0] == "cd" then
+            ($w[1] // "~") as $x
+            | .cdw = $x
+            | (if ($x | dyn) or $x == "-" then .un = (.un // $x) else . end)
+            | .dir = (($x | unword) | resolve($s.dir))
+          elif ($w[0] // "" | IN("pushd", "popd")) then .un = (.un // ($w | join(" ")))
           else
+            .out += [$st | pieces | .[] | targets27($s.dir; $s.un; $s.cdw)] |
             .out += [ $st
               | [foreach (.[], "|") as $t ({cur: [], done: null};
                   if $t == "|" then {cur: [], done: .cur} else {cur: (.cur + [$t]), done: null} end;
@@ -457,7 +583,7 @@ who=""
 who() {
   [ -z "$who" ] || return 0
   who="$(printf '%s' "$input" | jq -r '[.agent_id // "", .agent_type // "", .session_id // "", "end"] | join("\u001f")' 2>/dev/null)" || who=""
-  IFS="$(printf '\037')" read -r agent_id _ session_id _ <<EOF2
+  IFS="$(printf '\037')" read -r agent_id agent_type session_id _ <<EOF2
 $who
 EOF2
   who=yes
@@ -471,7 +597,87 @@ pm_lib() {
   pm_lib=yes
 }
 
+
+# Decision 0027. place <dir>: sets placed to main (the main checkout of an
+# adopting repository), linked (a linked work tree of one), none (in no
+# adopting repository) or missing (no such directory as the guard runs),
+# and p_top and p_common. One git call a directory, kept for the next ask.
+placed_dir="" placed="" p_top="" p_common=""
+place() {
+  [ "$1" != "$placed_dir" ] || [ -z "$placed" ] || return 0
+  placed_dir="$1" placed=none p_top="" p_common=""
+  while IFS="$tab" read -r c_dir c_placed c_top c_common; do
+    [ "$c_dir" = "$1" ] || continue
+    placed="$c_placed" p_top="$c_top" p_common="$c_common"
+    return 0
+  done <<EOF3
+$place_cache
+EOF3
+  if [ ! -d "$1" ]; then
+    placed=missing
+  else
+    p_out="$(git -C "$1" rev-parse --path-format=absolute --show-toplevel --git-dir --git-common-dir 2>/dev/null)" || p_out=""
+    p_git=""
+    { IFS= read -r p_top && IFS= read -r p_git && IFS= read -r p_common; } <<EOF3 || p_top=""
+$p_out
+EOF3
+    if [ -n "$p_top" ] && [ -x "$p_top/scripts/guard-branch.sh" ]; then
+      if [ "$p_git" = "$p_common" ]; then placed=main; else placed=linked; fi
+    fi
+  fi
+  place_cache="$place_cache
+$1$tab$placed$tab${p_top:--}$tab${p_common:--}"
+}
+place_cache=""
+project_adopts() { [ -x "${CLAUDE_PROJECT_DIR:-/nonexistent}/scripts/guard-branch.sh" ]; }
+# refuse27 <kind> <rule> <directory> <form>: the two lines, the block, and
+# one line in the refusal log: the kind and the form, never the command.
+refuse27() {
+  case "$1" in
+    branch-switch | path-without-dashes)
+      printf 'guard-route: refusing to switch the branch of the main checkout, %s\n' "$3" >&2
+      printf 'guard-route: rule 27.2: parallel sessions share it; work in a worktree on change/<id>, made by /change. To restore a path: git checkout -- <path>.\n' >&2 ;;
+    unplaced)
+      r_what="a branch switch"
+      [ "$2" != 27.1 ] || r_what="gh pr create"
+      printf 'guard-route: refusing %s in a directory the guard cannot place: %s\n' "$r_what" "$3" >&2
+      printf 'guard-route: rule %s: run it as its own command, from the worktree made by /change.\n' "$2" >&2 ;;
+  esac
+  status=2
+  who
+  pm_lib
+  r_caller=main
+  [ -z "${agent_id:-}" ] || r_caller="$agent_id ${agent_type:--}"
+  # The repository as the commit check logs it: its key when it is the
+  # session's own or the directory is in none, its root otherwise.
+  r_repo="${pm_own_key:--}"
+  case "$placed" in
+    main | linked) [ "$1" = unplaced ] || [ "$p_common" = "$pm_own_common" ] || r_repo="$p_top" ;;
+  esac
+  pm_log refusals.log "$(pm_now)" "${session_id:--}" pm "$r_caller" "$3" "$r_repo" "$1" "$4"
+  [ "$pm_logged" = true ] || printf 'guard-route: the refusal could not be written to the refusal log.\n' >&2
+}
+
 while IFS="$tab" read -r kind target reason file; do
+  if [ "$kind" = sw ]; then
+    # Rules 27.1 and 27.2 bind the callers of a PM session, and no other.
+    [ "${PAP_MODE:-}" = pm ] || continue
+    IFS="$(printf '\037')" read -r t_a t_flag t_written t_form _ <<EOF2
+$file
+EOF2
+    if [ "$t_flag" = placed ]; then
+      place "$target"
+      [ "$placed" != missing ] || { t_flag=unplaced; [ "$t_written" != - ] || t_written="$target"; }
+    else
+      placed=""
+    fi
+    if [ "$t_flag" = unplaced ]; then
+      ! project_adopts || refuse27 unplaced 27.2 "$t_written" "$t_form"
+    elif [ "$placed" = main ]; then
+      refuse27 "$t_a" 27.2 "$target" "$t_form"
+    fi
+    continue
+  fi
   if [ "$kind" = papmode ]; then
     printf 'guard-route: refusing %s set or unset in an agent'"'"'s command in %s\n' "$reason" "$target" >&2
     printf 'guard-route: rule 25.1: the mode is set by pap claude and stays so; the owner starts a solo session with pap claude --solo, from their own terminal.\n' >&2
