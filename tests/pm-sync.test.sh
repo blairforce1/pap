@@ -1,8 +1,8 @@
 #!/bin/sh
 # pm-sync.test.sh: the scenarios of features/pm-sync.feature, bound by ID,
 # for the sync form of /pap:pm's script (changes/pm-sync/spec.md). The
-# scenarios bound elsewhere: pm-sync-8 and pm-sync-15 in
-# tests/pm-mode.test.sh, beside the launch and guard cases they extend.
+# guard's half is elsewhere: pm-sync-15, and a second case of pm-sync-8, are
+# in tests/pm-mode.test.sh, beside the guard and launch cases they extend.
 #
 # Usage: sh tests/pm-sync.test.sh
 #
@@ -18,10 +18,11 @@
 # running with this suite's own process id.
 #
 # Prints one TAP-style line per case and exits 1 if any case fails. Needs
-# git and cksum; jq for pm-sync-7, skipped without it.
+# git and cksum; jq for the cases that run a hook, skipped without it.
 #
 # SC2319: each case passes the exit status of its condition on purpose.
-# shellcheck disable=SC2319
+# SC2016: the skill's own text is matched as written.
+# shellcheck disable=SC2319,SC2016
 
 set -u
 # shellcheck disable=SC1091 # tests/clean-env.sh, sourced from this directory
@@ -509,9 +510,10 @@ typed() {
 if command -v jq >/dev/null 2>&1; then
   world
   sync 0.19.1
+  snap
   pm launch "$slug" --session "$S1"
-  [ "$rc" = 10 ] && [ "$(count launch)" = 0 ]
-  result $? "pm-sync-7: before the owner types it, a launch of the sync brief is refused with 10, as any launch is" "exit $rc; $out"
+  refused 10 "the owner types the command: /pap:pm launch $slug (rule 18.2)" && [ "$(count launch)" = 0 ] && ! line "agent: pap:cycle-mechanical"
+  result $? "pm-sync-8: after a sync, a launch of the sync brief that the owner did not type is refused with 10, as any launch with no launch record is" "exit $rc; $out"
   at 10:06:00
   typed "$slug"
   at 10:07:00
@@ -645,6 +647,53 @@ sync 0.21.0
 from "$T/source"
 refused 23 "pap has no release 0.21.0; the newest release is 0.20.0"
 result $? "pm-sync-20: the version of a pre-release tag is no release: 0.21.0 is refused with 23" "exit $rc; $out"
+
+# --- The PM session runs sync on the owner's word ---------------------------------------------------------
+
+# No session is run: the case reads the role a PM session is given at every
+# start, as the session-start hook writes it, and the skill's text.
+skill="$here/plugins/pap/skills/pm/SKILL.md"
+if command -v jq >/dev/null 2>&1; then
+  world
+  ctx="$(printf '{"session_id":"%s","transcript_path":"/x/t.jsonl","cwd":"%s","hook_event_name":"SessionStart","source":"startup"}' "$S1" "$A" |
+    env PAP_MODE=pm CLAUDE_PROJECT_DIR="$A" CLAUDE_PLUGIN_ROOT="$T/plugin" "$T/plugin/hooks/session-start.sh" 2>/dev/null |
+    jq -r '.hookSpecificOutput.additionalContext // empty')"
+  role="$(printf '%s\n' "$ctx" | awk '$0 == "[pap-pm:launch]" { on = 1; next } /^\[pap-pm:[a-z-]*\]$/ { on = 0 } on')"
+  in_role() { printf '%s\n' "$role" | grep -qF -- "$1"; }
+  x=""
+  for t in "run sh \"$T/plugin/skills/pm/pap-pm.sh\" sync <version>, or sync latest" \
+    "A question about versions is answered." "Only on the owner's own instruction to take one" \
+    "say you are reading pap's releases" "give the owner the launch line it prints, and stop" \
+    "Never write a sync brief by hand" "never invoke the launch" \
+    "If it refuses, tell the owner what it said and stop: no retry" "on an uncommitted tracker, name /pap:pm start" \
+    "A launch that refuses a sync brief is reported to the owner, never fixed by hand"; do
+    in_role "$t" || x="$x [$t]"
+  done
+  [ -n "$role" ] && [ -z "$x" ] && [ "$(printf '%s\n' "$ctx" | grep -c '^\[pap-pm:[a-z-]*\]$')" = 8 ]
+  result $? "pm-sync-6: the role a PM session is given names the script's sync form by its path, for the owner's own instruction only, with the launch line given and nothing launched, no brief by hand and no retry; it gains no part" "missing:$x"
+  # The command the role gives runs as given, with no session id passed.
+  c0="$(commits)"
+  out="$(cd "$A" && CLAUDE_CODE_SESSION_ID="$S1" sh -c "$(printf '%s\n' "$role" | sed -n 's/.*run \(sh "[^"]*" sync\) <version>.*/\1/p') 0.19.1" 2>&1)"
+  rc=$?
+  wrote 0.19.1 0.19.0
+  result $? "pm-sync-6: the command the role gives, run in the session's shell with no --session, prepares the sync" "exit $rc; $out"
+else
+  n=$((n + 1))
+  printf 'ok %d - pm-sync-6: the role a PM session is given names the sync form # SKIP jq is not on PATH\n' "$n"
+fi
+x=""
+for t in '^argument-hint: start | launch <slug> | sync \[<version> | latest\] | exit | console$' '^disable-model-invocation: true$' \
+  '^sh "${CLAUDE_SKILL_DIR}/pap-pm.sh" <command> --session "${CLAUDE_SESSION_ID}"$' '^## sync \[<version> | latest\]$' \
+  'Say first that you are reading pap.s releases, then run `sync <version>`' 'run `sync latest`, which takes the newest release' \
+  'give them the `launch:` line to type. Then stop. Never invoke the launch yourself' \
+  'Tell the owner why, as printed, and stop: no retry' 'name `/pap:pm start`, whose commit-or-discard question is the owner.s' \
+  'Never write a sync brief by hand' 'A launch that refuses a sync brief is reported to the owner, never fixed by hand' \
+  'A question about versions is answered; only an instruction runs `sync`' 'say the five forms and stop' \
+  '\[sync-brief.txt\](sync-brief.txt)'; do
+  grep -q -- "$t" "$skill" || x="$x [$t]"
+done
+[ -z "$x" ] && [ -f "$here/plugins/pap/skills/pm/sync-brief.txt" ]
+result $? "pm-sync-6: the skill's text names the fifth form, stays the owner's to invoke, and says the same: the launch line and nothing launched, no brief by hand, no retry, a question is answered" "missing:$x"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }

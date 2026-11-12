@@ -52,7 +52,7 @@ Feature: A PM session prepares a template sync from one command
       Then no cycle is launched and the event log gains no yes event and no launch event
       And no file of the adopting repository is changed: the pin and the recorded version are as they were
 
-    @id:pm-sync-6 @pending:pm-sync
+    @id:pm-sync-6
     Scenario: The PM session runs sync on the owner's word
       When the owner asks the PM session to take pap 0.19.1, or the latest pap, without typing the command
       Then the PM session runs /pap:pm sync for what the owner named
@@ -67,7 +67,7 @@ Feature: A PM session prepares a template sync from one command
       Then the launch is not refused for its restate event, its route, its rule 20.2 line or its budget
       And one cycle is launched, as a mechanical one
 
-    @id:pm-sync-8 @pending:pm-sync
+    @id:pm-sync-8
     Scenario: The PM session cannot launch the sync brief itself
       Given /pap:pm sync was run for 0.19.1
       When the PM session invokes /pap:pm launch itself for sync-template-0.19.1
@@ -145,7 +145,7 @@ Feature: A PM session prepares a template sync from one command
         | held by another session | which session holds it                       |
         | started, with an event log line that cannot be read | which line cannot be read |
 
-    @id:pm-sync-15 @pending:pm-sync
+    @id:pm-sync-15
     Scenario: A sub-agent runs sync
       When a sub-agent runs the /pap:pm script for sync
       Then the guard refuses it, as it refuses every form of that script
