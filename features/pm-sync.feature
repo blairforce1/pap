@@ -75,7 +75,7 @@ Feature: A PM session prepares a template sync from one command
 
   Rule: sync refuses, and writes nothing, when there is nothing it can prepare
 
-    @id:pm-sync-9 @pending:pm-sync
+    @id:pm-sync-9
     Scenario: The repository already records the version
       When /pap:pm sync is run for 0.19.0
       Then the session is told the repository already records 0.19.0
@@ -94,7 +94,7 @@ Feature: A PM session prepares a template sync from one command
         | 0.19.5  | that pap has no such release                        |
         | newest  | that a version is three numbers, as 0.19.1, or latest |
 
-    @id:pm-sync-11 @pending:pm-sync
+    @id:pm-sync-11
     Scenario Outline: A repository with no pin is refused
       Given an adopting repository that is <repository>
       When /pap:pm sync is run for 0.19.1
@@ -118,7 +118,7 @@ Feature: A PM session prepares a template sync from one command
         | latest |
         | 0.19.1 |
 
-    @id:pm-sync-13 @pending:pm-sync
+    @id:pm-sync-13
     Scenario Outline: A sync launched and neither merged nor abandoned is refused
       Given /pap:pm sync was run for 0.19.1 and its cycle is <state>
       When /pap:pm sync is run for 0.19.1
@@ -131,7 +131,7 @@ Feature: A PM session prepares a template sync from one command
         | reported  |
         | paused    |
 
-    @id:pm-sync-14 @pending:pm-sync
+    @id:pm-sync-14
     Scenario Outline: A tracker sync cannot write is refused
       Given the tracker is <state>
       When /pap:pm sync is run for 0.19.1
@@ -180,7 +180,7 @@ Feature: A PM session prepares a template sync from one command
         | no brief         |
         | an earlier brief |
 
-    @id:pm-sync-18 @pending:pm-sync
+    @id:pm-sync-18
     Scenario: A session id that no running session has
       When /pap:pm sync is run for 0.19.1 with a session id no running session of this machine has
       Then it is refused, saying the id is not a running session's
