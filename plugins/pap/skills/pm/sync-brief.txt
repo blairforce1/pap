@@ -1,0 +1,32 @@
+/change sync-template-<version> chore Record: none
+Rule 20.2: exempt: template sync. Prepared by /pap:pm sync on <date>; the owner's typed launch is the ask.
+Budget: 80k tokens beyond your starting context.
+Mechanical: yes
+
+Repository: <root>. Your first act there is the /change skill with the
+first line of this brief.
+
+This repository records template <recorded>, layers <layers>. Take it to
+pap <version>.
+
+Steps, in the worktree the skill makes:
+1. Set the pap pin in .config/mise/conf.d/pap.toml to <version>. Commit
+   only if the file changed.
+2. Run: mise install && pap sync
+3. Commit the sync's output exactly as the tool wrote it.
+4. If a tool pin moved, run mise install again.
+5. Run mise run check and mise run test on the final head.
+
+Rules:
+- If .config/pap.toml does not record <recorded> when you start, stop
+  with ASK:.
+- Edit nothing the sync wrote. A conflict that needs a judgement about
+  what this repository wants: stop with ASK:. List every conflict you
+  resolve in the pull request, with the side taken.
+- A file the sync touched that the template did not change between
+  <recorded> and <version> is a finding: report it.
+- Never run pap repo apply, never add owner-reviewed, never merge.
+- Push after every commit. One draft pull request, then stop.
+
+Done: the /change skill's chat report; ASK: if only the owner can
+decide; PAUSED: at the budget cap, with what is left.

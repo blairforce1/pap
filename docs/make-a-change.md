@@ -101,13 +101,15 @@ class requires:
 - **Open questions** carried from the intent, each answered or still open
   with an owner.
 
-It runs the spec review board the class requires, through
-`spec-review-full`, writes the register to
-`changes/<slug>/reviews/spec-review.md`, and takes you through the
-findings a few at a time: each gets `accepted` (the spec changes),
-`rejected: <reason>` or `deferred: <phase>`. Then it shows what you are
-accepting and asks for your yes. On yes it fills `accepted-by:` and
-`accepted-on:`, commits `spec(<slug>): ...`, and stops. "Later" commits a
+It runs the spec review the class requires: one read-only sub-agent for
+each perspective of the `spec-review` plugin, selected and consolidated
+by the rules of `spec-review-full`. When the last one reports it writes
+the register to `changes/<slug>/reviews/spec-review.md` in that turn, and
+then takes you through the findings a few at a time: each gets
+`accepted` (the spec changes), `rejected: <reason>` or
+`deferred: <phase>`. Then it shows what you are accepting and asks for
+your yes. On yes it fills `accepted-by:` and `accepted-on:`, commits
+`spec(<slug>): ...`, and stops. "Later" commits a
 draft without acceptance lines; the next `/spec <slug>` resumes it.
 
 ## 3. `/pap:plan`
@@ -184,10 +186,13 @@ Under a project-manager session ([Run a project](run-a-project.md)), each
 or `pap:cycle-mechanical` (a smaller model) for a version bump or a
 template sync, never as general-purpose (decision 0024). A cycle's first
 command is a `cd` to the repository its brief names, so its worktree is
-made there and not in the PM's repository (pap 0.16.1). A mechanical
-cycle's diff (version strings, unedited sync output, changelog moves)
-skips the cold review; anything else gets `pap:reviewer`. The cycle opens
-one draft pull request, reports, and stops.
+made there and not in the PM's repository (pap 0.16.1). Its first act
+after that is to invoke `/change` with the brief's first line: it does no
+step of a change by hand, and never works in, or changes the branch of,
+the main checkout. A mechanical cycle's diff (version strings, unedited
+sync output, changelog moves) skips the cold review; anything else gets
+`pap:reviewer`. The cycle opens one draft pull request, reports, and
+stops.
 
 ## 5. Review by risk label
 

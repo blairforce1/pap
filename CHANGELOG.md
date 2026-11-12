@@ -188,6 +188,69 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `/pap:pm sync [<version> | latest]` prepares one template sync in a
+  project-manager session of an adopting repository. It reads pap's
+  releases, writes the sync brief into the tracker from one template the
+  plugin ships (`skills/pm/sync-brief.txt`), logs the restate with the
+  brief's checksum, commits the tracker and gives the launch line. It
+  launches nothing: the owner still types `/pap:pm launch
+  sync-template-<version>`. A PM session runs it when the owner says "take
+  pap 0.19.1" or "take the latest pap"; its role names the form, and the
+  script reads the session's id from `CLAUDE_CODE_SESSION_ID` when none is
+  passed. A repository that already records the version is told so. New
+  refusals, each writing nothing, exit 21 to 27; `docs/troubleshooting.md`
+  lists them.
+
+#### Changed
+
+- `docs/run-a-project.md` gains "Take a new version": how a
+  project-manager session turns a new pap version into a cycle, with
+  `/pap:pm sync`. `docs/adopt-a-repo.md` links to it from `pap sync`.
+- Rule 18.3's "Enforced by" line names the restate event `sync` writes.
+
+### [0.19.1] - 2026-11-11
+
+#### Fixed
+
+- `/spec` could not write the spec review register in the turn the review
+  returned. It invoked a `spec-review-*` skill in the main session, and
+  such a skill withholds Bash, Edit and Write until the owner's next
+  message, so the register lived only in the conversation until then.
+  `/spec` now invokes no skill of the spec-review plugin. It starts one
+  read-only sub-agent for each perspective, the new `pap:spec-reviewer`
+  (Read, Grep and Glob only), selects and consolidates by the board's own
+  rules, and writes the register before it asks for any disposition.
+- `/spec` waits for every perspective before it consolidates, and says in
+  one line how many have reported. A perspective that fails, or has not
+  reported after 20 minutes, is started once more; on a second failure
+  the owner is asked whether to go on without it, and the register names
+  it as not run.
+- `/spec` stops where the spec-review plugin is not installed, or the
+  session has no `pap:spec-reviewer` sub-agent type, and says which. It
+  starts no sub-agent of another type in its place. A session started
+  before this release needs a restart to run `/spec`.
+- A cycle a project-manager session launched could carry its change by
+  hand: no `/change`, a branch switched in the main checkout, a pull
+  request with no `class:*` label. `pap:cycle` and `pap:cycle-mechanical`
+  now say that the first act after the `cd` is the `/change` skill with
+  the brief's first line, that no step of a change is done by hand, that
+  a cycle without the skill ends with `ASK:`, and that it never works in,
+  or changes the branch of, the main checkout.
+- `scripts/guard-branch.sh` refused a commit or push off a change branch
+  without naming the way through. The refusal has a third line: a
+  worktree on `change/<id>`, made by `/change`, never a branch switched in
+  the main checkout. Its first two lines and every exit code are
+  unchanged. The script is the template's too, so adopters get the line
+  at their next `pap sync`.
+- `/change` could report a failed required check as expected when only
+  one of its errors was. Before its report the skill reads each required
+  check that has finished, without waiting for one still running, quotes
+  every error line of a failed one in Verification and names each in the
+  chat report, on a new `Failed required checks:` line. A failure is
+  expected only when every one of its error lines is.
+
 ### [0.19.0] - 2026-11-11
 
 #### Added

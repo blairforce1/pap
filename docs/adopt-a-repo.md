@@ -63,6 +63,9 @@ mise install && pap sync
 
 Review with `git diff`, run `mise install` for any new tool pins, commit.
 
+In a repository run by a project-manager session, a cycle does this:
+[Take a new version](run-a-project.md#take-a-new-version).
+
 ## `pap repo`
 
 ```sh

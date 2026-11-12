@@ -122,13 +122,71 @@ pull request is not open, the SHA you gave is not a prefix of its head,
 it has no risk label yet (wait for `pr-checks`), or it is not `risk:high`
 and needs no label.
 
+### `/pap:pm sync`
+
+Every refusal writes nothing and leaves the tracker as it was. The PM
+session tells you what it said and stops; it does not retry, and it
+writes no sync brief by hand. The refusals `sync` shares with `start` and
+`launch` (a tracker that is not started, is uncommitted or is held by
+another session, an event log line that cannot be read) read as they do
+there.
+
+**`.config/mise/conf.d/pap.toml pins no release of pap`** (exit 21). The
+repository has no pin: it is pap itself, or its template came from a
+checkout of pap. `sync` prepares nothing there; run `pap sync` by hand.
+
+**`a version is three numbers, as 0.19.1, or latest`** (exit 22). Name a
+release, with or without a leading `v`, or `latest`.
+
+**`pap has no release <version>; the newest release is <newest>`** (exit
+23). A tag counts as a release only when it is exactly `v` and three
+numbers; a pre-release is not one. Name a release that exists.
+
+**`pap <version> is older than the recorded version`**, or **`than the
+pin`** (exit 24). `sync` takes a repository forward only. A downgrade is
+done by hand.
+
+**`pap's releases could not be read from <source>`** (exit 25). The
+source did not answer within 30 seconds, git refused the read (its last
+line follows), or the source lists no release. Nothing can be prepared
+offline; try again when the source answers. `PAP_SOURCE` names another
+source, for a mirror.
+
+**`.config/pap.toml: the recorded version is not a version`**, **`the
+recorded layers are not ...`**, **`the pin of pap is not a version`** or
+**`the repository's root ... holds a line break`** or **`a control
+character`** (exit 26). A value the brief would carry is not well formed,
+so no brief is written. Fix the file the message names in a change of its
+own; `.config/pap.toml` is written by `pap init` and `pap sync`. A
+recorded version of `unreleased` means the template came from a checkout:
+run `pap sync` by hand.
+
+**`the session id <id> is not a running session's on this machine`**
+(exit 27). The id passed, or the one in the shell's
+`CLAUDE_CODE_SESSION_ID`, is not a Claude Code session that started with
+the pap plugin on this machine. Nothing is locked or written. Run `sync`
+from the PM session itself.
+
+**`"sync-template-<version>" is in flight`**, **`reported`** or
+**`paused`** (exit 15). That sync was launched and is neither merged nor
+abandoned, so no second brief is written for it. Merge it, or clear a
+dead cycle on your word with a `decision` event whose text starts
+`abandoned`.
+
+**The PM session says it has no `sync`, or `/pap:pm sync` is not a
+form.** The pap plugin is older than 0.20.0. Update it with
+`claude plugin update pap@blairforce1-pap` and restart the session.
+
 ## Hooks
 
 **The guard hook refuses `git push` from main, or `git push --delete`.**
 In an agent session, a commit or push is refused unless the current branch
-is `change/<id>` (decision 0002); `git push origin --delete change/<slug>`
-from main is a push from main. Delete the branch on GitHub instead (the
-repository deletes a merged pull request's branch on merge; otherwise the
+is `change/<id>` (decision 0002). The refusal names the way through: a
+worktree on `change/<id>`, made by `/change`, never a branch switched in
+the main checkout, which parallel sessions share.
+`git push origin --delete change/<slug>` from main is a push from main.
+Delete the branch on GitHub instead (the repository deletes a merged pull
+request's branch on merge; otherwise the
 Branches page or `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>`
 from a shell as yourself), and `mise run tidy` removes the local branch
 and worktree once its upstream is gone.

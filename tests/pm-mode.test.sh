@@ -1201,6 +1201,11 @@ result $? "pm-mode-40: with no launch record for \"trial\", a launch the PM invo
 result $? "pm-mode-40: the event log gains no yes event and no launch event" "$(cat "$trk/events.tsv")"
 no_cycle && as_was
 result $? "pm-mode-40: no cycle starts" "$out"
+# A sync brief is launched as any brief is (features/pm-sync.feature);
+# tests/pm-sync.test.sh has the same refusal after a real sync.
+pm "$A" launch sync-template-0.19.1 --session "$S1"
+[ "$rc" = 10 ] && said 'the owner types the command: /pap:pm launch sync-template-0.19.1 (rule 18.2)' && no_cycle && as_was
+result $? "pm-sync-8: with no launch record for \"sync-template-0.19.1\", a launch the PM invokes itself is refused, as any launch with no launch record is" "exit $rc; $out"
 at 10:03:30; typed "$A" "$S1" "/pap:pm launch trial"
 at 10:04:00; pm "$A" launch trial --session "$S1"
 [ "$rc" = 0 ] && [ "$(events yes)" = 1 ] && [ "$(events launch)" = 1 ]
@@ -1276,7 +1281,7 @@ result $? "pm-mode-30: the skill text says: on exit 0 start exactly one cycle, o
 grep -q 'append a `decision` event for the slug with the text `abandoned: did not start`' "$skill"
 result $? "pm-mode-43: the skill text says a cycle that fails to start is logged as a decision, abandoned: did not start" ""
 # The exit and console forms have no scenario in the feature file: these two cases read the skill's text only.
-grep -q '^argument-hint: start | launch <slug> | exit | console$' "$skill" && grep -q '^## exit$' "$skill" &&
+grep -q '^argument-hint: start | launch <slug> | sync \[<version> | latest\] | exit | console$' "$skill" && grep -q '^## exit$' "$skill" &&
   grep -q 'Send `PAUSE` to every cycle it lists and wait for each `PAUSED:`' "$skill" &&
   grep -q 'Append a `pause` event for each cycle that paused' "$skill" && grep -q 'then run `commit`, which also pushes a companion tracker' "$skill" &&
   grep -q 'With no cycle in flight, still run `commit`' "$skill" && grep -q '^3. Save your memory' "$skill" &&
@@ -1336,6 +1341,11 @@ for c in "sh \"$script\" start --session $S1" "$script start --session $S1" "cd 
   tool_bash pm "$A" "$A" "$c" a3f9c2e17b5d4 pap:cycle
   [ "$rc" = 2 ] && has '/pap:pm needs the PM session'
   result $? "pm-mode-33: a sub-agent's $(printf '%s' "$c" | sed "s|$T/||g; s|$S1|<id>|") is refused, saying /pap:pm needs the PM session" "exit $rc; $err"
+done
+for c in "sh \"$script\" sync 0.19.1" "sh \"$script\" sync latest --session $S1" "$script sync" "cd $A && sh ../plugin/skills/pm/pap-pm.sh sync v0.19.1"; do
+  tool_bash pm "$A" "$A" "$c" a3f9c2e17b5d4 pap:cycle
+  [ "$rc" = 2 ] && has '/pap:pm needs the PM session'
+  result $? "pm-sync-15: a sub-agent's $(printf '%s' "$c" | sed "s|$T/||g; s|$S1|<id>|") is refused by the guard, as every form of that script is" "exit $rc; $err"
 done
 [ ! -e "$trk" ] && [ ! -e "$pmd/locks" ]
 result $? "pm-mode-33: the tracker is unchanged: it was not started" "$(ls "$pmd" 2>&1)"

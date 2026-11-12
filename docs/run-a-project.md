@@ -18,6 +18,8 @@ A command today:
   the mode. It is refused in an agent shell.
 - `/pap:pm start` starts the tracker, or reports where things stand.
 - `/pap:pm launch <slug>` launches one cycle. You type it; the PM cannot.
+- `/pap:pm sync [<version> | latest]` prepares a template sync and
+  launches nothing (see [Take a new version](#take-a-new-version)).
 - `/pap:pm exit` pauses every cycle in flight, commits the tracker and
   tells you whether it is safe to stop (see
   [Pause and relaunch](#pause-and-relaunch)).
@@ -256,6 +258,58 @@ A relaunch is still by hand. The PM reads the tracker and the save
 points, and you launch a fresh member on the same `/change`; the worktree script prints `resumed`
 and the cycle carries on from "next". A member's context is never saved;
 the cycle's save point is.
+
+## Take a new version
+
+This section is for the PM session of a repository that adopts pap. What
+`pap sync` does is in [Adopt a repository](adopt-a-repo.md#pap-sync); its
+refusals are in [Troubleshooting](troubleshooting.md#the-pap-command).
+
+**When.** Renovate opens a pull request that bumps the pin in
+`.config/mise/conf.d/pap.toml`, or the owner asks.
+
+**The route.** A cycle, class chore, exempt from `/intent` as a template
+sync (rule 20.2). `/pap:pm sync` prepares it, and the owner types
+`/pap:pm launch sync-template-<version>`. The PM never runs the sync
+itself. The cycle works on `change/sync-template-<version>` from `main`,
+not on Renovate's branch, so it sets the pin itself. Renovate's pull
+request is the prompt, not the one that carries the sync.
+
+**The command.** `/pap:pm sync <version>`, or `/pap:pm sync latest` for
+the newest release of pap; no version means the latest. The owner types
+it, or says it in words ("take pap 0.20.0", "take the latest pap") and
+the PM session runs it. It reads pap's releases, writes the sync brief
+into the tracker, logs the restate, commits the tracker and prints the
+launch line for the owner to type. It launches nothing and changes no
+file of the repository. In a repository that already records the version
+it says so and writes nothing. When it refuses it writes nothing either;
+its refusals are in
+[Troubleshooting](troubleshooting.md#pappm-sync).
+
+**The brief.** `sync` writes it from one template the plugin ships,
+[`sync-brief.txt`](../plugins/pap/skills/pm/sync-brief.txt), with the
+version, the recorded version and layers, the repository's root and the
+date filled in. No one writes a sync brief by hand, so every sync brief
+reads the same.
+
+**Since 0.20.0.** `sync` is in pap 0.20.0 and later. A session whose
+plugin is older does not have it. There, update the plugin with
+`claude plugin update pap@blairforce1-pap`, restart the session and run
+`sync` then; write no sync brief by hand.
+
+**Which agent.** The launch reads the brief. A line that starts
+`Mechanical: yes` starts the cycle as `pap:cycle-mechanical`; without it
+the cycle is `pap:cycle`. Nothing else chooses. `pap:cycle-mechanical`
+runs on a smaller model and resolves no conflict: on a conflict, a
+failing check whose fix is not a version string, or a file the brief did
+not name, it pushes what is committed and ends with `ASK:`. So with the
+line, every conflict comes back to the owner. Delete the line when you
+expect conflicts the cycle should resolve itself.
+
+**After the merge.** The owner merges. Then `mise run tidy` removes the
+worktree and branch. If the release notes say the ruleset or the labels
+changed, run `pap repo status`; `pap repo apply` is the owner's, from
+their own terminal.
 
 ## When something refuses
 

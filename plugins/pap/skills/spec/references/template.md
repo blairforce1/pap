@@ -131,4 +131,4 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 
 ## `changes/<slug>/reviews/spec-review.md`
 
-The register as `spec-review-full` returned it, with its perspectives and verdicts stated, then the human's dispositions filled in: `accepted`, `rejected: <reason>` or `deferred: <phase>`. Add one line at the top: `Reviewed <YYYY-MM-DD> against spec.md at <short sha or "draft">; dispositions by @<login>.`
+The register as the spec review returned it (one perspective's report, or the report consolidated by the rules of `spec-review-full`), with its perspectives and verdicts stated, then the human's dispositions filled in: `accepted`, `rejected: <reason>` or `deferred: <phase>`. Add one line at the top: `Reviewed <YYYY-MM-DD> against spec.md at <short sha or "draft">; dispositions by @<login>.`
