@@ -270,7 +270,8 @@ refusals are in [Troubleshooting](troubleshooting.md#the-pap-command).
 sync (rule 20.2). The PM restates the ask, writes the brief, and the owner
 types `/pap:pm launch <slug>`. The PM never runs the sync itself. The
 cycle works on `change/<slug>` from `main`, not on Renovate's branch, so
-it bumps the pin itself and its pull request replaces Renovate's.
+it bumps the pin itself. Renovate's pull request is the prompt, not the
+one that carries the sync.
 
 **The brief.** Copy it and fill each `<...>`:
 
@@ -322,8 +323,9 @@ decide; PAUSED: at the budget cap, with what is left.
 the cycle is `pap:cycle`. Nothing else chooses. `pap:cycle-mechanical`
 runs on a smaller model and resolves no conflict: on a conflict, a
 failing check whose fix is not a version string, or a file the brief did
-not name, it pushes what is committed and ends with `ASK:`. Drop the line when you expect conflicts
-the cycle should resolve.
+not name, it pushes what is committed and ends with `ASK:`. So with the
+line, every conflict comes back to the owner. Delete the line when you
+expect conflicts the cycle should resolve itself.
 
 **After the merge.** The owner merges. Then `mise run tidy` removes the
 worktree and branch. If the release notes say the ruleset or the labels
