@@ -99,6 +99,11 @@ Why: a feature spec's review runs eight or nine perspectives at 98k to 121k toke
 Related: `scripts/release.sh` (which already refuses a release unless those four places agree); decisions 0024 (the mechanical cycle) and 0027 (a pull request from a worktree with one class label); `/pap:pm sync`, which writes its brief by script the same way. Class: feature
 Why: five bumps ran on the full `pap:cycle`, 4 to 8 minutes each, for a diff of about five lines in known places.
 
+**H-027** We believe Claude Code plugins enabled by a repository's pap layers (each layer ships a fragment of its own naming its plugins and marketplace, the base layer `pap` and `spec-review`, the .NET layer the .NET plugins; `pap claude` combines the repository's fragments at launch, so no layer edits another's file; `pap doctor` reports a plugin enabled in the owner's user settings that a layer declares, or that no layer declares, and gives the edit that moves it, never making it) will produce sessions that load only the plugins their repository needs, measured by sessions loading a plugin no layer of their repository declares, at 0, with the token floor of a sub-agent read beside it.
+Related: INV-001 (a layer never edits another layer's file, so the layers cannot share one `.claude/settings.json`); INV-011; decision 0025 (`pap claude` starts every PM session); H-024 (the audit's sub-agent floor). Class: feature
+Why: on 2026-11-12 the audit found read-only sub-agents costing 24k to 98k tokens for three or four tool calls, part of it the .NET plugins and their tool lists loading in pap, which has no .NET. The owner turned them off by hand in a git-ignored `.claude/settings.local.json`. No layer ships Claude Code settings today, so every plugin is enabled globally.
+Open for its intent: whether Claude Code's `--settings` flag merges with the user's settings or replaces them; whether a session started as plain `claude` gets the layers' plugins, which means a generated `.claude/settings.json` instead of fragments read at launch.
+
 ## Unranked
 
 **H-006** We believe joining Claude Code's telemetry to the change id will produce inner-loop measures per change, measured by the share of changes with token and rework-share data.
