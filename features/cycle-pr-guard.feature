@@ -182,7 +182,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: pap doctor reports a main checkout that is off main
 
-    @id:cycle-pr-guard-10 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-10
     Scenario Outline: pap doctor reads the main checkout
       Given the main checkout is <state>
       When the owner runs pap doctor in <where>
@@ -196,7 +196,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | on change/other       | the linked work tree   | drift, naming the branch and the main checkout's path, and exits 1 |
         | on change/adopt-thing, in a repository that does not adopt PAP | the main checkout | skipped |
 
-    @id:cycle-pr-guard-11 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-11
     Scenario: pap doctor outside a repository
       Given a directory in no git repository
       When the owner runs pap doctor
