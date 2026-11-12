@@ -7,6 +7,7 @@
 #        pap-pm.sh launch <slug> --session <id>
 #        pap-pm.sh commit --session <id>
 #        pap-pm.sh discard [--confirm] --session <id>
+#        pap-pm.sh sync [<version> | latest] [--session <id>]
 #
 # Run in the adopting repository the tracker is for. The tracker is a git
 # repository of its own under pap's state directory, or the directory the
@@ -71,6 +72,36 @@
 #          nothing and asks for the owner's second yes; --confirm, if the
 #          change is still the one shown, restores the last commit.
 #
+# sync     Prepares one template sync and stops (changes/pm-sync/spec.md):
+#          writes the sync brief, briefs/sync-template-<version>.md, from
+#          sync-brief.txt beside this script, logs a restate event carrying
+#          the brief's checksum, commits and pushes, and prints the launch
+#          line for the owner to type. No version, or latest, is the newest
+#          release of pap. It starts no cycle, and reads the repository's
+#          .config/pap.toml and .config/mise/conf.d/pap.toml without writing
+#          either. Its session id is --session or, with none, the shell's
+#          CLAUDE_CODE_SESSION_ID. A repository that already records the
+#          version is told so, with exit 0 and nothing written. The checks
+#          run in this order, the tracker's lock is taken only after the
+#          last, and each refusal changes nothing:
+#            22  the version is not three numbers, as 0.19.1, and not latest
+#            21  the repository pins no release of pap
+#            26  the pin, the recorded version, a layer or the repository's
+#                root is not well formed
+#            24  the version is older than the recorded version or the pin
+#            27  the session id is not a running session's
+#            19, 17, 4, 16  the tracker is not started, is held by another
+#                session, is uncommitted, or has an event log line that
+#                cannot be read
+#            15  the slug was launched and is neither merged nor abandoned:
+#                in flight, reported or paused
+#            25  pap's releases could not be read from $PAP_SOURCE (default
+#                pap's repository on github.com) within 30 seconds, or the
+#                source lists none
+#            23  pap has no such release
+#            18  the tracker could not be committed; the brief and the event
+#                log are put back as they were
+#
 # Exits 2 for a misuse: no repository, not an adopting one, a bad slug.
 
 # SC2154: pm_top, pm_common and pm_companion are set by pm-lib.sh's functions,
@@ -106,12 +137,34 @@ while [ $# -gt 0 ]; do
     *) [ -z "$slug" ] || die 2 "one slug, not two"; slug="$1"; shift ;;
   esac
 done
-case "$cmd" in start | launch | commit | discard) ;; *) die 2 "usage: pap-pm.sh start|launch <slug>|commit|discard [--confirm] --session <id>" ;; esac
+case "$cmd" in start | launch | commit | discard | sync) ;; *) die 2 "usage: pap-pm.sh start|launch <slug>|commit|discard [--confirm]|sync [<version>|latest] --session <id>" ;; esac
+# is_version <text>: three numbers separated by dots, none with a leading zero.
+is_version() {
+  case "$1" in "" | *[!0-9.]* | .* | *. | *..*) return 1 ;; esac
+  case "$1" in *.*.*.*) return 1 ;; *.*.*) ;; *) return 1 ;; esac
+  case ".$1" in *.0[0-9]*) return 1 ;; esac
+  return 0
+}
+# sync's one word is a version, not a slug, and its session id may be the
+# shell's own: a PM session runs it with none to pass.
+want=""
+if [ "$cmd" = sync ]; then
+  want="${slug:-latest}" slug=""
+  case "$want" in v[0-9]*) want="${want#v}" ;; esac
+  [ "$want" = latest ] || is_version "$want" ||
+    die 22 "a version is three numbers, as 0.19.1, or latest" \
+      "give the owner what a version looks like; nothing is written."
+  [ -n "$session" ] || session="${CLAUDE_CODE_SESSION_ID:-}"
+fi
 case "$session" in
   "") die 2 "no session id; /pap:pm passes it as --session" ;;
   *[!A-Za-z0-9_-]*) die 2 "the session id '$session' is not one Claude Code gives" ;;
 esac
 
+# pm-lib.sh reads the root as one line, so a root with a line break is
+# refused here, before it is read as some other directory.
+[ "$cmd" != sync ] || [ "$(git rev-parse --show-toplevel 2>/dev/null | wc -l)" -le 1 ] ||
+  die 26 "the repository's root, as git gives it, holds a line break; no brief names such a path"
 pm_repo . || die 2 "not in a git repository; run /pap:pm in the repository the tracker is for"
 pm_adopts "$pm_top" || die 2 "$pm_top does not adopt PAP (no executable scripts/guard-branch.sh)"
 common="$pm_common"
@@ -133,16 +186,21 @@ alive() { # alive <session>: noted as running, and its Claude Code still is
   case "$a_p" in "" | *[!0-9]*) return 0 ;; esac
   kill -0 "$a_p" 2>/dev/null
 }
+# held_by_other: another session holds the lock and is running. Sets
+# $holder, and only reads.
+held_by_other() {
+  holder="$(cat "$lockf" 2>/dev/null)" || holder=""
+  [ -n "$holder" ] && [ "$holder" != "$session" ] && alive "$holder"
+}
+die_held() {
+  die 17 "session $holder holds the tracker at $trk; this session writes nothing to it" \
+    "one PM session writes a tracker at a time. If that session is gone, remove $lockf and run the command again."
+}
 take_lock() {
   [ -f "$pmd/live/$session" ] || : > "$pmd/live/$session"
-  holder="$(cat "$lockf" 2>/dev/null)" || holder=""
-  if [ -n "$holder" ] && [ "$holder" != "$session" ]; then
-    if alive "$holder"; then
-      die 17 "session $holder holds the tracker at $trk; this session writes nothing to it" \
-        "one PM session writes a tracker at a time. If that session is gone, remove $lockf and run the command again."
-    fi
+  ! held_by_other || die_held
+  [ -z "$holder" ] || [ "$holder" = "$session" ] ||
     say "pap-pm: took over the tracker from session $holder, which has ended"
-  fi
   printf '%s\n' "$session" > "$lockf"
 }
 
@@ -161,11 +219,13 @@ tcommit() { # tcommit <message>: commits everything in the tracker; 1 if git ref
     tgit -c commit.gpgsign=false -c user.name=pap-pm -c user.email=pap-pm@localhost commit -q -m "$1" > "$pmd/commit.err" 2>&1
   fi
 }
-limit30() {
-  if command -v timeout >/dev/null 2>&1; then timeout 30 "$@"; return $?; fi
+limit() { # limit <seconds> <command>...: 124 when it ran over
+  l_s="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then timeout "$l_s" "$@"; return $?; fi
   "$@" &
   l_p=$!
-  (sleep 30; kill "$l_p" 2>/dev/null) >/dev/null 2>&1 &
+  (sleep "$l_s"; kill "$l_p" 2>/dev/null) >/dev/null 2>&1 &
   l_w=$!
   wait "$l_p"
   l_rc=$?
@@ -173,6 +233,7 @@ limit30() {
   [ "$l_rc" -lt 128 ] || l_rc=124
   return "$l_rc"
 }
+limit30() { limit 30 "$@"; }
 tpush() { # after a commit: push where there is a remote; never fails its caller
   p_r="$(tgit remote 2>/dev/null | sed -n 1p)"
   [ -n "$p_r" ] || return 0
@@ -227,6 +288,70 @@ change_id() {
     tgit diff HEAD -- . 2>/dev/null
     (cd "$trk" && git ls-files -z --others --exclude-standard -- . | xargs -0 cksum 2>/dev/null)
   } | cksum
+}
+
+# --- sync: what it reads --------------------------------------------------------
+
+rec_file=.config/pap.toml
+pin_file=.config/mise/conf.d/pap.toml
+# The patterns are bin/pap's (rec_version, rec_layers, pin_text), copied.
+sync_pin() { sed -n 's/^"github:blairforce1\/pap" = .*version = "\([^"]*\)".*$/\1/p' "$pm_top/$pin_file" 2>/dev/null; }
+sync_recorded() { sed -n 's/^version = "\(.*\)"$/\1/p' "$pm_top/$rec_file" 2>/dev/null; }
+# sync_layers: the recorded layers, separated by a comma and a space;
+# nothing unless there is one layers line and each layer is lowercase letters.
+sync_layers() {
+  [ -f "$pm_top/$rec_file" ] || return 0
+  LC_ALL=C awk '
+    /^layers = \[.*\]$/ { n++; l = $0 }
+    END {
+      if (n != 1) exit
+      sub(/^layers = \[/, "", l); sub(/\]$/, "", l)
+      m = split(l, a, ",")
+      for (i = 1; i <= m; i++) {
+        sub(/^ /, "", a[i])
+        if (a[i] !~ /^"[a-z][a-z]*"$/) exit
+        out = out (i > 1 ? ", " : "") substr(a[i], 2, length(a[i]) - 2)
+      }
+      print out
+    }' "$pm_top/$rec_file"
+}
+# older <a> <b>: version a is older than version b, part by part as numbers.
+older() {
+  [ "$1" != "$2" ] &&
+    [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t . -k 1,1n -k 2,2n -k 3,3n | sed -n 1p)" = "$1" ]
+}
+# sync_state <slug>: in flight, reported or paused, for a slug launched and
+# neither merged nor abandoned since; nothing otherwise.
+sync_state() {
+  awk -F '\t' -v s="$1" '
+    $3 != s { next }
+    $2 == "launch" || ($2 == "resume" && st != "") { st = "in flight" }
+    $2 == "report" && st != "" { st = "reported" }
+    $2 == "pause" && st != "" { st = "paused" }
+    $2 == "merge" || ($2 == "decision" && $4 ~ /^abandoned/) { st = "" }
+    END { print st }' "$events"
+}
+# sync_placed <version>: the decision table of the spec, for a version that
+# has the shape of one. Ends the run when the repository already records
+# it (0) or it is older than the recorded version or the pin (24).
+sync_placed() {
+  if [ "$1" = "$recorded" ]; then
+    say "pap-pm: this repository already records pap $1 ($rec_file); nothing to prepare, and nothing is written"
+    [ "$want" != latest ] || say "pap-pm: $1 is the newest release of pap"
+    exit 0
+  fi
+  ! older "$1" "$recorded" ||
+    die 24 "pap $1 is older than the recorded version, $recorded ($rec_file); sync takes a repository forward only" \
+      "a downgrade is done by hand. Nothing is written."
+  ! older "$1" "$pinned" ||
+    die 24 "pap $1 is older than the pin, $pinned ($pin_file); the recorded version is $recorded" \
+      "a downgrade is done by hand. Nothing is written."
+}
+sync_slug_free() { # sync_slug_free <slug>: 15 when it is launched and still open
+  ss_st="$(sync_state "$1")"
+  [ -z "$ss_st" ] ||
+    die 15 "\"$1\" is $ss_st: launched, and neither merged nor abandoned; no second brief is written for it" \
+      "a dead cycle is cleared on the owner's word, by a decision event whose text starts \"abandoned\"."
 }
 
 # --- The commands ------------------------------------------------------------
@@ -316,6 +441,118 @@ case "$cmd" in
     rm -f "$mark"
     dirty && die 18 "the tracker could not be restored to its last commit"
     say "pap-pm: the uncommitted change is discarded; the tracker is clean"
+    ;;
+
+  sync)
+    # 2. The repository: a pin, and every value the brief will carry.
+    pinned="$(sync_pin)"
+    [ -n "$pinned" ] || grep -q '^"github:blairforce1/pap" = ' "$pm_top/$pin_file" 2>/dev/null ||
+      die 21 "$pin_file pins no release of pap: the file is absent, or has no \"github:blairforce1/pap\" line" \
+        "this is pap itself, or a repository whose template came from a checkout; there pap sync is run by hand, and /pap:pm sync prepares nothing."
+    is_version "$pinned" ||
+      die 26 "$pin_file: the pin of pap is not a version, three numbers separated by dots, as 0.19.1" \
+        "fix the file in a change of its own; nothing is written."
+    recorded="$(sync_recorded)"
+    is_version "$recorded" ||
+      die 26 "$rec_file: the recorded version is not a version, three numbers separated by dots, as 0.19.1" \
+        "the file is written by pap init and pap sync, one line version = \"<version>\"; nothing is written."
+    layers="$(sync_layers)"
+    [ -n "$layers" ] ||
+      die 26 "$rec_file: the recorded layers are not one line layers = [\"<layer>\", ...], each layer lowercase letters" \
+        "the file is written by pap init and pap sync; nothing is written."
+    case "$pm_top" in
+      *[[:cntrl:]]*) die 26 "the repository's root, as git gives it, holds a control character; no brief names such a path" ;;
+    esac
+    # 3. A named version against the recorded version and the pin: no network.
+    [ "$want" = latest ] || sync_placed "$want"
+    # 4. The session, before the lock is touched.
+    [ -f "$pmd/live/$session" ] && alive "$session" ||
+      die 27 "the session id $session is not a running session's on this machine; nothing is locked or written" \
+        "a PM session's own shell carries its id as CLAUDE_CODE_SESSION_ID; pass no other."
+    # 5. The tracker, read and not yet taken.
+    [ -f "$events" ] || die 19 "the tracker is not started; the owner types /pap:pm start"
+    ! held_by_other || die_held
+    ! dirty ||
+      die 4 "the tracker at $trk has uncommitted changes, so no brief is written" \
+        "the owner types /pap:pm start, which shows the change, and commits or discards it first."
+    bad="$(log_bad)"
+    [ -z "$bad" ] ||
+      die 16 "line $bad of the event log, $events, cannot be read: $(sed -n "${bad}p" "$events" | cut -c1-120)" \
+        "the format is four tab-separated fields: UTC time (2026-01-31T12:00:00Z), event, slug or -, one line of text; fix the line and commit."
+    [ "$want" = latest ] || sync_slug_free "sync-template-$want"
+    # 6. pap's releases: tags of exactly v and a version, oldest first.
+    src="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
+    lim="${PAP_PM_READ_LIMIT:-30}"
+    case "$lim" in "" | *[!0-9]*) lim=30 ;; esac
+    refs="$(GIT_TERMINAL_PROMPT=0 limit "$lim" git -c credential.helper= ls-remote --tags --refs "$src" 2>&1)"
+    r_rc=$?
+    releases=""
+    [ "$r_rc" != 0 ] || releases="$(printf '%s\n' "$refs" | LC_ALL=C awk -F '\t' '
+      $2 ~ /^refs\/tags\/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/ { print substr($2, 12) }' |
+      sort -t . -k 1,1n -k 2,2n -k 3,3n)"
+    if [ -z "$releases" ]; then
+      if [ "$r_rc" = 124 ]; then r_why="no answer within $lim seconds"
+      elif [ "$r_rc" != 0 ]; then r_why="$(printf '%s\n' "$refs" | grep -v '^$' | tail -n 1 | cut -c1-200)"
+      else r_why="it lists no release of pap, a tag of v and three numbers"; fi
+      die 25 "pap's releases could not be read from $src: ${r_why:-git ls-remote failed}" \
+        "nothing can be prepared offline, and nothing is written; try again when the source answers. PAP_SOURCE overrides the source, for a mirror."
+    fi
+    newest="$(printf '%s\n' "$releases" | tail -n 1)"
+    if [ "$want" = latest ]; then
+      version="$newest"
+      sync_placed "$version"
+      sync_slug_free "sync-template-$version"
+    else
+      version="$want"
+      printf '%s\n' "$releases" | grep -qxF "$version" ||
+        die 23 "pap has no release $version; the newest release is $newest" \
+          "nothing is written."
+    fi
+    # 7. The tracker is taken and written. A commit git refuses puts the
+    # event log and the brief back, an earlier brief included.
+    slug="sync-template-$version"
+    brief="$trk/briefs/$slug.md"
+    [ -f "$here/sync-brief.txt" ] || die 2 "the plugin's template, $here/sync-brief.txt, is missing"
+    take_lock
+    replaced=no had_dir=yes
+    rm -f "$pmd/brief.bak"
+    [ -d "$trk/briefs" ] || had_dir=no
+    cp "$events" "$pmd/events.bak" && mkdir -p "$trk/briefs" &&
+      { [ ! -f "$brief" ] || { replaced=yes; cp "$brief" "$pmd/brief.bak"; }; } ||
+      die 18 "the tracker could not be committed: no room to keep its last state"
+    now="$(pm_now)"
+    # index and substr, not sub: an & or a \ in a value stays as it is. The
+    # root goes in last, and nothing it holds is filled again.
+    F_VERSION="$version" F_RECORDED="$recorded" F_LAYERS="$layers" F_DATE="$(printf '%s' "$now" | cut -c1-10)" F_ROOT="$pm_top" awk '
+      function fill(s, ph, v,   o, i) {
+        o = ""
+        while ((i = index(s, ph)) > 0) { o = o substr(s, 1, i - 1) v; s = substr(s, i + length(ph)) }
+        return o s
+      }
+      {
+        l = fill($0, "<version>", ENVIRON["F_VERSION"])
+        l = fill(l, "<recorded>", ENVIRON["F_RECORDED"])
+        l = fill(l, "<layers>", ENVIRON["F_LAYERS"])
+        l = fill(l, "<date>", ENVIRON["F_DATE"])
+        print fill(l, "<root>", ENVIRON["F_ROOT"])
+      }' "$here/sync-brief.txt" > "$brief"
+    sum="$(cksum < "$brief" | cut -d ' ' -f 1)"
+    printf '%s\trestate\t%s\tsync: take pap %s: sync the template from %s to %s; brief %s\n' \
+      "$now" "$slug" "$version" "$recorded" "$version" "$sum" >> "$events"
+    if ! tcommit "tracker: restate $slug"; then
+      cp "$pmd/events.bak" "$events"
+      if [ "$replaced" = yes ]; then cp "$pmd/brief.bak" "$brief"; else rm -f "$brief"; fi
+      [ "$had_dir" = yes ] || rmdir "$trk/briefs" 2>/dev/null
+      rm -f "$pmd/events.bak" "$pmd/brief.bak"
+      tgit reset -q -- . 2>/dev/null
+      die 18 "the tracker could not be committed, so no sync is prepared: $(tail -n 1 "$pmd/commit.err")" \
+        "the brief and the restate event were taken back out."
+    fi
+    rm -f "$pmd/events.bak" "$pmd/brief.bak"
+    tpush
+    [ "$replaced" = no ] || say "pap-pm: an earlier brief for $slug was replaced; the tracker's history keeps it"
+    say "pap-pm: sync ok: the sync brief is written, the restate is logged and the tracker is committed. It starts no cycle: the owner types the launch." \
+      "version: $version" "from: $recorded" "brief: $brief" "replaced: $replaced" "launch: /pap:pm launch $slug"
     ;;
 
   launch)

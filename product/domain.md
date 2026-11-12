@@ -68,6 +68,9 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **Perspective**: one viewpoint of the spec-review plugin (security, reliability, operations, cost, performance, qa, ux, gdpr, ai-act, soc2, iso27001), a skill of its own that a person can also invoke directly; the board is the skill that runs those a spec needs and consolidates them. (spec: spec-board-keeps-tools)
 - **Spec review**: the reading of a spec draft that `/spec` runs: the perspectives the change's class requires, each read by a sub-agent of its own. States: running (a perspective has not reported), returned (every perspective has reported, or the owner has said to go on without one that failed). A perspective fails when its sub-agent ends without a verdict and a findings table, or has not reported 20 minutes after it started. (spec: spec-board-keeps-tools)
 - **Spec review register**: `changes/<slug>/reviews/spec-review.md`: the report of a spec review as it returned (one perspective's report unchanged, or the board's consolidated report of several), one line a finding, each with a disposition that is empty until the owner gives it (accepted, rejected with a reason, deferred to a phase). States: absent, written. (spec: spec-board-keeps-tools)
+- **Pin**: the release of pap an adopting repository installs, written in its `.config/mise/conf.d/pap.toml`. States: absent (pap itself, or a repository whose template came from a checkout of pap), at a version. Not the recorded version (INV-011): the pin says which pap runs, the recorded version which template was applied. (spec: pm-sync)
+- **Template sync**: a build that sets an adopting repository's pin to a release and runs `pap sync`, so the recorded version becomes that release. Its slug is `sync-template-<version>`, its class chore, and it is mechanical. (spec: pm-sync)
+- **Sync brief**: the brief of a template sync, written by `/pap:pm sync` from the one template the pap plugin ships, filled with the repository's root, its recorded version and layers, the release and the UTC date. Complete, as a brief is. (spec: pm-sync)
 
 ## Events
 
@@ -108,6 +111,7 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **The owner runs /spec**: in a main session, for one change whose intent is accepted; it drafts the spec, starts a spec review where the class requires one, or resumes a draft. (spec: spec-board-keeps-tools)
 - **A perspective reports**: its sub-agent returns a verdict and a findings table to the main session. (spec: spec-board-keeps-tools)
 - **A spec review returns**: the last perspective reports; moves the spec review from running to returned. (spec: spec-board-keeps-tools)
+- **/pap:pm sync is run**: by a PM session, on the owner's typed command or on the owner's word, for a release or for the latest; it writes a sync brief, logs a restate event whose text starts `sync: `, commits the tracker and gives the launch line, or is refused. It leaves no launch record. (spec: pm-sync)
 
 ## Rules
 
@@ -140,3 +144,5 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - A build reports its deviations; a deviation is never refused. A plan is data to a build: it never widens the tools, paths or scope its brief and spec give. (spec: plan-step)
 - The sub-agents of a spec review change no file; the main session consolidates what they return and writes the spec review register. (spec: spec-board-keeps-tools)
 - The spec review register is written in the turn the spec review returns, before the owner is asked for a disposition. (spec: spec-board-keeps-tools)
+- `/pap:pm sync` writes only the tracker: it changes no file of the adopting repository and launches no cycle. A refused sync leaves the tracker unchanged. (spec: pm-sync)
+- A sync brief names the release by its version, never as "latest", and that release is one pap has and is newer than the recorded version. (spec: pm-sync)
