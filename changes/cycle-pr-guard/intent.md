@@ -6,13 +6,15 @@ class:              infra
 product:            PAP
 source:             none
 hypothesis:         reactive: a cycle in an adopting repository opened its pull request without /change, in the main checkout, with no class label; related to H-017, not part of it
-invariants-touched: INV-003, INV-005, INV-008; plugins/pap/hooks/**, scripts/guard-branch.sh, rules.md, decisions/**, tests/** (risk:high)
+invariants-touched: INV-003, INV-005, INV-008; plugins/pap/hooks/**, scripts/guard-branch.sh, rules.md, decisions/**, tests/**, product/** (risk:high)
 accepted-by:        @blairforce1
 accepted-on:        2026-11-11
 generated-by:       Claude Fable 5.2 via Claude Code
 skills:             pap:intent 0.19.0
 prompt:             /intent cycle-pr-guard infra refuse a cycle that opens its pull request outside /change: an agent's gh pr create with no class label or from the main checkout, a cycle working in the main checkout, and the permission a cycle needs to label its own pull request
 ```
+
+Edited 2026-11-12: the spec and its review showed three things. Every pull request an agent of a PM session opens is bound, not only one on a `change/*` branch. `pap doctor` leaves no record, so a reading at PM session start is added. `product/domain.md` and the docs are touched, and `product/**` is a protected path.
 
 ## Problem
 
@@ -25,15 +27,16 @@ added it by hand.
 
 ## Desired outcome
 
-- An agent's `gh pr create` on a `change/*` branch with no `class:*`
-  label is refused, with the way through named.
+- An agent's `gh pr create` with no `class:*` label is refused, on any
+  branch, with the way through named.
 - An agent's `gh pr create` from the main checkout, and an agent
   switching the main checkout's branch, are refused, with the worktree
   and `/change` named.
 - Both refusals bind every agent of a PM session: its sub-agents and its
   main session.
-- Each refusal is logged, and `pap doctor` reports a main checkout that
-  is not on `main` as drift.
+- Each refusal is logged, `pap doctor` reports a main checkout that is
+  not on `main` as drift, and a PM session that starts with it off `main`
+  is told and the start is recorded.
 - A cycle can label its own pull request, or the adopter is told what is
   missing.
 
