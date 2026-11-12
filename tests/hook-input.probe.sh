@@ -21,8 +21,9 @@
 #      CLAUDE_CODE_SESSION_ID (changes/pm-sync/spec.md, "The PM session")
 #
 # Prints one TAP-style line per fact and exits 1 if any fails. First passed
-# on Claude Code 2.1.322, 2026-11-10; fact 5 on 2.1.322, 2026-11-12. Touches nothing outside a temporary
-# directory.
+# on Claude Code 2.1.322, 2026-11-10. Fact 5 was first seen true on
+# 2.1.322, 2026-11-12, in a session of its own run by hand. Touches nothing
+# outside a temporary directory.
 
 set -u
 for tool in claude jq git; do
