@@ -7,7 +7,9 @@
 # (${XDG_STATE_HOME:-~/.local/state}/pap), mode 700:
 #
 #   pm/sessions.log   one line a start and one a role given: UTC time,
-#                     session id, mode, repository, Claude Code version, what
+#                     session id, mode, repository, Claude Code version, what;
+#                     and, for a PM start with the main checkout off main,
+#                     main-checkout:<branch> or main-checkout:detached
 #   pm/refusals.log   one line a refusal: UTC time, session id, mode, caller
 #                     (main, or a sub-agent's id and type), path, repository,
 #                     kind (write, commit, unread; and, by decision 0027,

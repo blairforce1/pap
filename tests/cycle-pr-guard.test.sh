@@ -81,6 +81,11 @@ printf '#!/bin/sh\n# PAP_SHIM_CHECK\nexit 0\n' > "$T/realgh/gh"
 chmod +x "$I/scripts/shim/gh" "$I/bin/pap" "$T/realgh/gh"
 chmod 700 "$T/xdg/gh-agent"
 
+# The claude the session-start hook asks for its version.
+mkdir -p "$T/stub"
+printf '#!/bin/sh\necho "2.1.322 (Claude Code)"\n' > "$T/stub/claude"
+chmod +x "$T/stub/claude"
+
 # The stand-in git: one line a start in $GIT_COUNT, then the real git.
 realgit="$(command -v git)"
 cat > "$T/count/git" <<EOF
@@ -439,6 +444,56 @@ result $? "cycle-pr-guard-13: a switch to main is let through wherever it runs" 
 route pm "$A" "$W" 'cd "$somewhere" && git status' "$sub"
 passed
 result $? "cycle-pr-guard-13: a command with none of the verbs is let through in a directory the guard cannot place" "exit $rc; $err"
+
+# --- The reading at session start ----------------------------------------------
+
+# ss <project>: the SessionStart hook of a PM session. Sets ctx (the context
+# it gives) and rc.
+ss() {
+  ss_in="$(jq -nc --arg s "$S1" --arg d "$1" \
+    '{session_id: $s, transcript_path: "/x/t.jsonl", cwd: $d, hook_event_name: "SessionStart", source: "startup"}')"
+  ctx="$(printf '%s' "$ss_in" | env PAP_MODE=pm CLAUDE_PROJECT_DIR="$1" CLAUDE_PLUGIN_ROOT="$plugin" PATH="$T/stub:$PATH" \
+    "$plugin/hooks/session-start.sh" 2>/dev/null |
+    jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)"
+  rc=$?
+}
+# offpart: the lines of the role's main-checkout part.
+offpart() {
+  printf '%s\n' "$ctx" | awk '$0 == "[pap-pm:main-checkout]" { on = 1; next } /^\[pap-pm:[a-z-]*\]$/ { on = 0 } on'
+}
+# less_offpart: the context less that part and its marker.
+less_offpart() {
+  printf '%s\n' "$ctx" | awk '$0 == "[pap-pm:main-checkout]" { on = 1; next } /^\[pap-pm:[a-z-]*\]$/ { on = 0 } !on'
+}
+fresh
+sl="$XDG_STATE_HOME/pap/pm/sessions.log"
+ss "$A"
+ctx_main="$ctx"
+[ "$rc" = 0 ] && [ "$(printf '%s\n' "$ctx" | sed -n 1p)" = '[pap-pm:role]' ] && ! printf '%s\n' "$ctx" | grep -q 'main-checkout' &&
+  [ "$(cat "$sl")" = "$(printf '%s\t%s\tpm\tolive/trial\t2.1.322\trole:startup' "$PAP_PM_NOW" "$S1")" ]
+result $? "cycle-pr-guard-15: on main the role has no part more and the session log line is the six fields it was" "$(cat "$sl" 2>&1)"
+git -C "$A" switch -q -c change/elsewhere
+ss "$A"
+[ "$(lines "$sl")" = 2 ] && [ "$(field "$sl" 7)" = main-checkout:change/elsewhere ] && [ "$(field "$sl" 6)" = role:startup ]
+result $? "cycle-pr-guard-15: off main the session log line for that start names the branch" "$(cat "$sl" 2>&1)"
+[ "$(printf '%s\n' "$ctx" | sed -n 1p)" = '[pap-pm:main-checkout]' ] && offpart | grep -qF "$A, is not on main: it is on the branch change/elsewhere" &&
+  offpart | grep -qF 'Tell the owner first' && offpart | grep -qF 'do not switch it yourself'
+result $? "cycle-pr-guard-15: and the role tells the session to tell the owner first and switch nothing" "$(offpart)"
+[ "$(less_offpart)" = "$ctx_main" ]
+result $? "cycle-pr-guard-15: the rest of the role is what a start on main gives" ""
+ss "$W"
+[ "$(lines "$sl")" = 3 ] && [ "$(field "$sl" 7)" = main-checkout:change/elsewhere ] && offpart | grep -qF "$A, is not on main"
+result $? "cycle-pr-guard-15: a session started in a linked work tree reads the main checkout, not its own branch" "$(cat "$sl" 2>&1)"
+git -C "$A" switch -q --detach
+ss "$A"
+[ "$(lines "$sl")" = 4 ] && [ "$(field "$sl" 7)" = main-checkout:detached ] && offpart | grep -qF 'it is detached' &&
+  offpart | grep -qF 'Tell the owner first'
+result $? "cycle-pr-guard-15: at a detached commit the session log line and the role both say the main checkout is detached" "$(cat "$sl" 2>&1); $(offpart)"
+git -C "$A" switch -q main
+git -C "$A" branch -q -D change/elsewhere
+ss "$W"
+[ "$(lines "$sl")" = 5 ] && [ -z "$(field "$sl" 7)" ] && [ -z "$(offpart)" ]
+result $? "cycle-pr-guard-15: back on main, a start in the linked work tree, itself on a change branch, adds nothing" "$(cat "$sl" 2>&1)"
 
 # --- The spec's process rows ---------------------------------------------------
 

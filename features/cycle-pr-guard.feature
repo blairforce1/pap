@@ -213,7 +213,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: A PM session is told when it starts with the main checkout off main
 
-    @id:cycle-pr-guard-15 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-15
     Scenario Outline: The reading at session start
       Given the main checkout is <state>
       When a PM session starts
