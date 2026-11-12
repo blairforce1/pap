@@ -156,12 +156,15 @@ unchanged() { [ "$(git -C "$A" status --porcelain --ignored; git -C "$A" rev-par
 slug=sync-template-0.19.1
 brief() { printf '%s\n' "$trk/briefs/sync-template-$1.md"; }
 
+# Every case down to "sync writes the sync brief" is decided on the machine,
+# so each runs with a source of releases that does not exist: a case that
+# waited for the read would be refused with 25 instead.
+from "$T/nowhere"
+
 # --- A repository that already records the version --------------------------------
 
 world
-from "$T/nowhere"
 sync 0.19.0
-from "$T/source"
 [ "$rc" = 0 ] && has "pap-pm: this repository already records pap 0.19.0 (.config/pap.toml); nothing to prepare, and nothing is written" &&
   ! has "newest" && kept && unchanged
 result $? "pm-sync-9: sync for the recorded version says the repository already records it, exits 0 and leaves the tracker unchanged, with a source of releases that does not exist" "exit $rc; $out"
@@ -287,9 +290,7 @@ sync 0.19.1
 refused 24 "pap 0.19.1 is older than the pin, 0.20.0 (.config/mise/conf.d/pap.toml); the recorded version is 0.19.0"
 result $? "pm-sync-16: pin 0.20.0, recorded 0.19.0: 0.19.1 is refused with 24, naming that it is older than the pin" "exit $rc; $out"
 world 0.19.0 0.19.1
-from "$T/nowhere"
 sync 0.19.1
-from "$T/source"
 [ "$rc" = 0 ] && has "pap-pm: this repository already records pap 0.19.1" && kept
 result $? "pm-sync-16: pin 0.19.0, recorded 0.19.1: 0.19.1 is already recorded, exit 0, nothing written" "exit $rc; $out"
 
@@ -348,6 +349,8 @@ refused 26 "the repository's root, as git gives it, holds a control character"
 result $? "pm-sync-20: a repository whose path holds a control character is refused with 26" "exit $rc; $out"
 
 # --- sync writes the sync brief ----------------------------------------------------------
+
+from "$T/source"
 
 restates() { grep -c "${tab}restate${tab}$1${tab}" "$trk/events.tsv"; }
 count() { grep -c "${tab}$1${tab}" "$trk/events.tsv"; } # count <event>: how many
