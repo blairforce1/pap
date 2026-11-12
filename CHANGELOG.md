@@ -188,6 +188,12 @@ not carry.
 
 ### [Unreleased]
 
+#### Changed
+
+- `docs/run-a-project.md` gains "Take a new version": how a
+  project-manager session turns a new pap version into a cycle, with a
+  brief to copy. `docs/adopt-a-repo.md` links to it from `pap sync`.
+
 ### [0.19.1] - 2026-11-11
 
 #### Fixed
