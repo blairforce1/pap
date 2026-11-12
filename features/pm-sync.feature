@@ -10,7 +10,7 @@ Feature: A PM session prepares a template sync from one command
 
   Rule: /pap:pm sync writes the sync brief and stops
 
-    @id:pm-sync-1 @pending:pm-sync
+    @id:pm-sync-1
     Scenario: sync with a version writes the sync brief
       When /pap:pm sync is run for 0.19.1
       Then the tracker holds a sync brief for the slug sync-template-0.19.1
@@ -18,7 +18,7 @@ Feature: A PM session prepares a template sync from one command
       And the tracker is committed
       And the session is given the line /pap:pm launch sync-template-0.19.1 for the owner to type
 
-    @id:pm-sync-2 @pending:pm-sync
+    @id:pm-sync-2
     Scenario Outline: sync with no version takes the newest release
       When /pap:pm sync is run for <what>
       Then the tracker holds a sync brief for the slug sync-template-0.20.0
@@ -29,7 +29,7 @@ Feature: A PM session prepares a template sync from one command
         | no version |
         | latest     |
 
-    @id:pm-sync-3 @pending:pm-sync
+    @id:pm-sync-3
     Scenario: The sync brief is the plugin's template, filled
       When /pap:pm sync is run for 0.19.1
       Then the sync brief's first line is "/change sync-template-0.19.1 chore Record: none"
@@ -38,7 +38,7 @@ Feature: A PM session prepares a template sync from one command
       And it names the repository's root, the recorded version 0.19.0, the version 0.19.1 and the recorded layers
       And every other line of it is the plugin's template, unchanged
 
-    @id:pm-sync-4 @pending:pm-sync
+    @id:pm-sync-4
     Scenario: The same ask on the same day writes the same brief
       Given /pap:pm sync was run for 0.19.1 and its cycle was abandoned
       When /pap:pm sync is run for 0.19.1 on the same UTC day
@@ -46,7 +46,7 @@ Feature: A PM session prepares a template sync from one command
       And the event log gains a second restate event for the slug
       And the session is told an earlier brief was replaced
 
-    @id:pm-sync-5 @pending:pm-sync
+    @id:pm-sync-5
     Scenario: sync starts no cycle and changes nothing in the repository
       When /pap:pm sync is run for 0.19.1
       Then no cycle is launched and the event log gains no yes event and no launch event
@@ -60,7 +60,7 @@ Feature: A PM session prepares a template sync from one command
 
   Rule: A launch of a sync brief is an ordinary launch
 
-    @id:pm-sync-7 @pending:pm-sync
+    @id:pm-sync-7
     Scenario: The owner launches the sync brief
       Given /pap:pm sync was run for 0.19.1
       When the owner runs /pap:pm launch for sync-template-0.19.1
@@ -82,7 +82,7 @@ Feature: A PM session prepares a template sync from one command
       And the tracker is unchanged
       And no release of pap is read
 
-    @id:pm-sync-10 @pending:pm-sync
+    @id:pm-sync-10
     Scenario Outline: A version sync cannot take is refused
       When /pap:pm sync is run for <version>
       Then it is refused, naming <reason>
@@ -106,7 +106,7 @@ Feature: A PM session prepares a template sync from one command
         | pap itself                                    |
         | one whose template came from a checkout of pap |
 
-    @id:pm-sync-12 @pending:pm-sync
+    @id:pm-sync-12
     Scenario Outline: The releases cannot be read
       Given the releases of pap cannot be read
       When /pap:pm sync is run for <what>
@@ -152,7 +152,7 @@ Feature: A PM session prepares a template sync from one command
 
   Rule: The recorded version decides, and the pin only refuses a version older than it
 
-    @id:pm-sync-16 @pending:pm-sync
+    @id:pm-sync-16
     Scenario Outline: The pin and the recorded version differ
       Given the repository's pin is at <pin> and its recorded version is <recorded>
       When /pap:pm sync is run for <version>
@@ -167,7 +167,7 @@ Feature: A PM session prepares a template sync from one command
 
   Rule: A sync that cannot finish leaves the tracker as it was
 
-    @id:pm-sync-17 @pending:pm-sync
+    @id:pm-sync-17
     Scenario Outline: git refuses the tracker's commit
       Given the tracker holds <before> for the slug sync-template-0.19.1
       And git will refuse the tracker's next commit
@@ -188,12 +188,12 @@ Feature: A PM session prepares a template sync from one command
 
   Rule: Nothing unchecked reaches the brief
 
-    @id:pm-sync-19 @pending:pm-sync
+    @id:pm-sync-19
     Scenario: A version typed with a leading v
       When /pap:pm sync is run for v0.19.1
       Then the tracker holds a sync brief for the slug sync-template-0.19.1
 
-    @id:pm-sync-20 @pending:pm-sync
+    @id:pm-sync-20
     Scenario Outline: A value that is not well formed is refused
       Given <what> is <value>
       When /pap:pm sync is run for <version>

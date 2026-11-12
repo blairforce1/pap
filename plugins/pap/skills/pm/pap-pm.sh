@@ -480,7 +480,79 @@ case "$cmd" in
       die 16 "line $bad of the event log, $events, cannot be read: $(sed -n "${bad}p" "$events" | cut -c1-120)" \
         "the format is four tab-separated fields: UTC time (2026-01-31T12:00:00Z), event, slug or -, one line of text; fix the line and commit."
     [ "$want" = latest ] || sync_slug_free "sync-template-$want"
-    die 2 "sync reads no release yet"
+    # 6. pap's releases: tags of exactly v and a version, oldest first.
+    src="${PAP_SOURCE:-https://github.com/blairforce1/pap.git}"
+    lim="${PAP_PM_READ_LIMIT:-30}"
+    case "$lim" in "" | *[!0-9]*) lim=30 ;; esac
+    refs="$(GIT_TERMINAL_PROMPT=0 limit "$lim" git -c credential.helper= ls-remote --tags --refs "$src" 2>&1)"
+    r_rc=$?
+    releases=""
+    [ "$r_rc" != 0 ] || releases="$(printf '%s\n' "$refs" | LC_ALL=C awk -F '\t' '
+      $2 ~ /^refs\/tags\/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/ { print substr($2, 12) }' |
+      sort -t . -k 1,1n -k 2,2n -k 3,3n)"
+    if [ -z "$releases" ]; then
+      if [ "$r_rc" = 124 ]; then r_why="no answer within $lim seconds"
+      elif [ "$r_rc" != 0 ]; then r_why="$(printf '%s\n' "$refs" | grep -v '^$' | tail -n 1 | cut -c1-200)"
+      else r_why="it lists no release of pap, a tag of v and three numbers"; fi
+      die 25 "pap's releases could not be read from $src: ${r_why:-git ls-remote failed}" \
+        "nothing can be prepared offline, and nothing is written; try again when the source answers. PAP_SOURCE overrides the source, for a mirror."
+    fi
+    newest="$(printf '%s\n' "$releases" | tail -n 1)"
+    if [ "$want" = latest ]; then
+      version="$newest"
+      sync_placed "$version"
+      sync_slug_free "sync-template-$version"
+    else
+      version="$want"
+      printf '%s\n' "$releases" | grep -qxF "$version" ||
+        die 23 "pap has no release $version; the newest release is $newest" \
+          "nothing is written."
+    fi
+    # 7. The tracker is taken and written. A commit git refuses puts the
+    # event log and the brief back, an earlier brief included.
+    slug="sync-template-$version"
+    brief="$trk/briefs/$slug.md"
+    [ -f "$here/sync-brief.txt" ] || die 2 "the plugin's template, $here/sync-brief.txt, is missing"
+    take_lock
+    replaced=no had_dir=yes
+    rm -f "$pmd/brief.bak"
+    [ -d "$trk/briefs" ] || had_dir=no
+    cp "$events" "$pmd/events.bak" && mkdir -p "$trk/briefs" &&
+      { [ ! -f "$brief" ] || { replaced=yes; cp "$brief" "$pmd/brief.bak"; }; } ||
+      die 18 "the tracker could not be committed: no room to keep its last state"
+    now="$(pm_now)"
+    # index and substr, not sub: an & or a \ in a value stays as it is. The
+    # root goes in last, and nothing it holds is filled again.
+    F_VERSION="$version" F_RECORDED="$recorded" F_LAYERS="$layers" F_DATE="$(printf '%s' "$now" | cut -c1-10)" F_ROOT="$pm_top" awk '
+      function fill(s, ph, v,   o, i) {
+        o = ""
+        while ((i = index(s, ph)) > 0) { o = o substr(s, 1, i - 1) v; s = substr(s, i + length(ph)) }
+        return o s
+      }
+      {
+        l = fill($0, "<version>", ENVIRON["F_VERSION"])
+        l = fill(l, "<recorded>", ENVIRON["F_RECORDED"])
+        l = fill(l, "<layers>", ENVIRON["F_LAYERS"])
+        l = fill(l, "<date>", ENVIRON["F_DATE"])
+        print fill(l, "<root>", ENVIRON["F_ROOT"])
+      }' "$here/sync-brief.txt" > "$brief"
+    sum="$(cksum < "$brief" | cut -d ' ' -f 1)"
+    printf '%s\trestate\t%s\tsync: take pap %s: sync the template from %s to %s; brief %s\n' \
+      "$now" "$slug" "$version" "$recorded" "$version" "$sum" >> "$events"
+    if ! tcommit "tracker: restate $slug"; then
+      cp "$pmd/events.bak" "$events"
+      if [ "$replaced" = yes ]; then cp "$pmd/brief.bak" "$brief"; else rm -f "$brief"; fi
+      [ "$had_dir" = yes ] || rmdir "$trk/briefs" 2>/dev/null
+      rm -f "$pmd/events.bak" "$pmd/brief.bak"
+      tgit reset -q -- . 2>/dev/null
+      die 18 "the tracker could not be committed, so no sync is prepared: $(tail -n 1 "$pmd/commit.err")" \
+        "the brief and the restate event were taken back out."
+    fi
+    rm -f "$pmd/events.bak" "$pmd/brief.bak"
+    tpush
+    [ "$replaced" = no ] || say "pap-pm: an earlier brief for $slug was replaced; the tracker's history keeps it"
+    say "pap-pm: sync ok: the sync brief is written, the restate is logged and the tracker is committed. It starts no cycle: the owner types the launch." \
+      "version: $version" "from: $recorded" "brief: $brief" "replaced: $replaced" "launch: /pap:pm launch $slug"
     ;;
 
   launch)

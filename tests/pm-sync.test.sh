@@ -18,7 +18,7 @@
 # running with this suite's own process id.
 #
 # Prints one TAP-style line per case and exits 1 if any case fails. Needs
-# git and cksum.
+# git and cksum; jq for pm-sync-7, skipped without it.
 #
 # SC2319: each case passes the exit status of its condition on purpose.
 # shellcheck disable=SC2319
@@ -67,8 +67,9 @@ source_with() {
   for s_t in "$@"; do git -C "$s_d" tag "$s_t"; done
 }
 source_with "$T/source" v0.19.0 v0.19.1 v0.20.0
-PAP_SOURCE="$T/source"
-export PAP_SOURCE
+# from <source>: where what follows reads pap's releases.
+from() { PAP_SOURCE="$1"; export PAP_SOURCE; }
+from "$T/source"
 
 # --- The world -------------------------------------------------------------------
 
@@ -157,7 +158,9 @@ brief() { printf '%s\n' "$trk/briefs/sync-template-$1.md"; }
 # --- A repository that already records the version --------------------------------
 
 world
-PAP_SOURCE="$T/nowhere" sync 0.19.0
+from "$T/nowhere"
+sync 0.19.0
+from "$T/source"
 [ "$rc" = 0 ] && has "pap-pm: this repository already records pap 0.19.0 (.config/pap.toml); nothing to prepare, and nothing is written" &&
   ! has "newest" && kept && unchanged
 result $? "pm-sync-9: sync for the recorded version says the repository already records it, exits 0 and leaves the tracker unchanged, with a source of releases that does not exist" "exit $rc; $out"
@@ -283,7 +286,9 @@ sync 0.19.1
 refused 24 "pap 0.19.1 is older than the pin, 0.20.0 (.config/mise/conf.d/pap.toml); the recorded version is 0.19.0"
 result $? "pm-sync-16: pin 0.20.0, recorded 0.19.0: 0.19.1 is refused with 24, naming that it is older than the pin" "exit $rc; $out"
 world 0.19.0 0.19.1
-PAP_SOURCE="$T/nowhere" sync 0.19.1
+from "$T/nowhere"
+sync 0.19.1
+from "$T/source"
 [ "$rc" = 0 ] && has "pap-pm: this repository already records pap 0.19.1" && kept
 result $? "pm-sync-16: pin 0.19.0, recorded 0.19.1: 0.19.1 is already recorded, exit 0, nothing written" "exit $rc; $out"
 
@@ -340,6 +345,306 @@ name=repo
 sync 0.19.1
 refused 26 "the repository's root, as git gives it, holds a control character"
 result $? "pm-sync-20: a repository whose path holds a control character is refused with 26" "exit $rc; $out"
+
+# --- sync writes the sync brief ----------------------------------------------------------
+
+restates() { grep -c "${tab}restate${tab}$1${tab}" "$trk/events.tsv"; }
+count() { grep -c "${tab}$1${tab}" "$trk/events.tsv"; } # count <event>: how many
+line() { printf '%s\n' "$out" | grep -qxF -- "$1"; }    # a whole line of what it said
+tclean() { [ -z "$(git -C "$trk" status --porcelain --untracked-files=all)" ]; }
+commits() { git -C "$trk" rev-list --count HEAD; }
+# wrote <version> <recorded>: exit 0, the brief there, one more commit than
+# $c0, a clean tracker, and the labelled lines.
+wrote() {
+  [ "$rc" = 0 ] && [ -s "$(brief "$1")" ] && [ "$(commits)" = $((c0 + 1)) ] && tclean &&
+    line "version: $1" && line "from: $2" && line "brief: $(brief "$1")" && line "launch: /pap:pm launch sync-template-$1"
+}
+
+world
+c0="$(commits)"
+sync 0.19.1
+sum="$(cksum < "$(brief 0.19.1)" | cut -d ' ' -f 1)"
+event="2026-11-12T10:05:00Z${tab}restate${tab}$slug${tab}sync: take pap 0.19.1: sync the template from 0.19.0 to 0.19.1; brief $sum"
+wrote 0.19.1 0.19.0 && line "replaced: no" && [ "$(restates "$slug")" = 1 ] && [ -n "$sum" ] &&
+  [ "$(tail -n 1 "$trk/events.tsv")" = "$event" ] &&
+  [ "$(git -C "$trk" show --name-only --format= HEAD | sort | tr '\n' ' ')" = "briefs/$slug.md events.tsv " ]
+result $? "pm-sync-1: sync 0.19.1 writes the brief of sync-template-0.19.1, logs one restate event whose text ends in the brief's checksum, commits the tracker and gives the launch line" "exit $rc; $out; $(tail -n 1 "$trk/events.tsv")"
+[ "$(count yes)" = 0 ] && [ "$(count launch)" = 0 ] && [ ! -e "$pmd/launches.log" ] && unchanged &&
+  [ "$(git -C "$A" show HEAD:.config/pap.toml | cksum)" = "$(cksum < "$A/.config/pap.toml")" ] &&
+  [ "$(git -C "$A" show HEAD:.config/mise/conf.d/pap.toml | cksum)" = "$(cksum < "$A/.config/mise/conf.d/pap.toml")" ]
+result $? "pm-sync-5: sync logs no yes event and no launch event, leaves no launch record, and changes no file of the repository: the pin and the recorded version are as they were" "$(git -C "$A" status --porcelain --ignored)"
+
+world
+c0="$(commits)"
+out="$(cd "$A" && CLAUDE_CODE_SESSION_ID="$S1" sh "$script" sync 0.19.1 2>&1)"
+rc=$?
+wrote 0.19.1 0.19.0
+result $? "pm-sync-1: with no --session, sync takes the session id from the shell's CLAUDE_CODE_SESSION_ID" "exit $rc; $out"
+
+for what in "" latest; do
+  world
+  c0="$(commits)"
+  # shellcheck disable=SC2086 # no version is no argument
+  sync $what
+  wrote 0.20.0 0.19.0 && grep -q '^pap 0\.20\.0\.$' "$(brief 0.20.0)" && ! grep -qi latest "$(brief 0.20.0)" &&
+    ! grep -qi latest "$trk/events.tsv" && [ "$(ls "$trk/briefs")" = sync-template-0.20.0.md ]
+  result $? "pm-sync-2: sync for ${what:-no version} writes the brief of sync-template-0.20.0, which names 0.20.0 and nowhere the word latest" "exit $rc; $out"
+done
+source_with "$T/source-order" v0.9.0 v0.10.0 v0.2.11
+world 0.9.0 0.9.0
+c0="$(commits)"
+from "$T/source-order"
+sync latest
+from "$T/source"
+wrote 0.10.0 0.9.0
+result $? "pm-sync-2: the newest release is by version order, part by part as numbers: 0.10.0 is newer than 0.9.0" "exit $rc; $out"
+world 0.20.0 0.20.0
+sync latest
+[ "$rc" = 0 ] && has "pap-pm: this repository already records pap 0.20.0" && line "pap-pm: 0.20.0 is the newest release of pap" && kept
+result $? "pm-sync-9: latest in a repository that records the newest release says so, adds that it is the newest, and writes nothing" "exit $rc; $out"
+world
+tevent launch sync-template-0.20.0 "/change sync-template-0.20.0 chore Record: none; Rule 20.2: exempt: template sync; pap:cycle-mechanical"
+tcommit
+sync latest
+refused 15 "\"sync-template-0.20.0\" is in flight"
+result $? "pm-sync-13: latest is refused with 15 when the newest release's sync is in flight, once the release is known" "exit $rc; $out"
+
+# --- The brief is the template, filled --------------------------------------------------------
+
+name='re&po\1 <version>'
+world
+name=repo
+c0="$(commits)"
+sync 0.19.1
+cat > "$T/expected" <<EOF
+/change sync-template-0.19.1 chore Record: none
+Rule 20.2: exempt: template sync. Prepared by /pap:pm sync on 2026-11-12; the owner's typed launch is the ask.
+Budget: 80k tokens beyond your starting context.
+Mechanical: yes
+
+Repository: $A. Your first act there is the /change skill with the
+first line of this brief.
+
+This repository records template 0.19.0, layers base, risk. Take it to
+pap 0.19.1.
+
+Steps, in the worktree the skill makes:
+1. Set the pap pin in .config/mise/conf.d/pap.toml to 0.19.1. Commit
+   only if the file changed.
+2. Run: mise install && pap sync
+3. Commit the sync's output exactly as the tool wrote it.
+4. If a tool pin moved, run mise install again.
+5. Run mise run check and mise run test on the final head.
+
+Rules:
+- If .config/pap.toml does not record 0.19.0 when you start, stop
+  with ASK:.
+- Edit nothing the sync wrote. A conflict that needs a judgement about
+  what this repository wants: stop with ASK:. List every conflict you
+  resolve in the pull request, with the side taken.
+- A file the sync touched that the template did not change between
+  0.19.0 and 0.19.1 is a finding: report it.
+- Never run pap repo apply, never add owner-reviewed, never merge.
+- Push after every commit. One draft pull request, then stop.
+
+Done: the /change skill's chat report; ASK: if only the owner can
+decide; PAUSED: at the budget cap, with what is left.
+EOF
+wrote 0.19.1 0.19.0 && cmp -s "$T/expected" "$(brief 0.19.1)" && grep -qF 'Repository: '"$T/w$k"'/re&po\1 <version>. Your' "$(brief 0.19.1)"
+result $? "pm-sync-3: the sync brief is the template with the version, the recorded version, the layers, the date and the root filled in, byte for byte, an & and a \\ in the root kept" "$(diff "$T/expected" "$(brief 0.19.1)" 2>&1)"
+# The spec's block, between the fence after "word for word:" and its end.
+awk '/^word:$/ { near = 1 } near && /^```text$/ { on = 1; near = 0; next } on && /^```$/ { exit } on' \
+  "$here/changes/pm-sync/spec.md" > "$T/spec-block"
+[ "$(wc -l < "$T/spec-block" | tr -d ' ')" = 32 ] && cmp -s "$T/spec-block" "$here/plugins/pap/skills/pm/sync-brief.txt"
+result $? "pm-sync-3: the template the plugin ships is the spec's text, line for line" "$(diff "$T/spec-block" "$here/plugins/pap/skills/pm/sync-brief.txt" 2>&1 | head -n 10)"
+# A control: a template one character off writes a brief the comparison fails.
+cp -R "$T/plugin" "$T/plugin-off"
+sed 's/^- Never run pap repo apply/- never run pap repo apply/' "$T/plugin/skills/pm/sync-brief.txt" > "$T/plugin-off/skills/pm/sync-brief.txt"
+script_was="$script"
+script="$T/plugin-off/skills/pm/pap-pm.sh"
+sync 0.19.1
+script="$script_was"
+[ "$rc" = 0 ] && ! cmp -s "$T/expected" "$(brief 0.19.1)" && [ "$(diff "$T/expected" "$(brief 0.19.1)" | grep -c '^[<>]')" = 2 ]
+result $? "pm-sync-3: a template one character off writes a brief that the comparison tells apart" "exit $rc; $out"
+
+# --- The same ask on the same day ---------------------------------------------------------------
+
+world
+sync 0.19.1
+tevent launch "$slug" "/change $slug chore Record: none; Rule 20.2: exempt: template sync; pap:cycle-mechanical"
+tevent decision "$slug" "abandoned: did not start"
+tcommit
+cp "$(brief 0.19.1)" "$T/brief-first"
+first="$(grep "${tab}restate${tab}" "$trk/events.tsv" | cut -f 4)"
+c0="$(commits)"
+at 23:59:59
+sync 0.19.1
+wrote 0.19.1 0.19.0 && cmp -s "$T/brief-first" "$(brief 0.19.1)" && [ "$(restates "$slug")" = 2 ] &&
+  [ "$(tail -n 1 "$trk/events.tsv" | cut -f 4)" = "$first" ] && line "replaced: yes" &&
+  line "pap-pm: an earlier brief for $slug was replaced; the tracker's history keeps it"
+result $? "pm-sync-4: the same ask on the same UTC day, after the cycle was abandoned, writes the brief byte for byte again, logs a second restate event and says an earlier brief was replaced" "exit $rc; $out"
+PAP_PM_NOW=2026-11-13T00:00:00Z
+sync 0.19.1
+[ "$rc" = 0 ] && [ "$(diff "$T/brief-first" "$(brief 0.19.1)" | grep -c '^[<>]')" = 2 ] &&
+  [ "$(sed -n 2p "$(brief 0.19.1)")" = "Rule 20.2: exempt: template sync. Prepared by /pap:pm sync on 2026-11-13; the owner's typed launch is the ask." ] &&
+  [ "$(restates "$slug")" = 3 ] && [ "$(tail -n 1 "$trk/events.tsv" | cut -f 4)" != "$first" ]
+result $? "pm-sync-4: on the next UTC day only the brief's second line differs, and the restate event's checksum with it" "exit $rc; $out"
+PAP_PM_NOW=2026-11-13T00:01:00Z
+tevent launch "$slug" "/change $slug chore Record: none; Rule 20.2: exempt: template sync; pap:cycle-mechanical"
+tevent report "$slug" "draft pull request open"
+tevent merge "$slug" "merged"
+tcommit
+c0="$(commits)"
+sync 0.19.1
+wrote 0.19.1 0.19.0 && line "replaced: yes"
+result $? "pm-sync-13: a sync whose cycle merged is not refused" "exit $rc; $out"
+
+# --- The owner launches the sync brief --------------------------------------------------------------
+
+# typed: the UserPromptSubmit hook, given the owner's typed launch.
+typed() {
+  printf '{"session_id":"%s","transcript_path":"/x/t.jsonl","cwd":"%s","permission_mode":"default","hook_event_name":"UserPromptSubmit","prompt":"/pap:pm launch %s"}' \
+    "$S1" "$A" "$1" | env PAP_MODE=pm CLAUDE_PROJECT_DIR="$A" CLAUDE_PLUGIN_ROOT="$T/plugin" "$T/plugin/hooks/pm-log.sh" prompt
+}
+if command -v jq >/dev/null 2>&1; then
+  world
+  sync 0.19.1
+  pm launch "$slug" --session "$S1"
+  [ "$rc" = 10 ] && [ "$(count launch)" = 0 ]
+  result $? "pm-sync-7: before the owner types it, a launch of the sync brief is refused with 10, as any launch is" "exit $rc; $out"
+  at 10:06:00
+  typed "$slug"
+  at 10:07:00
+  pm launch "$slug" --session "$S1"
+  [ "$rc" = 0 ] && line "agent: pap:cycle-mechanical" && line "brief: $(brief 0.19.1)" && [ "$(count yes)" = 1 ] && [ "$(count launch)" = 1 ] && tclean
+  result $? "pm-sync-7: the owner's typed launch of the sync brief passes the launch's checks as they are, and names the mechanical cycle" "exit $rc; $out"
+  at 10:08:00
+  typed "$slug"
+  at 10:09:00
+  pm launch "$slug" --session "$S1"
+  [ "$rc" = 15 ] && [ "$(tail -n 1 "$pmd/launches.log" | cut -f 4,5)" = "$slug${tab}used" ]
+  result $? "pm-sync-7: a refused launch of a sync slug leaves a used line in launches.log, the signal the spec reads" "exit $rc; $(tail -n 1 "$pmd/launches.log")"
+else
+  n=$((n + 1))
+  printf 'ok %d - pm-sync-7: the owner launches the sync brief # SKIP jq is not on PATH\n' "$n"
+fi
+
+# --- A version that is no release, and releases that cannot be read ------------------------------------
+
+world
+sync 0.19.5
+refused 23 "pap has no release 0.19.5; the newest release is 0.20.0"
+result $? "pm-sync-10: 0.19.5 is refused with 23, naming that pap has no such release and the newest one, and the tracker is unchanged" "exit $rc; $out"
+
+source_with "$T/source-none"
+source_with "$T/source-pre" v0.21.0-rc.1 v1.0 0.19.1 v01.2.3 release-0.19.1 v0.19.1.1
+real_git="$(command -v git)"
+mkdir -p "$T/slow"
+printf '#!/bin/sh\ncase " $* " in *" ls-remote "*) exec sleep 60 ;; esac\nexec "%s" "$@"\n' "$real_git" > "$T/slow/git"
+chmod +x "$T/slow/git"
+world
+for what in latest 0.19.1; do
+  from "$T/nowhere"
+  sync "$what"
+  from "$T/source"
+  refused 25 "pap's releases could not be read from $T/nowhere: " "nothing can be prepared offline" "try again" "PAP_SOURCE overrides the source"
+  result $? "pm-sync-12: $what, with a source that cannot be read, is refused with 25, saying the releases could not be read and to try again, and the tracker is unchanged" "exit $rc; $out"
+  from "$T/source-none"
+  sync "$what"
+  from "$T/source"
+  refused 25 "pap's releases could not be read from $T/source-none: it lists no release of pap"
+  result $? "pm-sync-12: $what, with a source that has no tag, is refused with 25" "exit $rc; $out"
+  from "$T/source-pre"
+  sync "$what"
+  from "$T/source"
+  refused 25 "it lists no release of pap"
+  result $? "pm-sync-12: $what, with a source whose tags are pre-releases and other names only, is refused with 25" "exit $rc; $out"
+  began="$(date +%s)"
+  path_was="$PATH"
+  PATH="$T/slow:$PATH" PAP_PM_READ_LIMIT=2
+  export PAP_PM_READ_LIMIT
+  sync "$what"
+  PATH="$path_was"
+  unset PAP_PM_READ_LIMIT
+  took=$(($(date +%s) - began))
+  refused 25 "no answer within 2 seconds" && [ "$took" -lt 5 ]
+  result $? "pm-sync-12: $what, with a source that never answers and the limit set to 2 seconds, is refused with 25 inside 5 seconds" "exit $rc, $took seconds; $out"
+done
+
+# --- The pin ahead of the recorded version ----------------------------------------------------------------
+
+for v in 0.19.1 0.20.0; do
+  world 0.19.1 0.19.0
+  c0="$(commits)"
+  sync "$v"
+  wrote "$v" 0.19.0 && unchanged
+  result $? "pm-sync-16: pin 0.19.1, recorded 0.19.0: sync $v writes the brief of sync-template-$v" "exit $rc; $out"
+done
+
+# --- git refuses the tracker's commit --------------------------------------------------------------------------
+
+# companion: the tracker of the next world is a folder in a clone of the
+# owner's own, where the commit runs as the owner's does.
+companion() {
+  rm -rf "$T/companion.git" "$T/companion"
+  git init -q --bare -b main "$T/companion.git"
+  git clone -q "$T/companion.git" "$T/companion" 2>/dev/null
+  mkdir "$T/companion/pm"
+  printf 'tracker.olive/trial=%s\n' "$T/companion/pm" > "$XDG_CONFIG_HOME/pap/agent.conf"
+}
+refuse_commits() {
+  mkdir -p "$hooks"
+  printf '#!/bin/sh\necho "the hook refuses this commit" >&2\nexit 1\n' > "$hooks/pre-commit"
+  chmod +x "$hooks/pre-commit"
+}
+for where in default companion; do
+  [ "$where" = default ] || companion
+  world
+  if [ "$where" = default ]; then
+    hooks="$trk/.git/hooks"
+  else
+    trk="$T/companion/pm" hooks="$T/companion/.git/hooks"
+  fi
+  refuse_commits
+  snap
+  sync 0.19.1
+  refused 18 "the tracker could not be committed, so no sync is prepared: the hook refuses this commit" && [ ! -e "$trk/briefs" ]
+  result $? "pm-sync-17: with no brief and a commit git refuses ($where tracker), sync is refused with 18, giving git's last line; no brief is left and the event log is as it was" "exit $rc; $out"
+  rm "$hooks/pre-commit"
+  sync 0.19.1
+  cp "$(brief 0.19.1)" "$T/brief-kept"
+  cp "$trk/events.tsv" "$T/events-kept"
+  refuse_commits
+  snap
+  PAP_PM_NOW=2026-11-13T09:00:00Z
+  sync 0.19.1
+  refused 18 "the hook refuses this commit" && cmp -s "$T/brief-kept" "$(brief 0.19.1)" && cmp -s "$T/events-kept" "$trk/events.tsv" &&
+    [ -z "$(git -C "$trk" status --porcelain --untracked-files=all -- .)" ] && [ -z "$(git -C "$trk" diff --cached --name-only)" ]
+  result $? "pm-sync-17: with an earlier brief and a commit git refuses ($where tracker), sync is refused with 18; the earlier brief and the event log are byte for byte as they were, and nothing is staged" "exit $rc; $out"
+  rm -f "$XDG_CONFIG_HOME/pap/agent.conf"
+done
+
+# --- A leading v, and a tag that is no release -------------------------------------------------------------------
+
+world
+c0="$(commits)"
+sync v0.19.1
+wrote 0.19.1 0.19.0 && [ "$(ls "$trk/briefs")" = "$slug.md" ] && ! grep -q 'v0\.19\.1' "$(brief 0.19.1)" "$trk/events.tsv"
+result $? "pm-sync-19: v0.19.1 is taken as 0.19.1: the brief of sync-template-0.19.1, with no v in it" "exit $rc; $out"
+source_with "$T/source-rc" v0.19.0 v0.19.1 v0.20.0 v0.21.0-rc.1
+world
+c0="$(commits)"
+from "$T/source-rc"
+sync latest
+from "$T/source"
+wrote 0.20.0 0.19.0
+result $? "pm-sync-20: a newest tag of v0.21.0-rc.1 at pap's source is ignored, and latest takes 0.20.0" "exit $rc; $out"
+snap
+from "$T/source-rc"
+sync 0.21.0
+from "$T/source"
+refused 23 "pap has no release 0.21.0; the newest release is 0.20.0"
+result $? "pm-sync-20: the version of a pre-release tag is no release: 0.21.0 is refused with 23" "exit $rc; $out"
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ] || { printf '# %d of %d failed\n' "$failed" "$n"; exit 1; }
