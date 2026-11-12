@@ -204,7 +204,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: A cycle that cannot label its pull request says so
 
-    @id:cycle-pr-guard-12 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-12
     Scenario: A cycle's label command is denied
       Given a cycle whose pull request is open with no class label
       When its command to add the label is denied by Claude Code's permissions

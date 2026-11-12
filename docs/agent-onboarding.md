@@ -226,6 +226,11 @@ full.
    gives the human; `check` passes; `test` prints `no test:* task is
    defined; nothing to test` until the repository has tests.
 
+   One item is the human's by design: `main checkout on main` reads
+   `drift`, because the adoption is made in the main checkout, on
+   `change/adopt-pap`. It is expected until the adoption pull request
+   merges, and clears when the main checkout is back on `main` (step 8).
+
 5. **Stop: the human applies the GitHub side.** Ask them to run, from
    their own terminal in this directory:
 
@@ -282,11 +287,19 @@ full.
    ruleset ([The first pull request](adopt-a-repo.md#the-first-pull-request)).
    Give them the URL and that link, and wait for the merge.
 
-8. **Write the product layer**, on a new branch from the merged `main`.
+8. **Write the product layer**, in a work tree made by `/change`. The
+   repository adopts PAP now, so the main checkout goes back to `main`
+   and stays there (rule 27.2):
 
    ```sh
-   git fetch origin && git switch -c change/product-layer origin/main
+   git switch main && git pull
    ```
+
+   Then run `/change product-layer docs`, with the brief "write the
+   product layer: `/envision`, then `pap codeowners`". The skill makes
+   the work tree `../<repository>-product-layer` on
+   `change/product-layer`, from the merged `main`; every command from
+   here to the end of step 9 runs there, never in the main checkout.
 
    Run `/envision`. It is an interview: ask one question at a time, and
    write nothing the human has not said or confirmed
@@ -304,6 +317,8 @@ full.
    exits 0.
 
 9. **Commit, push, open the second draft pull request and stop.**
+   `/change` carries these, from its work tree: the commit, the push and
+   the pull request, opened with its class label (rule 27.1).
 
    ```sh
    git commit -m "docs(product): add the product layer"
@@ -312,9 +327,9 @@ full.
      --body-file <body> --label class:docs
    ```
 
-   The body is step 6's, with one difference: this pull request touches
-   a protected path, `product/invariants.md`, so leave the second box
-   unticked with its reason beneath
+   The body is the skill's, which is step 6's with one difference: this
+   pull request touches a protected path, `product/invariants.md`, so
+   leave the second box unticked with its reason beneath
    ([Review by risk label](make-a-change.md#5-review-by-risk-label)).
 
    Check: as step 6, and this time `pr-checks` reports on the pull

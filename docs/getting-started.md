@@ -117,6 +117,12 @@ applies that commit's templates and records `version = "unreleased"`.
    gh pr create --draft --label class:infra
    ```
 
+   Until this pull request merges, `pap doctor` reports `main checkout
+   on main` as `drift`: the clone is on `change/adopt-pap`. That is
+   expected. Once it has merged, run `git switch main && git pull`; from
+   then on the clone stays on `main`, and every change is made in a work
+   tree that `/change` creates beside it.
+
    This one is by hand: `/intent` needs a product layer, which does not
    exist yet. The pull request template comes from the account's
    `.github` repository ([Set up the account](account-setup.md)). Answer
@@ -140,6 +146,11 @@ applies that commit's templates and records `version = "unreleased"`.
    skeleton). Then `pap codeowners` writes `.github/CODEOWNERS` from the
    protected paths. [Start a project](start-a-project.md) has the detail.
 
+   An agent of that session never switches the clone's branch and never
+   opens a pull request from the clone itself (decision 0027): the
+   product layer's pull request, like every later one, is opened by
+   `/change` from its own work tree.
+
 5. **Make the first change.** `/intent <slug> <class>` followed by what
    you want, then `/spec <slug>`, then `/pap:plan <slug>` for a feature,
    infra or security-sensitive change. In a PM session the build is a cycle:
@@ -150,7 +161,8 @@ applies that commit's templates and records `version = "unreleased"`.
 
 ## Check the result
 
-- `pap doctor`: mise, the git hooks and every tool pin on this machine.
+- `pap doctor`: mise, the git hooks and every tool pin on this machine,
+  and that the clone, the main checkout, is on `main`.
 - `pap repo status`: the GitHub side, from settings to labels.
 - `mise run check` and `mise run test`: what the hooks and CI run.
 

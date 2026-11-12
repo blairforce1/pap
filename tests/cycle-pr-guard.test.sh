@@ -495,6 +495,33 @@ ss "$W"
 [ "$(lines "$sl")" = 5 ] && [ -z "$(field "$sl" 7)" ] && [ -z "$(offpart)" ]
 result $? "cycle-pr-guard-15: back on main, a start in the linked work tree, itself on a change branch, adds nothing" "$(cat "$sl" 2>&1)"
 
+# --- The cycle definitions, the record and the rules ----------------------------
+
+# No session is run for scenario 12: it is bound to the sentence, word for
+# word, in both cycle definitions (the spec accepts that).
+sentence='If Claude Code denies the command that labels your pull request, do not try it another way: end with `ASK:` and give the owner this one command, `gh pr edit <number> --add-label class:<class>`.'
+for a in cycle cycle-mechanical; do
+  grep -qF -- "$sentence" "$here/plugins/pap/agents/$a.md"
+  result $? "cycle-pr-guard-12: pap:$a is told to end with ASK: and the one command when its label command is denied, and to try no other way" ""
+done
+record="$here/decisions/0027-an-agent-opens-its-pull-request-from-a-worktree-with-its-class-label.md"
+ok=0
+for h in Status Date Deciders Supersedes PIP 'Expected effect' 'Introduced in' Revisit; do
+  grep -q "^- \*\*$h:\*\* ." "$record" || ok=1
+done
+[ "$ok" = 0 ]
+result $? "cycle-pr-guard-12: decision 0027 has every header line a record has, its PIP included" "$(sed -n 1,12p "$record" 2>&1)"
+mkdir -p "$T/nogh"
+printf '#!/bin/sh\necho "no network in this suite" >&2\nexit 1\n' > "$T/nogh/gh"
+chmod +x "$T/nogh/gh"
+rev="$(cd "$here" && PATH="$T/nogh:$PATH" sh bin/pap revisits 2>&1 | grep '^0027 ')"
+grep -q '^- \*\*Revisit:\*\* after 20 change PRs' "$record" && [ -n "$rev" ] &&
+  ! printf '%s\n' "$rev" | grep -q -e 'typed form' -e 'no Revisit line'
+result $? "cycle-pr-guard-12: pap revisits reads 0027's revisit, after 20 change PRs, as a typed one" "$rev"
+grep -q '^### 27\.1 ' "$here/rules.md" && grep -q '^### 27\.2 ' "$here/rules.md" &&
+  sed -n '/^### 18\.1 /,/^### 18\.2 /p' "$here/rules.md" | grep -qF 'rule 27.1'
+result $? "cycle-pr-guard-12: rules.md has 27.1 and 27.2, and 18.1 names rule 27.1" ""
+
 # --- The spec's process rows ---------------------------------------------------
 
 # count <mode> <cwd> <command>: the git processes the guard starts for it.

@@ -190,6 +190,27 @@ not carry.
 
 #### Added
 
+- Rules 27.1 and 27.2 (decision 0027). In a project-manager session the
+  guard refuses an agent's `gh pr create` in the main checkout of an
+  adopting repository, or with no class label anywhere, and a `git switch`
+  or `git checkout` that would take the main checkout off `main`.
+  `git switch main`, `git checkout main`, `git checkout -- <path>` and
+  everything in a linked work tree pass. A directory the guard cannot
+  place (a variable, `pushd`, `cd -`, `GIT_DIR`, one the same command
+  creates) is refused: run the command by itself, from the work tree.
+  Each refusal is a line in `refusals.log` with its kind and the form
+  refused. Solo sessions and sessions with no mode are not bound.
+- A project-manager session that starts with the main checkout off `main`
+  is told so in its role, and the start's `sessions.log` line gains
+  `main-checkout:<branch>` or `main-checkout:detached`.
+- `pap doctor` reports the main checkout of an adopting repository, from
+  any of its work trees: `drift` off `main`. Outside a git repository it
+  now reads the machine and skips the repository's items, where it
+  stopped before.
+- `pap:cycle` and `pap:cycle-mechanical` end with `ASK:` and the one
+  command when Claude Code denies the command that labels their pull
+  request.
+
 - `/pap:pm sync [<version> | latest]` prepares one template sync in a
   project-manager session of an adopting repository. It reads pap's
   releases, writes the sync brief into the tracker from one template the
