@@ -123,12 +123,12 @@ The baseline, by the same query:
 | Repository  | Pull requests    | Unlabelled at 60 seconds | Counted    |
 | ----------- | ---------------- | ------------------------ | ---------- |
 | pap         | 20, #126 to #145 | 0                        | 2026-11-12 |
-| arapsys-ap  | TO FILL          | TO FILL                  | TO FILL    |
-| business-os | TO FILL          | TO FILL                  | TO FILL    |
+| arapsys-ap  | 7, #10 to #16    | 1 (#15)                  | 2026-11-12 |
+| business-os | 4, #126 to #129  | 0                        | 2026-11-12 |
 
-<!-- TO FILL: the owner counts arapsys-ap and business-os with the query
-above and writes both rows before the release, so the prediction comes
-before the outcome. -->
+arapsys-ap and business-os have fewer than 20 agent pull requests, so
+each row counts all of them, taken as the last ones before the guard
+reaches the repository.
 
 pap's baseline is already 0 of 20, each labelled within two seconds, so
 the measure cannot improve here. It guards against the incident's return
