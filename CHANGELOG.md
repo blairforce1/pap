@@ -188,11 +188,27 @@ not carry.
 
 ### [Unreleased]
 
+#### Added
+
+- `/pap:pm sync [<version> | latest]` prepares one template sync in a
+  project-manager session of an adopting repository. It reads pap's
+  releases, writes the sync brief into the tracker from one template the
+  plugin ships (`skills/pm/sync-brief.txt`), logs the restate with the
+  brief's checksum, commits the tracker and gives the launch line. It
+  launches nothing: the owner still types `/pap:pm launch
+  sync-template-<version>`. A PM session runs it when the owner says "take
+  pap 0.19.1" or "take the latest pap"; its role names the form, and the
+  script reads the session's id from `CLAUDE_CODE_SESSION_ID` when none is
+  passed. A repository that already records the version is told so. New
+  refusals, each writing nothing, exit 21 to 27; `docs/troubleshooting.md`
+  lists them.
+
 #### Changed
 
 - `docs/run-a-project.md` gains "Take a new version": how a
-  project-manager session turns a new pap version into a cycle, with a
-  brief to copy. `docs/adopt-a-repo.md` links to it from `pap sync`.
+  project-manager session turns a new pap version into a cycle, with
+  `/pap:pm sync`. `docs/adopt-a-repo.md` links to it from `pap sync`.
+- Rule 18.3's "Enforced by" line names the restate event `sync` writes.
 
 ### [0.19.1] - 2026-11-11
 

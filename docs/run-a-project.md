@@ -18,6 +18,8 @@ A command today:
   the mode. It is refused in an agent shell.
 - `/pap:pm start` starts the tracker, or reports where things stand.
 - `/pap:pm launch <slug>` launches one cycle. You type it; the PM cannot.
+- `/pap:pm sync [<version> | latest]` prepares a template sync and
+  launches nothing (see [Take a new version](#take-a-new-version)).
 - `/pap:pm exit` pauses every cycle in flight, commits the tracker and
   tells you whether it is safe to stop (see
   [Pause and relaunch](#pause-and-relaunch)).
@@ -267,56 +269,33 @@ refusals are in [Troubleshooting](troubleshooting.md#the-pap-command).
 `.config/mise/conf.d/pap.toml`, or the owner asks.
 
 **The route.** A cycle, class chore, exempt from `/intent` as a template
-sync (rule 20.2). The PM restates the ask, writes the brief, and the owner
-types `/pap:pm launch <slug>`. The PM never runs the sync itself. The
-cycle works on `change/<slug>` from `main`, not on Renovate's branch, so
-it bumps the pin itself. Renovate's pull request is the prompt, not the
-one that carries the sync.
+sync (rule 20.2). `/pap:pm sync` prepares it, and the owner types
+`/pap:pm launch sync-template-<version>`. The PM never runs the sync
+itself. The cycle works on `change/sync-template-<version>` from `main`,
+not on Renovate's branch, so it sets the pin itself. Renovate's pull
+request is the prompt, not the one that carries the sync.
 
-**The brief.** Copy it and fill each `<...>`:
+**The command.** `/pap:pm sync <version>`, or `/pap:pm sync latest` for
+the newest release of pap; no version means the latest. The owner types
+it, or says it in words ("take pap 0.20.0", "take the latest pap") and
+the PM session runs it. It reads pap's releases, writes the sync brief
+into the tracker, logs the restate, commits the tracker and prints the
+launch line for the owner to type. It launches nothing and changes no
+file of the repository. In a repository that already records the version
+it says so and writes nothing. When it refuses it writes nothing either;
+its refusals are in
+[Troubleshooting](troubleshooting.md#pappm-sync).
 
-```text
-/change sync-template-<version> chore Record: none
-Rule 20.2: exempt: template sync. <Who asked, and when.>
-Budget: <n> tokens beyond your starting context.
-Mechanical: yes
+**The brief.** `sync` writes it from one template the plugin ships,
+[`sync-brief.txt`](../plugins/pap/skills/pm/sync-brief.txt), with the
+version, the recorded version and layers, the repository's root and the
+date filled in. No one writes a sync brief by hand, so every sync brief
+reads the same.
 
-Repository: <absolute path>. Your first act there is the /change skill
-with the first line of this brief.
-
-Steps, in the worktree the skill makes:
-1. Bump the pap pin in .config/mise/conf.d/pap.toml to <version>. Commit.
-2. Run: mise install && pap sync
-3. Commit the sync's output exactly as the tool wrote it.
-4. If a tool pin moved, run mise install again.
-5. Run mise run check and mise run test on the final head.
-
-Rules:
-- Edit nothing the sync wrote. A conflict that needs a judgement about
-  what this repository wants: stop with ASK:. List every conflict you
-  resolve in the pull request, with the side taken.
-- A file the sync touched that the template did not change between the
-  two versions is a finding: report it.
-- Never run pap repo apply, never add owner-reviewed, never merge.
-- Push after every commit. One draft pull request, then stop.
-
-Done: the /change skill's chat report; ASK: if only the owner can
-decide; PAUSED: at the budget cap, with what is left.
-```
-
-**The rules that keep it mechanical.**
-
-- The cycle commits the sync's output as the tool wrote it.
-- A conflict that needs a judgement about what the repository wants stops
-  with `ASK:`. Every resolved conflict is listed in the pull request with
-  the side taken.
-- A file the sync touches that the template did not change between the
-  two versions is a finding to report.
-- The cycle never runs `pap repo apply`, never adds `owner-reviewed` and
-  never merges.
-- Unedited sync output skips the cold review. Anything else gets it: a
-  hand edit, a resolved conflict, a file the brief did not name (decision
-  0024). The test is the diff, not the agent.
+**Since 0.20.0.** `sync` is in pap 0.20.0 and later. A session whose
+plugin is older does not have it. There, update the plugin with
+`claude plugin update pap@blairforce1-pap`, restart the session and run
+`sync` then; write no sync brief by hand.
 
 **Which agent.** The launch reads the brief. A line that starts
 `Mechanical: yes` starts the cycle as `pap:cycle-mechanical`; without it
