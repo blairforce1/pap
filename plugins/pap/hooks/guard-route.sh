@@ -95,7 +95,18 @@
 #         as an unread line.
 #
 #   0027  In a session pap claude started in PM mode only, for its main
-#         session and its sub-agents alike. Rule 27.2: a `git switch` or
+#         session and its sub-agents alike. Rule 27.1: a `gh pr create` or
+#         `gh pr new` is refused in the main checkout of an adopting
+#         repository, whatever its labels, and elsewhere unless it gives
+#         exactly one class label: a --label or -l value, split on commas,
+#         that is class: and one of feature, infra, security-sensitive,
+#         bugfix, spike, chore, docs. A value holding $ or a backquote is
+#         not counted. It binds in an adopting repository, and anywhere
+#         when the session's project adopts PAP, whatever -R names. A pull
+#         request opened through `gh api` or GraphQL passes, as a limit.
+#         One of the four verbs after a word the guard does not take for
+#         a command's head (`then`, `command`, `xargs`) is let through and
+#         logged as an unread line. Rule 27.2: a `git switch` or
 #         `git checkout` that runs in the main checkout of an adopting
 #         repository (the work tree whose git directory is the
 #         repository's own) is refused, but for `git switch main`, `git
@@ -355,12 +366,30 @@ targets="$(printf '%s' "$input" | jq -r '
         | "sw\t\($g.dir)\tgit \($g.sub)\t"
           + ([$v, (if ($un // $g.un) != null then "unplaced" else "placed" end),
               ($un // $g.un // $cdw // "-"), ($g.rest | form($g.sub)), "end"] | join("\u001f"))
+      elif $q[$i] == "gh" and $q[$i + 1] == "pr" and ($q[$i + 2] // "" | IN("create", "new")) then
+        # Rule 27.1: the literal class labels the command gives. A value
+        # holding $ or a backquote cannot be read and is not counted.
+        $q[$i + 3:] as $a
+        | ([range(0; $a | length) as $j
+            | optat($a; $j; "--label"; "-l") | unword | split(",")[]
+            | gsub("^\\s+|\\s+$"; "")
+            | select(test("^class:(feature|infra|security-sensitive|bugfix|spike|chore|docs)$"))]
+           | length) as $c
+        | "pr\t\($dir)\t\($c)\t"
+          + ([(if $un != null then "unplaced" else "placed" end), ($un // $cdw // "-"),
+              "gh pr " + $q[$i + 2], "end"] | join("\u001f"))
       else empty end;
+  # The targets of one command, and unread27 when a word that is not its
+  # head starts one of the verbs, as after `then`: the guard does not know
+  # where that runs.
   def targets27($dir; $un; $cdw):
     noredir as $q
     | ($q | headat) as $h
     | select($h != null)
-    | ($q | at27($dir; $un; $cdw; $h));
+    | ($q | at27($dir; $un; $cdw; $h)),
+      (if any(range(0; $q | length) | select(. != $h);
+              . as $i | [$q | at27($dir; $un; $cdw; $i)] | length > 0)
+       then "unread27\t-\t-" else empty end);
   def prbodies($cwd):
     lift as $l
     | [$l.cmd | scan("&&|\\|\\||[;&|()\\n]|<<@HD[0-9]+|<<<|[0-9]*[<>]+&?|" + word)]
@@ -394,7 +423,11 @@ targets="$(printf '%s' "$input" | jq -r '
 
   select(.tool_name == "Bash")
   | (.cwd // env.CLAUDE_PROJECT_DIR // ".") as $cwd
-  | ((.tool_input.command // "") | try prbodies($cwd) catch empty),
+  | ((.tool_input.command // "") as $c
+     | try ($c | prbodies($cwd))
+       catch (if ($c | type) == "string"
+                 and ($c | test("\\bgh\\s+pr\\s+(create|new)\\b|\\bgit\\s(.*\\s)?(switch|checkout)\\b"))
+              then "unread27\t-\t-" else empty end)),
     ([(.tool_input.command // "") | splits("&&|\\|\\||;|\\||\\n|\\(|\\)")]
   | reduce .[] as $seg ({dir: $cwd, lefthook: null, out: []};
       . as $st
@@ -637,6 +670,12 @@ refuse27() {
     branch-switch | path-without-dashes)
       printf 'guard-route: refusing to switch the branch of the main checkout, %s\n' "$3" >&2
       printf 'guard-route: rule 27.2: parallel sessions share it; work in a worktree on change/<id>, made by /change. To restore a path: git checkout -- <path>.\n' >&2 ;;
+    pr-main-checkout)
+      printf 'guard-route: refusing gh pr create in the main checkout, %s\n' "$3" >&2
+      printf 'guard-route: rule 27.1: a change pull request is opened from its worktree on change/<id>, made by /change.\n' >&2 ;;
+    pr-label)
+      printf 'guard-route: refusing gh pr create with no class label in %s\n' "$3" >&2
+      printf 'guard-route: rule 27.1: run /change, which opens the pull request with --label class:<class>.\n' >&2 ;;
     unplaced)
       r_what="a branch switch"
       [ "$2" != 27.1 ] || r_what="gh pr create"
@@ -659,12 +698,33 @@ refuse27() {
 }
 
 while IFS="$tab" read -r kind target reason file; do
-  if [ "$kind" = sw ]; then
+  if [ "$kind" = sw ] || [ "$kind" = pr ] || [ "$kind" = unread27 ]; then
     # Rules 27.1 and 27.2 bind the callers of a PM session, and no other.
     [ "${PAP_MODE:-}" = pm ] || continue
-    IFS="$(printf '\037')" read -r t_a t_flag t_written t_form _ <<EOF2
+    if [ "$kind" = unread27 ]; then
+      # One of the four verbs where the guard cannot tell what runs it: let
+      # through, and counted.
+      who
+      # shellcheck disable=SC1091 # pm-lib.sh, beside this script
+      . "$(dirname "$0")/pm-lib.sh"
+      r_caller=main
+      [ -z "${agent_id:-}" ] || r_caller="$agent_id ${agent_type:--}"
+      pm_log refusals.log "$(pm_now)" "${session_id:--}" pm "$r_caller" - - unread
+      continue
+    fi
+    # sw: the verdict and the rest; pr: the count of class labels (in
+    # reason) and the rest.
+    t_a="$reason" rule=27.1
+    if [ "$kind" = sw ]; then
+      rule=27.2
+      IFS="$(printf '\037')" read -r t_a t_flag t_written t_form _ <<EOF2
 $file
 EOF2
+    else
+      IFS="$(printf '\037')" read -r t_flag t_written t_form _ <<EOF2
+$file
+EOF2
+    fi
     if [ "$t_flag" = placed ]; then
       place "$target"
       [ "$placed" != missing ] || { t_flag=unplaced; [ "$t_written" != - ] || t_written="$target"; }
@@ -672,9 +732,15 @@ EOF2
       placed=""
     fi
     if [ "$t_flag" = unplaced ]; then
-      ! project_adopts || refuse27 unplaced 27.2 "$t_written" "$t_form"
+      ! project_adopts || refuse27 unplaced "$rule" "$t_written" "$t_form"
+    elif [ "$kind" = sw ]; then
+      [ "$placed" != main ] || refuse27 "$t_a" 27.2 "$target" "$t_form"
     elif [ "$placed" = main ]; then
-      refuse27 "$t_a" 27.2 "$target" "$t_form"
+      refuse27 pr-main-checkout 27.1 "$target" "$t_form"
+    elif [ "$t_a" != 1 ]; then
+      # Bound in an adopting repository, and anywhere when the session's
+      # own project is one, whatever -R names.
+      { [ "$placed" != linked ] && ! project_adopts; } || refuse27 pr-label 27.1 "$target" "$t_form"
     fi
     continue
   fi

@@ -10,7 +10,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: A change pull request carries its class label when it is opened
 
-    @id:cycle-pr-guard-1 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-1
     Scenario Outline: gh pr create with no class label is refused
       Given a PM session
       When <caller> runs gh pr create in the linked work tree with <labels>
@@ -27,7 +27,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | a sub-agent      | only a label given as a variable |
         | a sub-agent      | a class label in capitals      |
 
-    @id:cycle-pr-guard-2 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-2
     Scenario Outline: gh pr create with one class label is let through
       Given a PM session
       When a sub-agent runs gh pr create in the linked work tree with <labels>
@@ -43,7 +43,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: A change pull request is opened from a linked work tree
 
-    @id:cycle-pr-guard-3 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-3
     Scenario Outline: gh pr create in the main checkout is refused
       Given a PM session
       When a sub-agent runs gh pr create <where>, <labelled>
@@ -121,7 +121,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
         | pushd <the main checkout> && git checkout change/add-thing              | 27.2 |
         | GIT_DIR=<the main checkout>/.git git switch change/add-thing            | 27.2 |
 
-    @id:cycle-pr-guard-14 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-14
     Scenario Outline: gh pr create outside the repository is still bound by the session's project
       Given a PM session whose project is the adopting repository
       When a sub-agent runs gh pr create -R <owner>/<name> in a directory in no repository, with <labels>
@@ -227,7 +227,7 @@ Feature: An agent of a PM session opens its pull request from a worktree, with i
 
   Rule: What the guard cannot read is recorded
 
-    @id:cycle-pr-guard-16 @pending:cycle-pr-guard
+    @id:cycle-pr-guard-16
     Scenario: A pull request command the guard cannot parse
       Given a PM session
       When a sub-agent runs a gh pr create the guard cannot parse
