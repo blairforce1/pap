@@ -58,6 +58,21 @@ the creation, `gh pr edit <PR#> --add-label class:<class>`.
 changed anything.** Any push, a merge from main included, removes
 `owner-reviewed`. Review the new head and run `/pap:reviewed <PR#>` again.
 
+**A cycle ends with `ASK:` because Claude Code denied the command that
+labels its pull request.** `/change` opens the pull request with its
+class label, so a later `gh pr edit --add-label` is only for a label that
+raced the creation. If Claude Code's permissions deny that command, the
+cycle does not try another way: it gives you one command,
+`gh pr edit <number> --add-label class:<class>`. Compare what it gave you
+with that shape, a pull request number and one class label and nothing
+more, then run it from your own terminal.
+
+**`gh pr create --label class:<class>` fails: the label is not found.**
+The repository has no `class:*` labels, so the pull request is not
+opened. They are part of the GitHub side: run `pap repo apply` from your
+own terminal, as someone who administers the repository, then
+`pap repo status`. An agent cannot do this for you.
+
 **`owner-reviewed` was removed straight after it was added.** The label
 counts only when its latest `labeled` event is by a user whose login is
 an owner in the base branch's `.github/CODEOWNERS` (rule 23.2). A bot

@@ -387,6 +387,48 @@ out="$(doctor PATH="$MISE_DATA_DIR/shims:$dpath")"; rc=$?
 [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q 'ok       mise activated  (shims on PATH)'
 result $? "doctor: mise shims on PATH count as activated" "$out"
 
+# The main checkout (decision 0027, features/cycle-pr-guard.feature), read
+# while every other item is ok, so a drift here is the one that exits 1.
+doctor_in() { d_in="$1"; shift; (cd "$d_in" && env -u MISE_SHELL PATH="$dpath" MISE_SHELL=bash "$@" sh "$pap" doctor 2>&1); }
+bad() { printf '%s\n' "$out" | grep -Ec '^  (missing|drift)'; }
+out="$(doctor_in "$T/app")"; rc=$?
+[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qx '  ok       main checkout on main'
+result $? "cycle-pr-guard-10: doctor in the main checkout, on main: ok" "$out"
+git -C "$T/app" switch -q -c change/add-thing
+out="$(doctor_in "$T/app")"; rc=$?
+[ "$rc" = 1 ] && [ "$(bad)" = 1 ] &&
+  printf '%s\n' "$out" | grep -qxF "  drift    main checkout on main  ($T/app is on change/add-thing; once no session is using it: git switch main)"
+result $? "cycle-pr-guard-10: on change/add-thing: drift, naming the branch and git switch main; exits 1" "$out"
+git -C "$T/app" switch -q --detach
+out="$(doctor_in "$T/app")"; rc=$?
+[ "$rc" = 1 ] && [ "$(bad)" = 1 ] &&
+  printf '%s\n' "$out" | grep -qF "  drift    main checkout on main  ($T/app is detached"
+result $? "cycle-pr-guard-10: at a detached commit: drift, saying it is detached; exits 1" "$out"
+git -C "$T/app" switch -q -c change/other
+git -C "$T/app" worktree add -q "$T/app-wt" change/add-thing
+out="$(doctor_in "$T/app-wt")"; rc=$?
+[ "$rc" = 1 ] && [ "$(bad)" = 1 ] &&
+  printf '%s\n' "$out" | grep -qF "  drift    main checkout on main  ($T/app is on change/other;"
+result $? "cycle-pr-guard-10: in the linked work tree, the main checkout on change/other: drift, naming the branch and the main checkout's path; exits 1" "$out"
+git -C "$T/app" switch -q main
+out="$(doctor_in "$T/app-wt")"; rc=$?
+[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qx '  ok       main checkout on main'
+result $? "cycle-pr-guard-10: in the linked work tree, itself on a change branch, with the main checkout on main: ok" "$out"
+git -C "$T/app" worktree remove --force "$T/app-wt"
+git -C "$T/app" branch -q -D change/add-thing change/other
+git init -q -b main "$T/plain"
+g -C "$T/plain" commit -q --allow-empty -m init
+git -C "$T/plain" switch -q -c change/adopt-thing
+out="$(doctor_in "$T/plain")"
+printf '%s\n' "$out" | grep -qx '  skipped  main checkout on main  (this repository does not adopt PAP)'
+result $? "cycle-pr-guard-10: on change/adopt-thing in a repository that does not adopt PAP: skipped" "$out"
+mkdir -p "$T/norepo"
+out="$(doctor_in "$T/norepo" GIT_CEILING_DIRECTORIES="$T")"; rc=$?
+[ "$rc" -le 1 ] && printf '%s\n' "$out" | grep -qx '  skipped  main checkout on main  (not in a git repository)' &&
+  printf '%s\n' "$out" | grep -qx '  skipped  git hooks and settings  (not in a git repository)' &&
+  printf '%s\n' "$out" | grep -qx 'shell' && ! printf '%s\n' "$out" | grep -q 'not inside a git repository'
+result $? "cycle-pr-guard-11: doctor in a directory in no git repository reads the machine and reports the main checkout as skipped" "exit $rc; $out"
+
 # A branch whose upstream was deleted, as after a merged pull request:
 # reported with the tidy hint, and not a failure.
 git -C "$T/app" remote add origin "$T/nowhere.git"

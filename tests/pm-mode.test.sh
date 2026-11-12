@@ -1402,8 +1402,9 @@ result $? "zero: sub-agent writes refused as outside the PM paths, across the su
 # The existing guard suite, unedited, run again in a mode: a copy of the
 # suite beside a clean-env.sh that sets the mode, over this tree's hooks.
 # Solo changes nothing. In a PM session every case that expected a refusal
-# still gets one; the commits rule 25.2 now refuses in its dirty work trees
-# are the only difference.
+# still gets one. The only differences are the commits rule 25.2 refuses in
+# its dirty work trees and, since decision 0027, the pull requests rule 27.1
+# refuses: the suite opens them in a main checkout, most with no class label.
 rerun() { # rerun <mode>: prints the suite's output
   rr="$T/rerun-$1"
   mkdir -p "$rr/tests"
@@ -1424,9 +1425,10 @@ result $? "zero: existing guard expectations changed: $(printf '%s\n' "$base" | 
 [ "$(grep -c '^ok ' "$T/rerun-solo.out")" = "$total" ] && ! grep -q '^not ok' "$T/rerun-solo.out"
 result $? "pm-mode-20: in a solo session every one of the $total existing guard cases gives what it gave before" "$(grep '^not ok' "$T/rerun-solo.out" | head -n 20)"
 [ "$(grep -c -e '^ok ' -e '^not ok ' "$T/rerun-pm.out")" = "$total" ] && ! grep -q 'expected 2)' "$T/rerun-pm.out" &&
-  [ "$(grep -c '^not ok .* git commit .*(exit 2, expected 0)$' "$T/rerun-pm.out")" = "$(grep -c '^not ok' "$T/rerun-pm.out")" ] &&
-  [ "$(grep -c '^not ok' "$T/rerun-pm.out")" -ge 1 ]
-result $? "pm-mode-20: in a PM session every existing case that was refused is still refused; the only difference is commits in dirty work trees, now refused ($(grep -c '^not ok' "$T/rerun-pm.out"))" "$(grep '^not ok' "$T/rerun-pm.out" | grep -v 'git commit .*(exit 2, expected 0)$' | head -n 20)"
+  [ "$(grep -c -e '^not ok .* git commit .*(exit 2, expected 0)$' -e '^not ok [0-9]* - cwd=[^ ]* gh pr create .*(exit 2, expected 0)$' "$T/rerun-pm.out")" = "$(grep -c '^not ok' "$T/rerun-pm.out")" ] &&
+  [ "$(grep -c '^not ok .* git commit .*(exit 2, expected 0)$' "$T/rerun-pm.out")" -ge 1 ] &&
+  [ "$(grep -c '^not ok [0-9]* - cwd=[^ ]* gh pr create .*(exit 2, expected 0)$' "$T/rerun-pm.out")" -ge 1 ]
+result $? "pm-mode-20: in a PM session every existing case that was refused is still refused; the only differences are commits in dirty work trees (rule 25.2) and pull requests opened in a main checkout (rule 27.1), now refused ($(grep -c '^not ok' "$T/rerun-pm.out"))" "$(grep '^not ok' "$T/rerun-pm.out" | grep -v -e 'git commit .*(exit 2, expected 0)$' -e ' - cwd=[^ ]* gh pr create .*(exit 2, expected 0)$' | head -n 20)"
 
 if command -v shellcheck >/dev/null 2>&1; then
   sc="$(cd "$here" && shellcheck -s sh plugins/pap/hooks/pm-lib.sh plugins/pap/hooks/guard-pm.sh plugins/pap/hooks/guard-route.sh \

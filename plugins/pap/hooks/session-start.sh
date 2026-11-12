@@ -11,7 +11,11 @@
 #
 #   pm     the project-manager role, then where the tracker is, whether it
 #          is uncommitted, and its state file's first 60 lines, marked as
-#          data. One line in the session log: role:<source>.
+#          data. One line in the session log: role:<source>. When the
+#          main checkout of the session's repository is off main (decision
+#          0027), that line gains a seventh field, main-checkout:<branch>
+#          or main-checkout:detached, and the role a part telling the PM
+#          to tell the owner first and switch nothing.
 #   solo   one line saying the session is solo, and one in the session
 #          log: solo:<source>.
 #   unset  nothing: a session not started by pap claude has no mode.
@@ -20,8 +24,8 @@
 # 0026 (where /pap:plan sits, and what a build's brief leaves to the
 # plan). Each part opens with a marker
 # line, [pap-pm:<part>], that a test can find: role, first-line, routing,
-# no-route, paths, blocked-commit, launch, tracker, and warning when the
-# guard is not binding. Claude Code caps one hook's context at 10,000
+# no-route, paths, blocked-commit, launch, tracker, warning when the
+# guard is not binding, and main-checkout when it is off main. Claude Code caps one hook's context at 10,000
 # characters, so the state file's lines are cut to what is left of that.
 #
 # The live check (SEC-001): guard-pm.sh tells the PM from a sub-agent by the
@@ -98,7 +102,23 @@ if [ -n "$agent" ]; then
 WARNING: the PM paths are NOT enforced in this session. This Claude Code (${version:-version unknown}) puts an agent id on the main session's own calls, so the guard cannot tell you from a sub-agent and binds nothing. Say so to the owner in your first line, with that version. Keep to the PM paths all the same.
 "
 fi
-pm_log sessions.log "$(pm_now)" "${session:--}" pm "${pm_own_key:--}" "${version:--}" "$what"
+# Decision 0027: the main checkout of the session's repository, read at
+# every start. On main nothing is added. Off main the session log line
+# gains a seventh field and the role a part of its own.
+mc="" offmain=""
+case "$pm_own_common" in
+  */.git)
+    mc_b="$(git -C "${pm_own_common%/.git}" symbolic-ref -q --short HEAD 2>/dev/null)"
+    case "$?:$mc_b" in
+      0:main | 0:) ;;
+      0:*) mc="main-checkout:$mc_b" mc_on="on the branch $mc_b" ;;
+      1:*) mc="main-checkout:detached" mc_on="detached, at a commit and on no branch" ;;
+    esac ;;
+esac
+[ -z "$mc" ] || offmain="[pap-pm:main-checkout]
+The main checkout of this repository, ${pm_own_common%/.git}, is not on main: it is $mc_on. Tell the owner first, in your first reply, and do not switch it yourself while a session may be using it: the owner checks that none is and runs git switch main.
+"
+pm_log sessions.log "$(pm_now)" "${session:--}" pm "${pm_own_key:--}" "${version:--}" "$what" ${mc:+"$mc"}
 
 top="${pm_own_top:-${CLAUDE_PROJECT_DIR:-$cwd}}"
 envision=""
@@ -115,7 +135,7 @@ else
 fi
 script="sh \"$(dirname "$here")/skills/pm/pap-pm.sh\""
 
-role="${warning}[pap-pm:role]
+role="${warning}${offmain}[pap-pm:role]
 You are the project manager (PM) of this repository: this session was started by pap claude in PM mode (decisions 0018 and 0025).
 You open, approve and merge nothing: no change pull request, no owner-reviewed label, no Approved-by line, no merge, no GitHub or repository settings (rule 18.1). An act a hook refused a cycle is not yours to do in its place.
 [pap-pm:first-line]

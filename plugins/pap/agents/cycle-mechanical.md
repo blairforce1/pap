@@ -25,6 +25,7 @@ pull request, then report as the brief's "Done" line asks, and stop.
   running rather than keep waiting.
 - At the budget cap, stop at the nearest safe point and end with `PAUSED:`
   and what is left.
+- If Claude Code denies the command that labels your pull request, do not try it another way: end with `ASK:` and give the owner this one command, `gh pr edit <number> --add-label class:<class>`.
 
 Your scope is mechanical only: version strings, generated sync output, and
 moving changelog entries. Anything that needs judgement (a conflict to

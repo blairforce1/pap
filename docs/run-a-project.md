@@ -316,12 +316,32 @@ their own terminal.
 The guard keeps four logs under `${XDG_STATE_HOME:-~/.local/state}/pap/pm/`,
 one line an event, each line naming its repository:
 
-| Log            | One line for                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------- |
-| `sessions.log` | each start, with its mode, and each time a role was given                                   |
-| `refusals.log` | each refused write or commit, and each call the guard could not read                        |
-| `messages.log` | each message the PM sent a sub-agent, and each sub-agent stop                               |
-| `launches.log` | each `/pap:pm launch <slug>` you typed, and each launch refused for its plan (`refused-20`) |
+| Log            | One line for                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| `sessions.log` | each start, with its mode, and each time a role was given                                         |
+| `refusals.log` | each refused write, commit, pull request or branch switch, and each call the guard could not read |
+| `messages.log` | each message the PM sent a sub-agent, and each sub-agent stop                                     |
+| `launches.log` | each `/pap:pm launch <slug>` you typed, and each launch refused for its plan (`refused-20`)       |
+
+The seventh field of a `refusals.log` line is its kind. `write` and
+`commit` are the PM paths' (rule 25.2). Decision 0027 adds five, each
+with the form refused as an eighth field, `gh pr create` or `git switch` or
+`git checkout` with its options, and never the command:
+
+- `pr-main-checkout`: a `gh pr create` in the main checkout (rule 27.1).
+- `pr-label`: a `gh pr create` with no class label, or with two.
+- `branch-switch`: a `git switch` or `git checkout` that would take the
+  main checkout off `main` (rule 27.2).
+- `path-without-dashes`: a `git checkout <word>` in the main checkout,
+  refused because the word may be a branch. To restore a path, write
+  `git checkout -- <path>`.
+- `unplaced`: one of those commands in a directory the guard could not
+  place. Run it as its own command, from the work tree.
+
+`unread` is a call the guard let through without reading it. A
+`sessions.log` line that ends `main-checkout:<branch>` or
+`main-checkout:detached` is a PM session that started with the main
+checkout off `main`; the PM says so first.
 
 First checks, all read-only:
 

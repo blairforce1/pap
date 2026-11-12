@@ -79,7 +79,13 @@
 #         started by pap claude. Each item is ok, missing, drift, warn or skipped, and a
 #         failing one names the command that fixes it on this platform
 #         (Linux with apt or dnf, macOS with Homebrew; WSL is Linux); exits
-#         1 unless every item is ok, warn or skipped. Also counts local
+#         1 unless every item is ok, warn or skipped. In a repository
+#         that adopts PAP, the main checkout, read from any of its work
+#         trees (decision 0027): drift when it is on a branch other than
+#         main or at a detached commit, naming where it is and git switch
+#         main; skipped in a repository that does not adopt PAP or has no
+#         main checkout. Outside a repository the machine's items are
+#         read and the repository's skipped. Also counts local
 #         branches whose upstream is gone, as of the last fetch, and
 #         suggests mise run tidy; a stale branch is housekeeping and never
 #         fails doctor. --fix first runs `mise trust` and `mise install`,
@@ -790,6 +796,30 @@ EOF
   fi
 }
 
+# d_main: doctor's reading of the main checkout (decision 0027), from any
+# work tree of the repository. Needs has_git, in_repo and top.
+d_main() {
+  if [ "$in_repo" = false ]; then
+    item skipped "main checkout on main" "not in a git repository"
+  elif [ ! -x "$top/scripts/guard-branch.sh" ]; then
+    item skipped "main checkout on main" "this repository does not adopt PAP"
+  else
+    m_c="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || m_c=""
+    case "$m_c" in */.git) m_d="${m_c%/.git}" ;; *) m_d="" ;; esac
+    if [ -z "$m_d" ] || [ "$(git --git-dir="$m_c" config --bool core.bare 2>/dev/null)" = true ]; then
+      item skipped "main checkout on main" "this repository has no main checkout"
+    elif m_b="$(git -C "$m_d" symbolic-ref -q --short HEAD 2>/dev/null)"; then
+      if [ "$m_b" = main ]; then
+        item ok "main checkout on main"
+      else
+        item drift "main checkout on main" "$m_d is on $m_b; once no session is using it: git switch main"
+      fi
+    else
+      item drift "main checkout on main" "$m_d is detached, at a commit and on no branch; once no session is using it: git switch main"
+    fi
+  fi
+}
+
 cmd_doctor() {
   fix=false
   [ "${1:-}" != --fix ] || { fix=true; shift; }
@@ -797,7 +827,13 @@ cmd_doctor() {
   d_os="$(d_platform)"
   has_git=true
   command -v git >/dev/null 2>&1 || has_git=false
-  [ "$has_git" = false ] || to_top
+  # Outside a repository the machine's items are still read; the
+  # repository's are skipped.
+  in_repo=false top=""
+  if [ "$has_git" = true ] && git rev-parse --show-toplevel >/dev/null 2>&1; then
+    in_repo=true
+    to_top
+  fi
   has_mise=true
   command -v mise >/dev/null 2>&1 || has_mise=false
 
@@ -889,6 +925,8 @@ cmd_doctor() {
   say "" "git"
   if [ "$has_git" = false ]; then
     item skipped "git hooks and settings" "no git"
+  elif [ "$in_repo" = false ]; then
+    item skipped "git hooks and settings" "not in a git repository"
   else
     hooks="$(git rev-parse --git-path hooks)"
     for h in pre-commit pre-push; do
@@ -912,12 +950,15 @@ cmd_doctor() {
       item stale "$gone branch(es) with a gone upstream" "run mise run tidy"
     fi
   fi
+  d_main
 
   say "" "tool pins"
   if [ "$has_mise" = false ]; then
     item skipped "pinned tools" "no mise"
   elif [ "$has_git" = false ]; then
     item skipped "pinned tools" "no git, so no repository to read the pins of"
+  elif [ "$in_repo" = false ]; then
+    item skipped "pinned tools" "not in a git repository, so none to read the pins of"
   elif ! json="$(mise ls --current --json 2>&1)"; then
     item missing "pinned tools" "$(printf '%s\n' "$json" | head -n 1)"
   else
