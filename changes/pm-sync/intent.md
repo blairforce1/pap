@@ -6,13 +6,15 @@ class:              feature
 product:            PAP
 source:             none
 hypothesis:         H-012
-invariants-touched: INV-003, INV-011; tests/**, product/domain.md (risk:high)
+invariants-touched: INV-003, INV-011; tests/**, product/domain.md, rules.md, plugins/pap/hooks/** (risk:high)
 accepted-by:        @blairforce1
 accepted-on:        2026-11-12
 generated-by:       Claude Fable 5.2 via Claude Code
 skills:             pap:intent 0.19.1
 prompt:             /intent pm-sync feature a sync form of /pap:pm that writes the template-sync brief for a version, logs the restate and leaves the launch to the owner
 ```
+
+Edited 2026-11-12: the spec showed two more protected paths are touched, `rules.md` for the "Enforced by" line of rule 18.3 and `plugins/pap/hooks/**` for one line of the PM role, and the rule constraint is reworded to match.
 
 ## Problem
 
@@ -57,7 +59,7 @@ and the owner is given the launch line to type.
   command.
 - `pap-pm.sh` stays POSIX shell. `sync` reads `.config/pap.toml` and the
   pin file and writes neither.
-- No rule or decision record changes if it can be avoided.
+- No rule's statement and no decision record changes.
 - The brief's budget is 80k tokens.
 - No version bump in this change.
 
