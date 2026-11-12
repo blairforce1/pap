@@ -210,7 +210,6 @@ not carry.
 - `pap:cycle` and `pap:cycle-mechanical` end with `ASK:` and the one
   command when Claude Code denies the command that labels their pull
   request.
-
 - `/pap:pm sync [<version> | latest]` prepares one template sync in a
   project-manager session of an adopting repository. It reads pap's
   releases, writes the sync brief into the tracker from one template the
