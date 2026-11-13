@@ -377,8 +377,9 @@ fixture
 out="$(cd "$W/pap" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=credential.https://github.com.helper \
   GIT_CONFIG_VALUE_0="!touch $W/helper-ran" sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
-[ ! -e "$W/helper-ran" ]
 refused "release-bump-11: GIT_CONFIG_COUNT with a credential helper that runs a command is refused" "GIT_CONFIG_COUNT is set with the pair credential.https://github.com.helper=!touch"
+[ ! -e "$W/helper-ran" ]
+result $? "release-bump-11: the refused credential helper never ran"
 for count in 1x ' 1' -1 +1; do
   fixture
   out="$(cd "$W/pap" && GIT_CONFIG_COUNT="$count" GIT_CONFIG_KEY_0=credential.https://github.com.useHttpPath GIT_CONFIG_VALUE_0=true \
