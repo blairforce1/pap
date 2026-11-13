@@ -521,7 +521,7 @@ answer_risk() {
     refuse "no open pull request from $b"
   jq -e '.isDraft' "$run/view.json" >/dev/null || refuse "the pull request from $b is not a draft"
   others="$(jq -r --arg t "chore(release): bump pap to $version" \
-    '.commits | if length == 1 and .[0].messageHeadline == $t then empty else .[1:][] | .messageHeadline end' "$run/view.json")"
+    '.commits | if length == 1 and .[0].messageHeadline == $t then empty else .[] | .messageHeadline | select(. != $t) end' "$run/view.json")"
   [ -z "$others" ] && [ "$(jq '.commits | length' "$run/view.json")" = 1 ] ||
     refuse "the draft from $b carries a commit that is not the command's: $(printf '%s' "$others" | tr '\n' ';')"
   a_url="$(jq -r .url "$run/view.json")"

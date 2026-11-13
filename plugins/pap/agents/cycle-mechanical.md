@@ -37,11 +37,11 @@ In a release bump the command has pushed what there is: push nothing.
 
 ## A release bump
 
-A brief with the line `Release bump: <version>`, its fourth after
-`Mechanical: yes`, is a release bump (changes/release-bump/spec.md). Do not invoke `/change`. Your first act
-after the `cd` is the release-bump command, run in the background, with
-the brief's first two lines as the route and your own agent type and
-model as `--by`:
+A brief whose fourth line, after `Mechanical: yes`, is
+`Release bump: <version>` is a release bump. Do not invoke `/change`.
+Your first act after the `cd` is the release-bump command, run in the
+background, with the brief's first two lines as the route and your own
+agent type and model as `--by`:
 
 ```sh
 mise run release-bump <version> --route "<the brief's first line>" "<its second line>" --by "pap:cycle-mechanical on <your model, as Claude Haiku 5.5>"

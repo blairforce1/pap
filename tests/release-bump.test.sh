@@ -645,6 +645,10 @@ printf 'chore(release): bump pap to 0.20.0\nfix: a hand edit\n' >"$W/gh/commits"
 answer
 [ "$status" = 1 ] && printf '%s' "$out" | grep -q 'fix: a hand edit' && cmp -s "$W/body-before" "$W/gh/body"
 result $? "release-bump-17: a draft with a second commit is refused naming it, the body unchanged" "exit $status: $out"
+printf 'fix: a hand-made bump\n' >"$W/gh/commits"
+answer
+[ "$status" = 1 ] && printf '%s' "$out" | grep -q 'fix: a hand-made bump' && cmp -s "$W/body-before" "$W/gh/body"
+result $? "release-bump-17: a draft whose one commit is not the command's is refused naming it, the body unchanged" "exit $status: $out"
 fixture
 answer
 [ "$status" = 1 ] && printf '%s' "$out" | grep -q "no open pull request from $B"
