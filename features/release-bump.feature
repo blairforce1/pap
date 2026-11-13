@@ -78,7 +78,7 @@ Feature: One command makes a pap release bump end to end
 
   Rule: The command refuses before it makes anything
 
-    @id:release-bump-9 @pending:release-bump
+    @id:release-bump-9
     Scenario Outline: A refused run makes nothing
       Given <state>
       When the release-bump command is run for <version>
@@ -100,7 +100,7 @@ Feature: One command makes a pap release bump end to end
         | a work tree for change/release-0.20.0 is open     | 0.20.0  | the open work tree, its path and the remove command |
         | a plain directory is at ../pap-release-0.20.0     | 0.20.0  | the directory at the work tree's path               |
 
-    @id:release-bump-10 @pending:release-bump
+    @id:release-bump-10
     Scenario Outline: A route or a --by value that does not fit is refused
       When the release-bump command is run for 0.20.0 with a route of <route> and a --by of <by>
       Then the command exits 1 naming <what>, and nothing was made
@@ -122,7 +122,7 @@ Feature: One command makes a pap release bump end to end
       When the release-bump command is run for 0.20.0 with a valid route and an "<agent> on <model>" --by value of exactly 100 characters
       Then the command exits 0 and the Provenance line carries the value unchanged
 
-    @id:release-bump-11 @pending:release-bump
+    @id:release-bump-11
     Scenario Outline: Hooks switched off through the environment are refused
       Given the command's environment sets <variable>
       When the release-bump command is run for 0.20.0
