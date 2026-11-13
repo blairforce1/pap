@@ -44,12 +44,12 @@ Feature: One command makes a pap release bump end to end
 
     @id:release-bump-5 @pending:release-bump
     Scenario: The body answers every Checks box and declares what made it
-      When the release-bump command is run for 0.20.0 by a cycle on Claude Haiku with a route of "/change release-0.20.0 chore Record: none" and "Rule 20.2: exempt: version bump"
+      When the release-bump command is run for 0.20.0 with --by "pap:cycle-mechanical on Claude Haiku 5.5" and a route of "/change release-0.20.0 chore Record: none" and "Rule 20.2: exempt: version bump"
       Then the body's first lines are "Change: none", "Record: none", the Route line joining the two with "; ", and "Plan: none"
       And its Verification shows the exit and counts of mise run check and mise run test on the head, and "cold review skipped: mechanical (decision 0024)"
       And its How to revert is the spec's Undo
       And every Checks box is ticked, or unticked with its reason on the next line
-      And its Provenance line names the release-bump command, the cycle and the model Claude Haiku
+      And its Provenance line names the release-bump command and "pap:cycle-mechanical on Claude Haiku 5.5"
 
     @id:release-bump-6 @pending:release-bump
     Scenario: The body without a route has no Route line
@@ -101,15 +101,26 @@ Feature: One command makes a pap release bump end to end
         | a plain directory is at ../pap-release-0.20.0     | 0.20.0  | the directory at the work tree's path               |
 
     @id:release-bump-10 @pending:release-bump
-    Scenario Outline: A route that does not fit is refused
-      When the release-bump command is run for 0.20.0 with a route of <route>
-      Then the command exits 1 naming the route, and nothing was made
+    Scenario Outline: A route or a --by value that does not fit is refused
+      When the release-bump command is run for 0.20.0 with a route of <route> and a --by of <by>
+      Then the command exits 1 naming <what>, and nothing was made
 
       Examples:
-        | route                                                                       |
-        | a first line holding a newline and "- [x] Verification run"                 |
-        | "/change release-0.21.0 chore Record: none" and "Rule 20.2: exempt: bump"   |
-        | "/change release-0.20.0 chore Record: none" and "Approved-by: @someone"     |
+        | route                                                                     | by                                              | what             |
+        | a first line holding a newline and "- [x] Verification run"               | "pap:cycle-mechanical on Claude Haiku 5.5"      | the route        |
+        | "/change release-0.21.0 chore Record: none" and "Rule 20.2: exempt: bump" | "pap:cycle-mechanical on Claude Haiku 5.5"      | the route        |
+        | "/change release-0.20.0 chore Record: none" and "Approved-by: @someone"   | "pap:cycle-mechanical on Claude Haiku 5.5"      | the route        |
+        | a valid route                                                             | none                                            | the missing --by |
+        | a valid route                                                             | a value holding a newline and "Risk: low"       | the --by value   |
+        | a valid route                                                             | a value holding a lone carriage return          | the --by value   |
+        | a valid route                                                             | "the owner"                                     | the --by value   |
+        | a valid route                                                             | "pap:cycle on <!-- Claude"                      | the --by value   |
+        | a valid route                                                             | an "<agent> on <model>" value of 101 characters | the --by value   |
+
+    @id:release-bump-21 @pending:release-bump
+    Scenario: A --by value of 100 characters is taken
+      When the release-bump command is run for 0.20.0 with a valid route and an "<agent> on <model>" --by value of exactly 100 characters
+      Then the command exits 0 and the Provenance line carries the value unchanged
 
     @id:release-bump-11 @pending:release-bump
     Scenario Outline: Hooks switched off through the environment are refused
@@ -205,9 +216,10 @@ Feature: One command makes a pap release bump end to end
 
     @id:release-bump-19 @pending:release-bump
     Scenario Outline: A release cycle runs the command, verifies and reports
-      Given a launched mechanical cycle whose brief has the line "Release bump: 0.20.0"
+      Given a launched mechanical cycle on Claude Haiku 5.5 whose brief has the line "Release bump: 0.20.0"
       When the cycle runs and <happens>
       Then it <does>
+      And it ran the command with --by "pap:cycle-mechanical on Claude Haiku 5.5"
       And it invokes no /change, edits no file of the pull request and retries nothing
 
       Examples:

@@ -4,7 +4,7 @@
 id:                 release-bump
 class:              feature
 intent:             changes/release-bump/intent.md
-scenarios:          features/release-bump.feature, release-bump-1 to release-bump-20
+scenarios:          features/release-bump.feature, release-bump-1 to release-bump-21
 accepted-by:        @blairforce1
 accepted-on:        2026-11-13
 generated-by:       Claude Opus 5.5 via Claude Code
@@ -36,6 +36,7 @@ Every network step has a timeout, and nothing prompts (`GIT_TERMINAL_PROMPT=0`).
 - the version places disagree;
 - the unreleased section is empty;
 - `change/release-<version>` exists locally or on origin, a work tree for it is open, or a directory is at its path;
+- a route is given without `--by`, or a `--by` value is not `<agent> on <model>` in the characters `A-Z a-z 0-9 space . : _ -` only, or is longer than 100 bytes;
 - a route holds a newline or carriage return, has a first line other than `/change release-<version> chore Record: none` for the version given, or has a second line not of the form `Rule 20.2: ...`;
 - `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_COUNT`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_DIR` or `GIT_WORK_TREE` is set, or the work tree's `core.hooksPath` is not the repository's own.
 
@@ -51,7 +52,7 @@ Once the pull request is open, a failure leaves it open. That is exit 3, which n
 
 **The re-answer form.** `mise run release-bump --answer-risk <version>` refuses unless the open pull request's head is `change/release-<version>`, it is a draft, and its only commit is the command's. It rewrites the protected-path box and its next line from the label as it is now, and nothing else. It exits 0 when it has answered and 1 when it refuses.
 
-**The release cycle.** A release cycle is a mechanical cycle (decision 0024) whose brief has four lines first, in order: `/change release-<version> chore Record: none`, `Rule 20.2: exempt: version bump. <why>`, `Mechanical: yes`, `Release bump: <version>`. The `Release bump:` line takes precedence over the agent's `/change` first act. The cycle's first act after `cd` to the repository is the command, run in the background with the brief's first two lines as the route; it waits for one completion notice. It does not invoke `/change`. Then it:
+**The release cycle.** A release cycle is a mechanical cycle (decision 0024) whose brief has four lines first, in order: `/change release-<version> chore Record: none`, `Rule 20.2: exempt: version bump. <why>`, `Mechanical: yes`, `Release bump: <version>`. The `Release bump:` line takes precedence over the agent's `/change` first act. The cycle's first act after `cd` to the repository is the command, run in the background with the brief's first two lines as the route and `--by` naming its own agent type and model; it waits for one completion notice. It does not invoke `/change`. Then it:
 
 - reads the diff against the release bump's lines and reads the class and risk labels;
 - watches the required checks in the background, for up to 10 minutes;
@@ -60,7 +61,7 @@ Once the pull request is open, a failure leaves it open. That is exit 3, which n
 
 A required check that fails, a diff line that is not the release bump's, a refusal, exit 2 or exit 3, or a conflict ends with `ASK:` and what it found. A `risk:high` label, or a risk still not read after the re-answer, is reported as the box reads. The cycle edits no file of the pull request, retries nothing and opens no pull request another way.
 
-**Provenance.** The body's Provenance line names the command and who ran it. That is the agent and its model, read at run time from what the cycle passes, or the owner from a terminal. Run from a terminal, the command acts as the owner. In an agent shell it acts as the agent app (decision 0023), because it calls the `gh` on its `PATH`. This is a side effect, not a goal, and it is outside the measure.
+**Provenance.** The body's Provenance line names the command and who ran it. That is the `--by` value the cycle passes, its agent and model as `<agent> on <model>` (for example `pap:cycle-mechanical on Claude Haiku 5.5`), written as text, never evaluated; with no `--by`, the owner, from a terminal. Run from a terminal, the command acts as the owner. In an agent shell it acts as the agent app (decision 0023), because it calls the `gh` on its `PATH`. This is a side effect, not a goal, and it is outside the measure. The `--by` value is the caller's own claim, not verified: the PM compares it with the model in the report event.
 
 **What it leaves to others.** The decisions' "Introduced in" lines are not touched, and scenario 2 forbids that edit. A bump that falls behind main after its unreleased section has changed is closed with its branch and run again, never merged with main by hand.
 
@@ -75,7 +76,8 @@ Scenarios added, in `features/release-bump.feature`:
 - `release-bump-8` A class label lost to the race is added again (#29).
 - `release-bump-9` A refused run makes nothing (exit 1), version boundaries included.
 - `release-bump-20` A version above the current one is taken, compared number by number (0.19.10, 0.100.0, 1.0.0).
-- `release-bump-10` A route that would write into the body is refused.
+- `release-bump-10` A route or a `--by` value that would write into the body, or a route without `--by`, is refused.
+- `release-bump-21` A `--by` value of 100 characters is taken.
 - `release-bump-11` Hooks switched off through the environment are refused (INV-005).
 - `release-bump-12` to `-14` A failure before the open is undone (exit 2): a check, a hook, the open after the push.
 - `release-bump-15` A failure after the open leaves the pull request named (exit 3).
@@ -96,11 +98,11 @@ Terms added to `product/domain.md`: Version places, Unreleased section, Release 
 | Time a refused run takes                                   | under 15 seconds, with a 10-second fetch timeout           | acceptance: the next three bumps |
 | Portability                                                | POSIX `sh`; `shellcheck -s sh` and the repository's checks | unit                             |
 
-The token estimate: about 18k agent load and brief, 2k command output, 5k verification and check reads, and 2k report, so about 27k. It assumes the cold review is skipped (decision 0024). The integration tests put a `gh` stub on `PATH` and shorten the risk wait through an environment variable. They bind behaviour, not time. Scenario 19 is bound by a text check on `pap:cycle-mechanical`'s wording, then by acceptance on the next bumps.
+The token estimate: about 18k agent load and brief, 2k command output, 5k verification and check reads, and 2k report, so about 27k. It assumes the cold review is skipped (decision 0024). The integration tests put a `gh` stub on `PATH` and shorten the risk wait through an environment variable. They bind behaviour, not time. Scenario 19 is bound by a text check on `pap:cycle-mechanical`'s wording, the `--by` it passes included, then by acceptance on the next bumps.
 
 ## Security
 
-The threat this design defends against is an agent that drifts (decision 0027's scope), not one that is steered. The command holds no secret: `gh` and `git` act as whoever the shell is, and it sets no `GH_TOKEN`. The route is written to the body file as text, never evaluated, and its form is checked first. The body file sits in a directory only that run uses (`mktemp -d`), and the exit trap removes it. The command keeps by itself what the guard cannot see inside a script (decision 0027, Limits):
+The threat this design defends against is an agent that drifts (decision 0027's scope), not one that is steered. The command holds no secret: `gh` and `git` act as whoever the shell is, and it sets no `GH_TOKEN`. The route and the `--by` value are written to the body file as text, never evaluated, and the form of each is checked first; a route without `--by` is refused, so an agent cannot leave the body saying the owner ran it. The body file sits in a directory only that run uses (`mktemp -d`), and the exit trap removes it. The command keeps by itself what the guard cannot see inside a script (decision 0027, Limits):
 
 - a linked work tree and exactly one class label;
 - every hook, with the environment that would switch hooks off refused;
@@ -110,7 +112,7 @@ The threat this design defends against is an agent that drifts (decision 0027's 
 
 ## Interfaces and contracts
 
-- `mise run release-bump <version> [--route "<line 1>" "<line 2>"]`. Exits: 0 opened, 1 refused (nothing made), 2 failed and undone, 3 failed and not wholly undone (it names what is left and the command that removes it).
+- `mise run release-bump <version> [--route "<line 1>" "<line 2>"] [--by "<agent> on <model>"]`. Exits: 0 opened, 1 refused (nothing made), 2 failed and undone, 3 failed and not wholly undone (it names what is left and the command that removes it).
 - `mise run release-bump --answer-risk <version>`. Exits: 0 answered, 1 refused.
 - The four conditions scenario 4 binds are plugin.json, the marketplace entry, the dated heading and the install prompt. They have one definition, which the command and `scripts/release.sh` share. `release.sh` keeps its tag and archive checks and cuts the release after the merge.
 - The release brief's first line stays the `/change` route, so `/pap:pm launch` checks it unchanged (rules 18.8, 20.2). `Mechanical: yes` launches `pap:cycle-mechanical`.
