@@ -345,6 +345,14 @@ out="$(cd "$W/pap" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hookspath GIT_CON
   sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
 refused "release-bump-11: GIT_CONFIG_COUNT with core.hooksPath is refused" "GIT_CONFIG_COUNT"
+# The agent shell's own GIT_CONFIG_COUNT sets credential keys only, and is
+# taken: refusing it would refuse every run from a cycle.
+fixture
+out="$(cd "$W/pap" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=credential.https://github.com.helper GIT_CONFIG_VALUE_0='' \
+  RELEASE_BUMP_RISK_WAIT=0 TMPDIR="$W/tmp" sh scripts/release-bump.sh 0.20.0 2>&1)"
+status=$?
+[ "$status" = 0 ]
+result $? "release-bump-11: a GIT_CONFIG_COUNT that sets only credential keys is taken" "exit $status: $out"
 fixture
 out="$(cd "$W/pap" && GIT_CONFIG_PARAMETERS="'core.hookspath'='/dev/null'" sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
