@@ -350,7 +350,7 @@ $(git diff --cached --stat)"
 local_check() {
   mise run "$1" >"$run/$1.out" 2>&1
   st=$?
-  eval "${1}_exit=\$st"
+  case "$1" in check) check_exit=$st ;; test) test_exit=$st ;; esac
   [ "$st" = 0 ] || fail "mise run $1 failed (exit $st) on the bump; its last lines:
 $(lines=15 tail_of "$run/$1.out")"
   say "mise run $1: exit 0"
@@ -368,6 +368,71 @@ $(lines=15 tail_of "$run/commit")"
   sh scripts/release.sh --places-at HEAD "$version" >"$run/places" 2>&1 ||
     fail "release.sh --places-at refuses the head: $(tail_of "$run/places")"
   say "committed $(echo "$head_sha" | cut -c1-7); release.sh --places-at passes"
+}
+
+push_bump() {
+  pushed_sha="$head_sha"
+  if ! with_timeout "$net_timeout" "$run/push" git push -q -u origin "$branch"; then
+    fail "the push of $branch failed: $(tail_of "$run/push" "$run/push.err")"
+  fi
+  push_ok=true
+  say "pushed $branch"
+}
+
+# fill_body <output>: the template beside this script, filled from the
+# environment by text, never evaluated.
+fill_body() {
+  if [ "$has_route" = true ]; then RB_ROUTE_LINE="Route: $route1; $route2"; else RB_ROUTE_LINE=""; fi
+  if [ "$has_by" = true ]; then who="$by"; else who="the owner, from a terminal"; fi
+  RB_PROVENANCE="the release-bump command, scripts/release-bump.sh, run by $who; no model wrote a line of the diff."
+  RB_VERSION="$version" RB_OLD="$current" RB_DATE="$date" RB_SHORT="$(echo "$head_sha" | cut -c1-7)"
+  RB_CHECK_EXIT="$check_exit" RB_TEST_EXIT="$test_exit"
+  RB_TEST_OK="$(grep -c '^ok ' "$run/test.out")" RB_TEST_NOTOK="$(grep -c '^not ok ' "$run/test.out")"
+  export RB_ROUTE_LINE RB_PROVENANCE RB_VERSION RB_OLD RB_DATE RB_SHORT RB_CHECK_EXIT RB_TEST_EXIT RB_TEST_OK RB_TEST_NOTOK
+  awk '
+    function rep(s, k, v,   out, i) {
+      out = ""
+      while ((i = index(s, k)) > 0) { out = out substr(s, 1, i - 1) v; s = substr(s, i + length(k)) }
+      return out s
+    }
+    $0 == "{{ROUTE_LINE}}" { if (ENVIRON["RB_ROUTE_LINE"] != "") print ENVIRON["RB_ROUTE_LINE"]; next }
+    {
+      n = split("VERSION OLD DATE SHORT CHECK_EXIT TEST_EXIT TEST_OK TEST_NOTOK PROVENANCE", k, " ")
+      for (i = 1; i <= n; i++) $0 = rep($0, "{{" k[i] "}}", ENVIRON["RB_" k[i]])
+      print
+    }' scripts/release-bump-body.txt >"$1"
+}
+
+# labels: the pull request's labels, one a line.
+labels() {
+  with_timeout "$net_timeout" "$run/labels.json" gh pr view "$pr_url" --json labels &&
+    jq -r '.labels[].name' "$run/labels.json"
+}
+
+open_pr() {
+  [ -f scripts/release-bump-body.txt ] || fail "no scripts/release-bump-body.txt in the work tree"
+  fill_body "$run/body.md"
+  if ! with_timeout "$net_timeout" "$run/create" gh pr create --draft --base main --head "$branch" \
+    --title "$title" --body-file "$run/body.md" --label class:chore; then
+    fail "gh pr create failed: $(tail_of "$run/create" "$run/create.err")"
+  fi
+  pr_url="$(grep -E '^https://' "$run/create" | tail -n 1)"
+  [ -n "$pr_url" ] || { pr_url="(no URL printed)"; fail "gh pr create printed no URL: $(tail_of "$run/create")"; }
+  say "opened the draft $pr_url"
+  # The class label can race the creation (#29): read it back.
+  classes="$(labels | grep '^class:' | tr '\n' ' ')"
+  if [ "$classes" != "class:chore " ]; then
+    case " $classes" in
+      *" class:chore "*) ;;
+      *)
+        with_timeout "$net_timeout" "$run/add-label" gh pr edit "$pr_url" --add-label class:chore ||
+          fail "the class label was lost and gh pr edit --add-label class:chore failed: $(tail_of "$run/add-label.err")"
+        ;;
+    esac
+    classes="$(labels | grep '^class:' | tr '\n' ' ')"
+    [ "$classes" = "class:chore " ] || fail "the pull request's class labels are '$classes', not exactly class:chore"
+    say "added class:chore again after the read-back"
+  fi
 }
 
 # The run from the work tree's own copy of the script.
@@ -391,6 +456,8 @@ in_worktree() {
   local_check check
   local_check test
   commit_bump
+  push_bump
+  open_pr
 }
 
 # make_worktree <the arguments>: the work tree from origin/main as fetched,
@@ -405,11 +472,15 @@ make_worktree() {
   exec sh "$wt/scripts/release-bump.sh" --in-worktree "$wt" "$branch_want" "$base" "$@"
 }
 
-made_wt="" made_branch="" done=false
+made_wt="" made_branch="" done=false pr_url="" pushed_sha="" push_ok=false
 on_exit() {
   st=$?
   trap - EXIT INT TERM HUP
   [ -z "$run" ] || rm -rf "$run"
+  if [ "$st" != 0 ] && [ "$done" = false ] && [ -n "$pr_url" ]; then
+    printf 'release-bump: left: the pull request %s is open; close it with its branch: gh pr close %s --delete-branch, then mise run tidy\n' "$pr_url" "$pr_url" >&2
+    exit 3
+  fi
   if [ "$st" != 0 ] && [ "$done" = false ] && [ -n "$made_wt$made_branch" ]; then
     printf 'release-bump: left: the work tree %s and the branch %s\n' "$made_wt" "$made_branch" >&2
     exit 3
@@ -419,10 +490,12 @@ on_exit() {
 trap on_exit EXIT
 
 parse "$@"
-: "$risk_wait" "$answer" # used by the steps still to come
+: "$risk_wait" "$answer" "$pushed_sha" "$push_ok" # used by the steps still to come
 if [ "$in_wt" = true ]; then
   in_worktree
   done=true
+  say "done"
+  printf '%s\n' "$pr_url"
   exit 0
 fi
 cd "$(dirname "$0")/.." || exit 1

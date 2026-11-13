@@ -12,7 +12,8 @@
 # and exits 1 if any case fails. Needs git and jq.
 #
 # SC2319: each case passes the exit status of its condition on purpose.
-# shellcheck disable=SC2319
+# SC2016: backticks in expected body text are literal markdown.
+# shellcheck disable=SC2319,SC2016
 
 set -u
 # shellcheck disable=SC1091 # tests/clean-env.sh, sourced from this directory
@@ -358,11 +359,86 @@ refused "release-bump-11: a hooks path other than the repository's own is refuse
 # A run that goes through. WT is the work tree it makes.
 WT_NAME=pap-release-0.20.0
 fixture
-bump 0.20.0
+# The caller's checkout has a change staged, on main.
+printf 'wip\n' >"$W/pap/wip" && git -C "$W/pap" add wip
+caller_state() { git -C "$W/pap" symbolic-ref HEAD; git -C "$W/pap" rev-parse HEAD; git -C "$W/pap" diff --cached; git -C "$W/pap" status --porcelain; }
+before="$(caller_state)"
+bump 0.20.0 --route "$ROUTE1" "$ROUTE2" --by "$BY"
 WT="$W/$WT_NAME"
 base="$(git -C "$W/pap" rev-parse origin/main)"
-[ "$status" = 0 ] && [ -d "$WT" ]
-result $? "a run for 0.20.0 exits 0 and makes its work tree" "exit $status: $out"
+G="$W/gh"
+url=https://github.com/blairforce1/pap/pull/150
+[ "$status" = 0 ] && [ -d "$WT" ] && [ "$(printf '%s\n' "$out" | tail -n 1)" = "$url" ]
+result $? "release-bump-1: the command exits 0 and prints the pull request's URL" "exit $status: $out"
+[ -e "$G/draft" ] && [ "$(cat "$G/head")" = "$B" ] && [ "$(cat "$G/title")" = "chore(release): bump pap to 0.20.0" ] &&
+  [ "$(git -C "$W/origin.git" rev-parse "refs/heads/$B")" = "$(git -C "$WT" rev-parse HEAD)" ] &&
+  [ "$(git -C "$WT" rev-parse HEAD~1)" = "$base" ]
+result $? "release-bump-1: one draft from $B, titled for 0.20.0, its one commit on origin/main as fetched" "$(cat "$G/log")"
+[ "$(git -C "$WT" rev-parse --path-format=absolute --git-common-dir)" = "$W/pap/.git" ] &&
+  [ "$(git -C "$WT" rev-parse --absolute-git-dir)" != "$W/pap/.git" ]
+result $? "release-bump-1: it was made in a linked work tree"
+[ "$(grep '^class:' "$G/labels")" = class:chore ] && ! grep -q 'add-label' "$G/log"
+result $? "release-bump-1: it carries exactly one class label, class:chore" "$(cat "$G/labels")"
+[ "$(caller_state)" = "$before" ]
+result $? "release-bump-1: the caller's checkout keeps its branch, HEAD and index" "$(caller_state)"
+grep -q "^run check in $WT\$" "$W/mise.log" && grep -q "^run test in $WT\$" "$W/mise.log"
+result $? "the local checks ran in the work tree" "$(cat "$W/mise.log")"
+
+# release-bump-5: the body with a route.
+body="$G/body"
+[ "$(head -n 4 "$body")" = "Change: none
+Record: none
+Route: $ROUTE1; $ROUTE2
+Plan: none" ]
+result $? "release-bump-5: the body opens with Change, Record, the Route line and Plan" "$(head -n 4 "$body")"
+short="$(git -C "$WT" rev-parse --short=7 HEAD)"
+grep -qF "| \`mise run check\` on $short" "$body" && grep -q '| exit 0 ' "$body" &&
+  grep -qF "| \`mise run test\` on $short" "$body" && grep -qF 'exit 0: 3 ok, 0 not ok' "$body" &&
+  grep -qF 'cold review skipped: mechanical (decision 0024)' "$body"
+result $? "release-bump-5: Verification shows the checks' exits and counts, and the skipped cold review" "$(cat "$body")"
+grep -qF 'A release already cut from a bump stays: ship a later version rather than delete it.' "$body" &&
+  grep -qF '(`gh pr close <n> --delete-branch`)' "$body"
+result $? "release-bump-5: How to revert is the spec's Undo"
+# boxes_answered <body>: every box ticked, or unticked with a reason on the
+# next line that is not blank and not another box.
+boxes_answered() {
+  awk '/^- \[[ x]\] / && pending { bad = 1 }
+    pending { if ($0 ~ /^[[:space:]]*$/) bad = 1; pending = 0 }
+    /^- \[ \] / { pending = 1 }
+    /^- \[[ x]\] / { boxes++ }
+    END { exit (bad || pending || boxes != 3) }' "$1"
+}
+boxes_answered "$body"
+result $? "release-bump-5: every Checks box is ticked, or unticked with its reason on the next line" "$(sed -n '/^## Checks/,$p' "$body")"
+[ "$(grep -c '^Provenance: ' "$body")" = 1 ] &&
+  grep -qF "Provenance: the release-bump command, scripts/release-bump.sh, run by $BY;" "$body"
+result $? "release-bump-5: the Provenance line names the command and who ran it" "$(grep Provenance "$body")"
+grep -qF '| the heading'"'"'s date' "$body" && grep -qF '2026-11-13, from `date -u`: the date is UTC' "$body"
+result $? "release-bump-3: the body's Verification says the date is UTC"
+
+# release-bump-6: no route, from the owner's terminal.
+fixture
+bump 0.20.0
+body="$W/gh/body"
+[ "$status" = 0 ] && ! grep -q '^Route:' "$body" && [ "$(sed -n 3p "$body")" = "Plan: none" ] &&
+  grep -qF 'Provenance: the release-bump command, scripts/release-bump.sh, run by the owner, from a terminal;' "$body" &&
+  boxes_answered "$body"
+result $? "release-bump-6: with no route the body has no Route line, and its Provenance names the owner" "exit $status: $(cat "$body")"
+
+# release-bump-8: a class label lost to the race is added again.
+fixture
+mkdir -p "$W/gh" && : >"$W/gh/drop-label"
+bump 0.20.0
+[ "$status" = 0 ] && grep -q "pr edit $url --add-label class:chore" "$W/gh/log" &&
+  [ "$(grep -c '^class:' "$W/gh/labels")" = 1 ] && grep -qx class:chore "$W/gh/labels"
+result $? "release-bump-8: the command reads the labels back and adds class:chore once" "exit $status: $out $(cat "$W/gh/log")"
+
+# release-bump-21: a --by of exactly 100 bytes.
+by100="pap:cycle-mechanical on $(printf '%076d' 0 | tr 0 x)"
+fixture
+bump 0.20.0 --route "$ROUTE1" "$ROUTE2" --by "$by100"
+[ "${#by100}" = 100 ] && [ "$status" = 0 ] && grep -qF "run by $by100;" "$W/gh/body"
+result $? "release-bump-21: a --by of 100 bytes is taken and carried unchanged" "exit $status: $out"
 
 # release-bump-2: exactly the release bump's lines.
 names="$(git -C "$WT" diff --name-only "$base" HEAD | tr '\n' ' ')"

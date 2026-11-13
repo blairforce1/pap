@@ -11,7 +11,7 @@ Feature: One command makes a pap release bump end to end
 
   Rule: The command opens one draft pull request carrying only the bump
 
-    @id:release-bump-1 @pending:release-bump
+    @id:release-bump-1
     Scenario: The command opens a draft pull request
       When the release-bump command is run for 0.20.0
       Then one draft pull request is open from change/release-0.20.0
@@ -28,7 +28,7 @@ Feature: One command makes a pap release bump end to end
       And the only other lines changed are the unreleased heading renamed, one empty "### [Unreleased]" heading and one blank line added above it
       And no other version string, decision record or file has changed
 
-    @id:release-bump-3 @pending:release-bump
+    @id:release-bump-3
     Scenario: The unreleased section is dated as the new version, in UTC
       When the release-bump command is run for 0.20.0 at 2026-11-13T23:30:00Z
       Then under "## pap" the heading "### [Unreleased]" now reads "### [0.20.0] - 2026-11-13", above the same lines as before
@@ -42,7 +42,7 @@ Feature: One command makes a pap release bump end to end
       Then at the head plugin.json and the marketplace entry carry 0.20.0, the "## pap" section has "### [0.20.0] - " and a date, and the install prompt names 0.20.0
       And the same check scripts/release.sh makes on those four passes at the head
 
-    @id:release-bump-5 @pending:release-bump
+    @id:release-bump-5
     Scenario: The body answers every Checks box and declares what made it
       When the release-bump command is run for 0.20.0 with --by "pap:cycle-mechanical on Claude Haiku 5.5" and a route of "/change release-0.20.0 chore Record: none" and "Rule 20.2: exempt: version bump"
       Then the body's first lines are "Change: none", "Record: none", the Route line joining the two with "; ", and "Plan: none"
@@ -51,7 +51,7 @@ Feature: One command makes a pap release bump end to end
       And every Checks box is ticked, or unticked with its reason on the next line
       And its Provenance line names the release-bump command and "pap:cycle-mechanical on Claude Haiku 5.5"
 
-    @id:release-bump-6 @pending:release-bump
+    @id:release-bump-6
     Scenario: The body without a route has no Route line
       When the release-bump command is run for 0.20.0 from the owner's terminal with no route
       Then the body has no Route line, its Provenance names the command run by the owner, and it is otherwise as for a route
@@ -69,7 +69,7 @@ Feature: One command makes a pap release bump end to end
         | risk:high   | unticked, with "Risk: high; the owner adds owner-reviewed after review"      |
         | no label    | unticked, with "Risk: not read within two minutes; the cycle reads it again" |
 
-    @id:release-bump-8 @pending:release-bump
+    @id:release-bump-8
     Scenario: A class label lost to the race is added again
       Given GitHub drops the class label given at creation
       When the release-bump command is run for 0.20.0
@@ -117,7 +117,7 @@ Feature: One command makes a pap release bump end to end
         | a valid route                                                             | "pap:cycle on <!-- Claude"                      | the --by value   |
         | a valid route                                                             | an "<agent> on <model>" value of 101 characters | the --by value   |
 
-    @id:release-bump-21 @pending:release-bump
+    @id:release-bump-21
     Scenario: A --by value of 100 characters is taken
       When the release-bump command is run for 0.20.0 with a valid route and an "<agent> on <model>" --by value of exactly 100 characters
       Then the command exits 0 and the Provenance line carries the value unchanged
