@@ -108,6 +108,9 @@ Two readings, recorded with the release-bump change
   `Release bump: <version>` runs `mise run release-bump` instead, which
   makes the work tree, the commit, the push and the draft pull request
   itself; the cycle verifies and reports. The agent's text says so.
+  That script opens the cycle's pull request as the agent app (decision
+  0023), through a `gh` reached from a script, which decision 0027's
+  guard does not see: it sits under 0027's Limits.
 - Under point 5, the empty `### [Unreleased]` heading and its blank line,
   added above the dated heading, are part of "a new version heading", as
   #144 read it. A release bump's diff stays mechanical, and its cold
