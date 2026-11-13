@@ -615,5 +615,38 @@ for sig in TERM INT HUP; do
   result $? "release-bump-16: $sig after the push exits 2, the pushed branch, the work tree and the local branch removed, the body directory gone" "exit $status: $out"
 done
 
+# release-bump-17: the re-answer form.
+answer() {
+  out="$(cd "$W/pap" && TMPDIR="$W/tmp" sh scripts/release-bump.sh --answer-risk 0.20.0 2>&1)"
+  status=$?
+}
+fixture
+bump 0.20.0
+cp "$W/gh/body" "$W/body-before"
+printf 'risk:low\n' >"$W/gh/risk"
+answer
+boxline="$(grep '^- \[ \] No protected path touched' "$W/body-before")"
+want_diff="< $boxline
+< Risk: not read within two minutes; the cycle reads it again
+> - [x]${boxline#- \[ \]}
+> Risk: low"
+[ "$status" = 0 ] && [ -n "$boxline" ] && [ "$(diff "$W/body-before" "$W/gh/body" | grep '^[<>]')" = "$want_diff" ]
+result $? "release-bump-17: with risk:low and a box not read, it exits 0, ticks the box and changes no other line" "exit $status: $out"
+cp "$W/gh/body" "$W/body-before"
+printf 'chore(release): bump pap to 0.20.0\nfix: a hand edit\n' >"$W/gh/commits"
+answer
+[ "$status" = 1 ] && printf '%s' "$out" | grep -q 'fix: a hand edit' && cmp -s "$W/body-before" "$W/gh/body"
+result $? "release-bump-17: a draft with a second commit is refused naming it, the body unchanged" "exit $status: $out"
+fixture
+answer
+[ "$status" = 1 ] && printf '%s' "$out" | grep -q "no open pull request from $B"
+result $? "release-bump-17: with no open pull request from the branch it exits 1 naming the branch" "exit $status: $out"
+fixture
+bump 0.20.0
+answer
+[ "$status" = 0 ] && [ "$(box_reads "$W/gh/body")" = "- [ ]
+Risk: not read within two minutes; the cycle reads it again" ]
+result $? "release-bump-17: with no risk label still it exits 0 and the box still reads not read" "exit $status: $out"
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

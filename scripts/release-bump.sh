@@ -508,6 +508,35 @@ make_worktree() {
   exec sh "$wt/scripts/release-bump.sh" --in-worktree "$wt" "$branch_want" "$base" "$@"
 }
 
+# answer_risk: the re-answer form. Only the open draft from
+# change/release-<version> whose only commit is this command's; only its
+# protected-path box and the line after it.
+answer_risk() {
+  valid_version "$version" || refuse "the version '$version' is not x.y.z without leading zeros"
+  b="change/release-$version"
+  run="$(mktemp -d)"
+  with_timeout "$net_timeout" "$run/view.json" gh pr view "$b" --json url,headRefName,isDraft,state,commits,labels,body ||
+    refuse "no open pull request from $b: $(tail -n 2 "$run/view.json.err" | tr '\n' ' ')"
+  jq -e --arg b "$b" '.state == "OPEN" and .headRefName == $b' "$run/view.json" >/dev/null ||
+    refuse "no open pull request from $b"
+  jq -e '.isDraft' "$run/view.json" >/dev/null || refuse "the pull request from $b is not a draft"
+  others="$(jq -r --arg t "chore(release): bump pap to $version" \
+    '.commits | if length == 1 and .[0].messageHeadline == $t then empty else .[1:][] | .messageHeadline end' "$run/view.json")"
+  [ -z "$others" ] && [ "$(jq '.commits | length' "$run/view.json")" = 1 ] ||
+    refuse "the draft from $b carries a commit that is not the command's: $(printf '%s' "$others" | tr '\n' ';')"
+  a_url="$(jq -r .url "$run/view.json")"
+  risk="$(jq -r '.labels[].name' "$run/view.json" | grep '^risk:' | head -n 1)"
+  jq -r .body "$run/view.json" >"$run/body.md"
+  answer_box "$run/body.md" "$risk" >"$run/body2.md"
+  if ! cmp -s "$run/body.md" "$run/body2.md"; then
+    with_timeout "$net_timeout" "$run/edit-body" gh pr edit "$a_url" --body-file "$run/body2.md" ||
+      refuse "gh pr edit could not answer the box: $(tail -n 2 "$run/edit-body.err" | tr '\n' ' ')"
+  fi
+  say "answered: the risk label of $a_url is ${risk:-not read}"
+  done=true
+  exit 0
+}
+
 # undo: remove what this run recorded making, in order: the pushed branch,
 # only while origin still points at this run's commit, from the work tree
 # (the pre-push hook needs the change branch checked out); then the work
@@ -588,7 +617,7 @@ trap 'on_signal TERM' TERM
 trap 'on_signal HUP' HUP
 
 parse "$@"
-: "$answer" # used by the step still to come
+[ "$answer" = false ] || answer_risk
 if [ "$in_wt" = true ]; then
   in_worktree
   done=true

@@ -193,7 +193,7 @@ Feature: One command makes a pap release bump end to end
       Then it exits 2 with the pushed branch, then the work tree, then the local branch removed
       And its body directory is removed
 
-    @id:release-bump-17 @pending:release-bump
+    @id:release-bump-17
     Scenario Outline: The re-answer form rewrites the risk box and nothing else
       Given <state>
       When the release-bump command is run with --answer-risk for 0.20.0
