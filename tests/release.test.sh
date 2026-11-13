@@ -243,5 +243,38 @@ status=$?
   printf '%s\n' "$out" | grep -qx 'vendored'
 result $? "refuses an archive whose paths are not the tree's" "$out"
 
+# --places-at <rev> <version>: the four conditions alone, at a commit of
+# this checkout, the definition the release-bump command shares
+# (release-bump-4). Each case changes one condition in a commit not pushed.
+places() { sh "$T/repo/scripts/release.sh" --places-at HEAD 1.0.0 2>&1; }
+out="$(places)"
+status=$?
+[ "$status" = 0 ]
+result $? "release-bump-4: --places-at passes a head whose four conditions hold" "$out"
+places_case() { # places_case <label> <expected text>
+  g add -A && g commit -q -m "a places case"
+  out="$(places)"
+  status=$?
+  [ "$status" = 1 ] && printf '%s' "$out" | grep -q -- "$2"
+  result $? "release-bump-4: --places-at refuses $1" "$out"
+  g reset -q --hard HEAD~1
+}
+printf '{"version": "1.0.1"}\n' > "$T/repo/plugins/pap/.claude-plugin/plugin.json"
+places_case "plugin.json on another version" 'pap 1.0.1 in plugin.json'
+printf '{"plugins": [{"name": "pap", "version": "0.9.0"}]}\n' > "$T/repo/.claude-plugin/marketplace.json"
+places_case "the marketplace entry on another version" 'and 0.9.0 in marketplace.json'
+changelog Unreleased
+places_case "an undated heading" "reads '### \[1.0.0\] - Unreleased'"
+changelog 2026-1-1
+places_case "a heading whose date is not YYYY-MM-DD" "not '### \[1.0.0\] - YYYY-MM-DD'"
+printf '# Changelog\n\n## pap\n\n### [Unreleased]\n' > "$T/repo/CHANGELOG.md"
+places_case "a section with no heading for the version" "has no '### \[1.0.0\] - ' heading"
+install_prompt 0.9.0
+places_case "an install prompt naming another version" 'names pap 0\.9\.0, not 1\.0\.0'
+out="$(places)"
+status=$?
+[ "$status" = 0 ]
+result $? "release-bump-4: --places-at reads the commit, so the reset head passes again" "$out"
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

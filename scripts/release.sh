@@ -3,6 +3,13 @@
 #
 # Usage: scripts/release.sh <version> [--dry-run]
 #        mise run release <version> [--dry-run]
+#        scripts/release.sh --places-at <rev> <version>
+#
+# --places-at checks only the four conditions below at <rev>, in this
+# checkout, and exits 0 when they hold: it fetches, builds and creates
+# nothing. There the dated heading must exist. The release-bump command
+# (scripts/release-bump.sh) runs it on its head, so a bump and a release
+# check one definition.
 #
 # Builds pap-<version>.tar.gz from origin/main as it is on GitHub now: the
 # tree at that commit, every path of it whatever .gitattributes marks
@@ -33,39 +40,59 @@ set -eu
 
 die() { printf 'release: %s\n' "$*" >&2; exit 1; }
 
-version="" dry_run=false
-for arg in "$@"; do
-  case "$arg" in
+version="" dry_run=false places_at=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --dry-run) dry_run=true ;;
+    --places-at) [ "$#" -ge 2 ] || die "usage: release.sh --places-at <rev> <version>"; places_at="$2"; shift ;;
     -*) die "usage: release.sh <version> [--dry-run]" ;;
-    *) [ -z "$version" ] || die "one version only"; version="$arg" ;;
+    *) [ -z "$version" ] || die "one version only"; version="$1" ;;
   esac
+  shift
 done
 printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' ||
   die "version must be x.y.z, got '${version}'"
 tag="v$version"
 
+# check_places <rev> <name> <heading required: true|false>: the four
+# conditions, the one definition the release-bump command shares. The
+# manifests carry the version, the "## pap" heading for it is dated
+# YYYY-MM-DD, and the install prompt names it. The cut path does not
+# require the heading, as before; --places-at does.
+check_places() {
+  plugin="$(git show "$1:plugins/pap/.claude-plugin/plugin.json" | jq -r .version)"
+  market="$(git show "$1:.claude-plugin/marketplace.json" | jq -r '.plugins[] | select(.name == "pap") | .version')"
+  [ "$plugin" = "$version" ] && [ "$market" = "$version" ] ||
+    die "$2 carries pap $plugin in plugin.json and $market in marketplace.json, not $version; bump both first"
+  heading="$(git show "$1:CHANGELOG.md" | awk -v h="### [$version]" '
+    /^## / { pap = ($0 == "## pap") }
+    pap && index($0, h) == 1 { print; exit }')"
+  case "$heading" in
+    *Unreleased*) die "CHANGELOG.md at $2 reads '$heading'; date the $version section first" ;;
+    '') [ "$3" = false ] || die "CHANGELOG.md at $2 has no '### [$version] - ' heading under '## pap'" ;;
+    *) printf '%s\n' "$heading" | grep -Eq '^### \[[0-9.]+\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$' ||
+      die "CHANGELOG.md at $2 reads '$heading', not '### [$version] - YYYY-MM-DD'" ;;
+  esac
+
+  # The install prompt has Claude install pap at an exact version; a release
+  # it does not name would leave the docs installing the one before.
+  prompt="$(git show "$1:docs/agent-onboarding.md" 2>/dev/null |
+    sed -n 's/.*github:blairforce1\/pap\[asset_pattern=pap-\*\.tar\.gz\]@\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n 1)"
+  [ "$prompt" = "$version" ] ||
+    die "the install prompt in docs/agent-onboarding.md at $2 names pap ${prompt:-no version}, not $version; bump it with the manifests first"
+}
+
 cd "$(dirname "$0")/.."
+if [ -n "$places_at" ]; then
+  sha="$(git rev-parse --verify --quiet "$places_at^{commit}")" || die "no commit '$places_at'"
+  check_places "$sha" "$places_at" true
+  printf 'release: the four conditions hold for %s at %s\n' "$version" "$places_at"
+  exit 0
+fi
 git fetch --quiet --tags origin main
 sha="$(git rev-parse origin/main)"
 [ -z "$(git ls-remote --tags origin "refs/tags/$tag")" ] || die "$tag already exists on origin"
-plugin="$(git show "$sha:plugins/pap/.claude-plugin/plugin.json" | jq -r .version)"
-market="$(git show "$sha:.claude-plugin/marketplace.json" | jq -r '.plugins[] | select(.name == "pap") | .version')"
-[ "$plugin" = "$version" ] && [ "$market" = "$version" ] ||
-  die "origin/main carries pap $plugin in plugin.json and $market in marketplace.json, not $version; bump both first"
-heading="$(git show "$sha:CHANGELOG.md" | awk -v h="### [$version]" '
-  /^## / { pap = ($0 == "## pap") }
-  pap && index($0, h) == 1 { print; exit }')"
-case "$heading" in
-  *Unreleased*) die "CHANGELOG.md at origin/main reads '$heading'; date the $version section first" ;;
-esac
-
-# The install prompt has Claude install pap at an exact version; a release
-# it does not name would leave the docs installing the one before.
-prompt="$(git show "$sha:docs/agent-onboarding.md" 2>/dev/null |
-  sed -n 's/.*github:blairforce1\/pap\[asset_pattern=pap-\*\.tar\.gz\]@\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n 1)"
-[ "$prompt" = "$version" ] ||
-  die "the install prompt in docs/agent-onboarding.md at origin/main names pap ${prompt:-no version}, not $version; bump it with the manifests first"
+check_places "$sha" origin/main false
 
 out="$(mktemp -d)"
 name="pap-$version"
