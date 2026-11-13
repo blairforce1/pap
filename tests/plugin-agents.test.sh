@@ -192,5 +192,22 @@ result $? "spec-board-keeps-tools-6, spec-board-keeps-tools-7: step 6 says: Star
 has6 'Start no sub-agent of another type in its place.'
 result $? "spec-board-keeps-tools-8: step 6 says: Start no sub-agent of another type in its place."
 
+# release-bump-19: a release cycle runs the command, verifies and reports.
+# Bound to pap:cycle-mechanical's wording; the first bumps show it live.
+mech="$dir/cycle-mechanical.md"
+for t in 'A release bump is the one exception, below: its `Release bump:` line takes precedence over this first act.' \
+  'Do not invoke `/change`. Your first act after the `cd` is the release-bump command, run in the background' \
+  '--by "pap:cycle-mechanical on <your model, as Claude Haiku 5.5>"' \
+  'Watch the required checks in the background, for up to 10 minutes.' \
+  'run `mise run release-bump --answer-risk <version>` once.' \
+  'Say that you ran the release-bump command, on which model' \
+  'the command exits 1, 2 or 3 (quote its message)' \
+  'say the bump is to be closed and run again' \
+  'Edit no file of the pull request, retry nothing, and open no pull request another way.' \
+  'In a release bump the command has pushed what there is: push nothing.'; do
+  has "$mech" "$t"
+  result $? "release-bump-19: cycle-mechanical says: $t"
+done
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

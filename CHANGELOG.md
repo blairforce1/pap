@@ -190,6 +190,18 @@ not carry.
 
 #### Added
 
+- `mise run release-bump <version>` makes a pap release bump end to end
+  in pap's own repository: the work tree `../pap-release-<version>`, the
+  four version places, the unreleased section dated in UTC, the local
+  checks, the commit, the push and the draft pull request with
+  `class:chore`, then the protected-path box from the risk label. It
+  refuses before it makes anything, undoes a failed or interrupted run,
+  and names what it leaves. `--answer-risk <version>` re-answers the box.
+  `pap:cycle-mechanical` runs it for a brief with `Release bump:`, in
+  place of `/change`, then verifies and reports. `scripts/release.sh
+  --places-at <rev> <version>` checks the four conditions alone, and a
+  release now refuses a heading that is not dated YYYY-MM-DD.
+
 - Rules 27.1 and 27.2 (decision 0027). In a project-manager session the
   guard refuses an agent's `gh pr create` in the main checkout of an
   adopting repository, or with no class label anywhere, and a `git switch`

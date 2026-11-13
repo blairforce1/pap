@@ -311,6 +311,36 @@ worktree and branch. If the release notes say the ruleset or the labels
 changed, run `pap repo status`; `pap repo apply` is the owner's, from
 their own terminal.
 
+## Bump pap's own version
+
+This section is for the PM session of pap itself. The owner names the
+next version, and `[Unreleased]` under `## pap` in `CHANGELOG.md` already
+holds its lines.
+
+**The brief.** Its first four lines, in this order:
+
+```text
+/change release-<version> chore Record: none
+Rule 20.2: exempt: version bump. <why, and the owner's go>
+Mechanical: yes
+Release bump: <version>
+```
+
+`/pap:pm launch release-<version>` starts it as `pap:cycle-mechanical`.
+The `Release bump:` line has the cycle run
+`mise run release-bump <version>` with the first two lines as its route,
+in place of `/change`. The command makes the work tree, moves the four
+version places, dates the unreleased section in UTC, runs the checks,
+commits, pushes and opens the draft with `class:chore`, then answers the
+protected-path box from the risk label. The cycle verifies the diff and
+the checks and reports; it edits nothing. A refusal, a failed check or a
+conflict comes back as `ASK:`.
+
+**After the merge.** The owner merges. Then `mise run release <version>`
+cuts the release, and `mise run tidy` removes the worktree and branch. A
+bump overtaken on main is closed with its branch and run again, never
+merged with main by hand.
+
 ## When something refuses
 
 The guard keeps four logs under `${XDG_STATE_HOME:-~/.local/state}/pap/pm/`,

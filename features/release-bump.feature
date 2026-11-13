@@ -208,13 +208,13 @@ Feature: One command makes a pap release bump end to end
 
   Rule: The command and the cycle keep what is the owner's
 
-    @id:release-bump-18 @pending:release-bump
+    @id:release-bump-18
     Scenario: The command does nothing the owner keeps for themselves
       When the release-bump command is run for 0.20.0
       Then it makes no merge, no ready-for-review, no owner-reviewed label, no Approved-by line and no push to main
       And it cuts no release, makes no tag and sets no GH_TOKEN
 
-    @id:release-bump-19 @pending:release-bump
+    @id:release-bump-19
     Scenario Outline: A release cycle runs the command, verifies and reports
       Given a launched mechanical cycle on Claude Haiku 5.5 whose brief has the line "Release bump: 0.20.0"
       When the cycle runs and <happens>

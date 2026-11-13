@@ -97,6 +97,22 @@ in pap gives every adopter the same three without copying a file.
    review leaves its Verification row as
    `cold review skipped: mechanical (decision 0024)`.
 
+### Note of 2026-11-13
+
+Two readings, recorded with the release-bump change
+(`changes/release-bump/spec.md`), which the owner accepted on
+2026-11-13. Nothing above changes.
+
+- A release bump is the one exception to a cycle's first act being
+  `/change`. A `pap:cycle-mechanical` brief with the line
+  `Release bump: <version>` runs `mise run release-bump` instead, which
+  makes the work tree, the commit, the push and the draft pull request
+  itself; the cycle verifies and reports. The agent's text says so.
+- Under point 5, the empty `### [Unreleased]` heading and its blank line,
+  added above the dated heading, are part of "a new version heading", as
+  #144 read it. A release bump's diff stays mechanical, and its cold
+  review is skipped.
+
 ## Considered options
 
 - **Keep general-purpose with a stricter brief.** Lost: a brief cannot

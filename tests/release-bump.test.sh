@@ -648,5 +648,18 @@ answer
 Risk: not read within two minutes; the cycle reads it again" ]
 result $? "release-bump-17: with no risk label still it exits 0 and the box still reads not read" "exit $status: $out"
 
+# release-bump-18: nothing the owner keeps. A run with risk:high, then the
+# re-answer form, under a shell that has GH_TOKEN unset.
+fixture
+printf 'risk:high\n' >"$W/gh/risk"
+main_before="$(git -C "$W/origin.git" rev-parse main)"
+bump 0.20.0 --route "$ROUTE1" "$ROUTE2" --by "$BY"
+answer
+[ "$status" = 0 ] && ! grep -Eq 'pr merge|pr ready|owner-reviewed|release create|GH_TOKEN set' "$W/gh/log" &&
+  [ -z "$(git -C "$W/origin.git" tag)" ] && [ "$(git -C "$W/origin.git" rev-parse main)" = "$main_before" ] &&
+  ! grep -q '^Approved-by:' "$W/gh/body" && [ -e "$W/gh/draft" ] &&
+  [ "$(git -C "$W/origin.git" for-each-ref --format='%(refname)' refs/heads | tr '\n' ' ')" = "refs/heads/$B refs/heads/main " ]
+result $? "release-bump-18: no merge, ready, owner-reviewed, Approved-by line, push to main, release, tag or GH_TOKEN" "$(cat "$W/gh/log")"
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]
