@@ -34,6 +34,7 @@
 #                    pl_acc is the commit that accepted the plan: the oldest
 #                    of the latest run of plan.md commits that carry the
 #                    acceptance, so an edit after the yes does not move it.
+#                    The run stops at a second yes (plan_reaccept).
 
 # SC2154: pl_dir, pl_ref and pl_slug are the caller's. SC2034: pl_state and
 # pl_acc are read by the caller.
@@ -69,6 +70,16 @@ plan_code() {
     ':(top)' ':(top,exclude)changes' ':(top,exclude)features' ':(top,exclude)product' 2>/dev/null | sed -n '/./{p;q;}')" ]
 }
 
+# plan_reaccept <older> <newer>: true when <newer>, a plan commit that keeps
+# an acceptance <older> already had, is a fresh yes and not an amend. An
+# amend is refused once the spec has changed since the yes, and a yes after
+# a redraft commits the register the second review wrote. So a spec commit
+# between the two, and the register in <newer>, make it a second accept.
+plan_reaccept() {
+  [ -n "$(pl_git rev-list -n 1 "$2^" "^$1" -- ":(top)changes/$pl_slug/spec.md" 2>/dev/null)" ] &&
+    [ -n "$(pl_git diff-tree --no-commit-id --name-only -r "$2" -- ":(top)changes/$pl_slug/reviews/plan-review.md" 2>/dev/null)" ]
+}
+
 plan_state() {
   pl_state=nobranch pl_acc=""
   pl_git rev-parse -q --verify "$pl_ref^{commit}" >/dev/null 2>&1 || return 0
@@ -81,6 +92,7 @@ plan_state() {
   printf '%s\n' "$ps_body" | plan_filled || return 0
   for ps_c in $(pl_git log --format=%H "$pl_ref" -- ":(top)changes/$pl_slug/plan.md" 2>/dev/null); do
     pl_git show "$ps_c:changes/$pl_slug/plan.md" 2>/dev/null | plan_filled || break
+    [ -z "$pl_acc" ] || ! plan_reaccept "$ps_c" "$pl_acc" || break
     pl_acc="$ps_c"
   done
   pl_state=unreadable

@@ -230,6 +230,14 @@ not carry.
   `/pap:pm sync`. `docs/adopt-a-repo.md` links to it from `pap sync`.
 - Rule 18.3's "Enforced by" line names the restate event `sync` writes.
 
+#### Fixed
+
+- A plan accepted again after a spec rework read as `spec-changed`, so
+  `/pap:pm launch` refused it with exit 20. The plan's state is now read
+  from the second yes: a plan commit that keeps the acceptance, follows a
+  spec commit and commits the plan review's register is a fresh accept,
+  not an amend.
+
 ### [0.19.1] - 2026-11-11
 
 #### Fixed

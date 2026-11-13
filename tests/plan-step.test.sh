@@ -442,6 +442,40 @@ git -C "$W" show "HEAD~1:$dir/plan.md" | sed 's/the gate/the launch gate/' > "$W
 pp status trial
 [ "$out" = "draft: the spec changed after the plan's yes" ]
 result $? "plan-step-28: a later commit to the plan that keeps the acceptance does not hide the spec's change" "$out"
+# A second yes after a spec rework is the yes the state is read from; an
+# amend still dates to the yes it edits. Both yeses carry the same values.
+pl_dir="$W" pl_ref=HEAD pl_slug=trial
+redraft() { # redraft: a fresh draft against the reworked spec, reviewed again
+  plan 300; sed 's/the gate, trial-1/the reworked gate, trial-1/' "$W/$dir/plan.md" > "$T/p" && cp "$T/p" "$W/$dir/plan.md"
+  reviewed; register "accepted"
+}
+base feature
+accepted_plan
+acc1="$(head_of)" by1="$(hdr "$W/$dir/plan.md" accepted-by)" on1="$(hdr "$W/$dir/plan.md" accepted-on)"
+printf 'More.\n' >> "$W/$dir/spec.md"; cm "spec(trial): rework"
+redraft
+pp accept trial --by olive --what "build the reworked trial"
+acc2="$(head_of)"
+pp status trial
+st="$out"; plan_state
+[ "$st" = accepted ] && [ "$pl_state" = accepted ] && [ "$pl_acc" = "$acc2" ] && [ "$acc2" != "$acc1" ] &&
+  [ "$(hdr "$W/$dir/plan.md" accepted-by)" = "$by1" ] && [ "$(hdr "$W/$dir/plan.md" accepted-on)" = "$on1" ]
+result $? "plan-step-28: accept, a spec commit, then a second accept with the same values: the plan reads accepted, dated to the second yes" "$st; state $pl_state; acc $pl_acc (first $acc1, second $acc2)"
+base feature
+accepted_plan
+acc1="$(head_of)"
+sed 's/^- One: the gate, trial-1\.$/- One: the launch gate, trial-1./' "$W/$dir/plan.md" > "$T/p" && cp "$T/p" "$W/$dir/plan.md"
+register "accepted"
+pp amend trial --what "name the launch gate"
+pp status trial
+st="$out"; plan_state
+[ "$st" = accepted ] && [ "$pl_state" = accepted ] && [ "$pl_acc" = "$acc1" ] && [ "$(head_of)" != "$acc1" ]
+result $? "plan-step-28: accept, then an amend that also commits the register: the plan reads accepted, dated to the accept it edits" "$st; state $pl_state; acc $pl_acc (accept $acc1)"
+printf 'More.\n' >> "$W/$dir/spec.md"; cm "spec(trial): rework"
+pp status trial
+st="$out"; plan_state
+[ "$st" = "draft: the spec changed after the plan's yes" ] && [ "$pl_state" = spec-changed ] && [ "$pl_acc" = "$acc1" ]
+result $? "plan-step-28: accept, an amend, then a spec commit with no second accept: the plan reads spec-changed" "$st; state $pl_state; acc $pl_acc (accept $acc1)"
 
 # --- The launch -------------------------------------------------------------------
 
@@ -570,6 +604,18 @@ ready "/change trial feature" "Rule 20.2: item 1"
 pm launch trial
 [ "$rc" = 0 ]
 result $? "plan-step-31: an accepted plan with code after it is launched too: a relaunch of the build" "exit $rc; $out"
+# A plan accepted again after a spec rework passes the launch's plan check.
+base feature
+accepted_plan
+code "the first of it"
+printf 'More.\n' >> "$W/$dir/spec.md"; cm "spec(trial): rework"
+plan 300; sed 's/the gate, trial-1/the reworked gate, trial-1/' "$W/$dir/plan.md" > "$T/p" && cp "$T/p" "$W/$dir/plan.md"
+reviewed; register "accepted"
+pp accept trial --by olive --what "build the reworked trial"
+ready "/change trial feature" "Rule 20.2: item 1"
+pm launch trial
+[ "$rc" = 0 ] && ! grep -q refused-20 "$ll"
+result $? "plan-step-31: accept, code, a spec commit, then a second accept: the launch passes the plan check" "exit $rc; $out"
 
 twenty=0
 for class in bugfix chore docs spike; do
