@@ -56,7 +56,7 @@ Feature: One command makes a pap release bump end to end
       When the release-bump command is run for 0.20.0 from the owner's terminal with no route
       Then the body has no Route line, its Provenance names the command run by the owner, and it is otherwise as for a route
 
-    @id:release-bump-7 @pending:release-bump
+    @id:release-bump-7
     Scenario Outline: The protected-path box follows the risk label
       Given pr-checks sets <label> on the pull request within the risk wait
       When the release-bump command is run for 0.20.0

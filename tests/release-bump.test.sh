@@ -493,5 +493,22 @@ for row in 0.19.1:0.19.10 0.19.1:0.100.0 0.19.1:1.0.0 0.9.9:0.10.0; do
   result $? "release-bump-20: from $cur, $new is taken and the version places agree on it" "exit $status: $out $o"
 done
 
+# release-bump-7: the protected-path box follows the risk label.
+# box_reads <body>: the box line and the line after it.
+box_reads() { awk '/^- \[[ x]\] No protected path touched/ { print substr($0, 1, 5); getline; print; exit }' "$1"; }
+for row in "risk:low|- [x]|Risk: low" "risk:medium|- [x]|Risk: medium" \
+  "risk:high|- [ ]|Risk: high; the owner adds owner-reviewed after review" \
+  "|- [ ]|Risk: not read within two minutes; the cycle reads it again"; do
+  label="${row%%|*}" rest="${row#*|}"
+  tick="${rest%%|*}" line="${rest#*|}"
+  fixture
+  mkdir -p "$W/gh"
+  [ -z "$label" ] || printf '%s\n' "$label" >"$W/gh/risk"
+  RISK_WAIT=1 bump 0.20.0
+  [ "$status" = 0 ] && [ "$(box_reads "$W/gh/body")" = "$tick
+$line" ] && boxes_answered "$W/gh/body"
+  result $? "release-bump-7: with ${label:-no label} the box reads $tick and '$line'" "exit $status: $(box_reads "$W/gh/body")"
+done
+
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

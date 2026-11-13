@@ -435,6 +435,41 @@ open_pr() {
   fi
 }
 
+# answer_box <body file> <risk label, or empty>: the body with the
+# protected-path box and its next line answered from the label (decision
+# 0016), and nothing else changed.
+answer_box() {
+  awk -v risk="$2" '
+    BEGIN {
+      box = "[ ]"; line = "Risk: not read within two minutes; the cycle reads it again"
+      if (risk == "risk:low") { box = "[x]"; line = "Risk: low" }
+      if (risk == "risk:medium") { box = "[x]"; line = "Risk: medium" }
+      if (risk == "risk:high") line = "Risk: high; the owner adds owner-reviewed after review"
+    }
+    skip { skip = 0; if ($0 ~ /^[[:space:]]*Risk: /) next }
+    /^- \[[ x]\] No protected path touched/ { print "- " box substr($0, 6); print line; skip = 1; next }
+    { print }' "$1"
+}
+
+# wait_risk: up to the risk wait for pr-checks' risk label, then the box.
+wait_risk() {
+  until_s=$(($(elapsed) + risk_wait))
+  while :; do
+    risk="$(labels 2>/dev/null | grep '^risk:' | head -n 1)"
+    [ -z "$risk" ] || break
+    left_s=$((until_s - $(elapsed)))
+    [ "$left_s" -gt 0 ] || break
+    [ "$left_s" -le 5 ] || left_s=5
+    sleep "$left_s"
+  done
+  answer_box "$run/body.md" "$risk" >"$run/body2.md"
+  if ! cmp -s "$run/body.md" "$run/body2.md"; then
+    with_timeout "$net_timeout" "$run/edit-body" gh pr edit "$pr_url" --body-file "$run/body2.md" ||
+      fail "gh pr edit could not answer the protected-path box: $(tail_of "$run/edit-body.err")"
+  fi
+  say "the risk label is ${risk:-not read}; the protected-path box answers it"
+}
+
 # The run from the work tree's own copy of the script.
 in_worktree() {
   cd "$wt" || exit 2
@@ -458,6 +493,7 @@ in_worktree() {
   commit_bump
   push_bump
   open_pr
+  wait_risk
 }
 
 # make_worktree <the arguments>: the work tree from origin/main as fetched,
@@ -490,7 +526,7 @@ on_exit() {
 trap on_exit EXIT
 
 parse "$@"
-: "$risk_wait" "$answer" "$pushed_sha" "$push_ok" # used by the steps still to come
+: "$answer" "$pushed_sha" "$push_ok" # used by the steps still to come
 if [ "$in_wt" = true ]; then
   in_worktree
   done=true
