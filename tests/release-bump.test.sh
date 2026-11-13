@@ -212,13 +212,15 @@ LOG
   git -C "$r" commit -q -m "the fixture"
   git -C "$r" push -q origin main
   git -C "$r" fetch -q origin
+  mkdir -p "$W/tmp" "$W/gh"
 }
 B=change/release-0.20.0
 
 # bump [args]: run the command from the checkout, as mise run release-bump
 # does; out holds its output, status its exit.
 bump() {
-  out="$(cd "$W/pap" && RELEASE_BUMP_RISK_WAIT="${RISK_WAIT:-0}" sh scripts/release-bump.sh "$@" 2>&1)"
+  out="$(cd "$W/pap" && RELEASE_BUMP_RISK_WAIT="${RISK_WAIT:-0}" RELEASE_BUMP_NET_TIMEOUT="${NET:-60}" \
+    TMPDIR="$W/tmp" sh scripts/release-bump.sh "$@" 2>&1)"
   status=$?
 }
 # nothing_made: no work tree, no branch locally or on origin, no pull request.
@@ -508,6 +510,109 @@ for row in "risk:low|- [x]|Risk: low" "risk:medium|- [x]|Risk: medium" \
   [ "$status" = 0 ] && [ "$(box_reads "$W/gh/body")" = "$tick
 $line" ] && boxes_answered "$W/gh/body"
   result $? "release-bump-7: with ${label:-no label} the box reads $tick and '$line'" "exit $status: $(box_reads "$W/gh/body")"
+done
+
+# all_undone: no work tree, no local or pushed branch, the run directory
+# gone; main and another branch on origin untouched.
+all_undone() {
+  [ ! -e "$W/$WT_NAME" ] &&
+    ! git -C "$W/pap" rev-parse -q --verify "refs/heads/$B" >/dev/null &&
+    [ -z "$(git -C "$W/origin.git" for-each-ref "refs/heads/$B")" ] &&
+    [ -z "$(ls -A "$W/tmp")" ] &&
+    [ "$(git -C "$W/origin.git" rev-parse main)" = "$(git -C "$W/pap" rev-parse origin/main)" ] &&
+    [ "$(git -C "$W/origin.git" rev-parse refs/heads/change/other)" = "$(git -C "$W/pap" rev-parse origin/main)" ]
+}
+# in_order <text>...: each text is in out, in that order.
+in_order() {
+  printf '%s\n' "$out" | awk -v list="$(printf '%s\n' "$@")" '
+    BEGIN { n = split(list, want, "\n"); i = 1 }
+    i <= n && index($0, want[i]) { i++ }
+    END { exit i <= n }'
+}
+undo_fixture() { fixture; git -C "$W/pap" push -q origin main:refs/heads/change/other; }
+
+# release-bump-12: a failed local check.
+undo_fixture
+: >"$W/test-fails"
+bump 0.20.0
+[ "$status" = 2 ] && printf '%s' "$out" | grep -q 'mise run test failed' &&
+  printf '%s' "$out" | grep -q '# the last line of the failure' && all_undone &&
+  ! grep -q 'pr create' "$W/gh/log" 2>/dev/null
+result $? "release-bump-12: a failed mise run test exits 2 naming it, and the bump is undone" "exit $status: $out"
+
+# release-bump-13: a hook that refuses the commit, and ran.
+undo_fixture
+printf '#!/bin/sh\n: >"%s/hook-ran"\necho "pre-commit: this hook says no" >&2\nexit 1\n' "$W" >"$W/pap/.git/hooks/pre-commit"
+chmod +x "$W/pap/.git/hooks/pre-commit"
+bump 0.20.0
+[ "$status" = 2 ] && printf '%s' "$out" | grep -q 'pre-commit: this hook says no' && [ -e "$W/hook-ran" ] && all_undone
+result $? "release-bump-13: a hook that refuses the commit gives exit 2 quoting it, the hook ran and the bump is undone" "exit $status: $out"
+
+# release-bump-14: the push succeeds, the open fails.
+undo_fixture
+: >"$W/gh/create-fail"
+bump 0.20.0
+[ "$status" = 2 ] && all_undone &&
+  in_order "removed the pushed branch $B" "removed the work tree $W/$WT_NAME" "removed the local branch $B"
+result $? "release-bump-14: origin still at this run's commit: exit 2, the pushed branch, the work tree and the local branch removed in order" "exit $status: $out"
+undo_fixture
+: >"$W/gh/create-fail"
+printf '%s\n' "$B" >"$W/gh/create-move"
+bump 0.20.0
+[ "$status" = 3 ] && [ -n "$(git -C "$W/origin.git" for-each-ref "refs/heads/$B")" ] &&
+  printf '%s' "$out" | grep -q "the pushed branch $B on origin, which now points at" &&
+  printf '%s' "$out" | grep -q "git push origin --delete $B" && [ ! -e "$W/$WT_NAME" ]
+result $? "release-bump-14: origin at another commit: exit 3, the pushed branch left and named with its remove command" "exit $status: $out"
+undo_fixture
+: >"$W/gh/create-fail"
+printf '#!/bin/sh\nwhile read -r _ new _; do [ "$new" != 0000000000000000000000000000000000000000 ] || { echo "deletes refused" >&2; exit 1; }; done\n' \
+  >"$W/origin.git/hooks/pre-receive"
+chmod +x "$W/origin.git/hooks/pre-receive"
+bump 0.20.0
+[ "$status" = 3 ] && [ -n "$(git -C "$W/origin.git" for-each-ref "refs/heads/$B")" ] &&
+  printf '%s' "$out" | grep -q "the pushed branch $B on origin: git push origin --delete $B" &&
+  [ "$(git -C "$W/origin.git" rev-parse refs/heads/change/other)" = "$(git -C "$W/pap" rev-parse origin/main)" ]
+result $? "release-bump-14: a refused delete: exit 3, the pushed branch named with its remove command" "exit $status: $out"
+
+# release-bump-15: a failure after the open.
+undo_fixture
+: >"$W/gh/drop-label"
+: >"$W/gh/edit-label-fail"
+bump 0.20.0
+[ "$status" = 3 ] && printf '%s' "$out" | grep -q "the pull request $url is open" &&
+  printf '%s' "$out" | grep -qF "gh pr close $url --delete-branch" &&
+  [ -n "$(git -C "$W/origin.git" for-each-ref "refs/heads/$B")" ] && ! grep -q 'pr close' "$W/gh/log"
+result $? "release-bump-15: a failure after the open exits 3 naming the pull request and the command that closes it" "exit $status: $out"
+
+# A gh pr create that hangs past the timeout: exit 2, nothing left.
+undo_fixture
+: >"$W/gh/create-hang"
+NET=2 bump 0.20.0
+sleep 1
+[ "$status" = 2 ] && all_undone && printf '%s' "$out" | grep -q 'timed out after 2s' &&
+  ! kill -0 "$(cat "$W/gh/create-pid")" 2>/dev/null
+result $? "a gh pr create that hangs past the timeout exits 2, nothing left and no live process" "exit $status: $out"
+
+# release-bump-16: an interrupted run is undone.
+for sig in TERM INT HUP; do
+  undo_fixture
+  : >"$W/gh/create-hang"
+  mkfifo "$W/gh/fifo"
+  set -m
+  (cd "$W/pap" && RELEASE_BUMP_RISK_WAIT=0 TMPDIR="$W/tmp" exec sh scripts/release-bump.sh 0.20.0 >"$W/out" 2>&1) &
+  pid=$!
+  set +m
+  i=0
+  while [ ! -e "$W/gh/create-ready" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+  kill "-$sig" "$pid"
+  wait "$pid"
+  status=$?
+  out="$(cat "$W/out")"
+  sleep 0.5
+  [ "$status" = 2 ] && all_undone &&
+    in_order "interrupted by $sig" "removed the pushed branch $B" "removed the work tree" "removed the local branch" &&
+    ! kill -0 "$(cat "$W/gh/create-pid")" 2>/dev/null
+  result $? "release-bump-16: $sig after the push exits 2, the pushed branch, the work tree and the local branch removed, the body directory gone" "exit $status: $out"
 done
 
 printf '1..%d\n' "$n"

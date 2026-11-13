@@ -149,14 +149,14 @@ Feature: One command makes a pap release bump end to end
 
   Rule: A failure before the pull request opens is undone
 
-    @id:release-bump-12 @pending:release-bump
+    @id:release-bump-12
     Scenario: A failed local check undoes the bump
       Given mise run test fails on the bumped head
       When the release-bump command is run for 0.20.0
       Then the command exits 2 naming the check and its last lines
       And the work tree and the local branch are removed, nothing was pushed and no pull request was opened
 
-    @id:release-bump-13 @pending:release-bump
+    @id:release-bump-13
     Scenario: A git hook that refuses the commit undoes the bump
       Given a git hook refuses the commit
       When the release-bump command is run for 0.20.0
@@ -164,7 +164,7 @@ Feature: One command makes a pap release bump end to end
       And the work tree and the local branch are removed
       And the hook was not skipped or switched off
 
-    @id:release-bump-14 @pending:release-bump
+    @id:release-bump-14
     Scenario Outline: A failure after the push removes the pushed branch first
       Given the push succeeds and opening the pull request fails, and <remote>
       When the release-bump command is run for 0.20.0
@@ -179,14 +179,14 @@ Feature: One command makes a pap release bump end to end
 
   Rule: A failure after the pull request opens is named, not hidden
 
-    @id:release-bump-15 @pending:release-bump
+    @id:release-bump-15
     Scenario: A failure after the open leaves the pull request open and named
       Given the pull request is open and the class label cannot be added back
       When the release-bump command is run for 0.20.0
       Then the command exits 3 naming the pull request and the command that closes it with its branch
       And the pull request is left open
 
-    @id:release-bump-16 @pending:release-bump
+    @id:release-bump-16
     Scenario: An interrupted run is undone
       Given the command has made the work tree and pushed the branch, origin still points at its commit, and no pull request is open
       When the command receives TERM

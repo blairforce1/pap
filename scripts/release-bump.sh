@@ -508,25 +508,87 @@ make_worktree() {
   exec sh "$wt/scripts/release-bump.sh" --in-worktree "$wt" "$branch_want" "$base" "$@"
 }
 
-made_wt="" made_branch="" done=false pr_url="" pushed_sha="" push_ok=false
+# undo: remove what this run recorded making, in order: the pushed branch,
+# only while origin still points at this run's commit, from the work tree
+# (the pre-push hook needs the change branch checked out); then the work
+# tree; then the local branch. Sets left to what it could not remove.
+undo() {
+  left=""
+  if [ -n "$pushed_sha" ]; then
+    if with_timeout "$net_timeout" "$run/undo-ls" git -C "$main" ls-remote --heads origin "refs/heads/$made_branch"; then
+      remote_sha="$(cut -f1 "$run/undo-ls")"
+      if [ "$remote_sha" = "$pushed_sha" ]; then
+        if [ -d "$made_wt" ] && with_timeout "$net_timeout" "$run/undo-del" git -C "$made_wt" push -q origin --delete "$made_branch"; then
+          say "undone: removed the pushed branch $made_branch from origin"
+        else
+          left="$left
+  the pushed branch $made_branch on origin: git push origin --delete $made_branch
+$(tail_of "$run/undo-del.err")"
+        fi
+      elif [ -n "$remote_sha" ] && [ "$push_ok" = true ]; then
+        left="$left
+  the pushed branch $made_branch on origin, which now points at $(echo "$remote_sha" | cut -c1-7), not this run's commit: git push origin --delete $made_branch"
+      fi
+    else
+      left="$left
+  maybe the pushed branch $made_branch on origin (ls-remote failed): git push origin --delete $made_branch"
+    fi
+  fi
+  cd "$main" || cd /
+  if [ -e "$made_wt" ]; then
+    if git -C "$main" worktree remove --force "$made_wt" >"$run/undo-wt" 2>&1; then
+      say "undone: removed the work tree $made_wt"
+    else
+      left="$left
+  the work tree $made_wt: git worktree remove --force $made_wt"
+    fi
+  fi
+  if git -C "$main" rev-parse -q --verify "refs/heads/$made_branch" >/dev/null; then
+    if git -C "$main" branch -q -D "$made_branch" >"$run/undo-branch" 2>&1; then
+      say "undone: removed the local branch $made_branch"
+    else
+      left="$left
+  the local branch $made_branch: git branch -D $made_branch"
+    fi
+  fi
+}
+
+made_wt="" made_branch="" done=false pr_url="" pushed_sha="" push_ok=false main=""
 on_exit() {
   st=$?
   trap - EXIT INT TERM HUP
+  [ -z "$child" ] || kill -TERM -- "-$child" 2>/dev/null
+  code="$st"
+  if [ "$done" = true ] && [ "$st" = 0 ]; then
+    :
+  elif [ -n "$pr_url" ]; then
+    printf 'release-bump: left: the pull request %s is open, with its branch and the work tree %s\n' "$pr_url" "$made_wt" >&2
+    printf 'release-bump: to remove them: gh pr close %s --delete-branch, then mise run tidy\n' "$pr_url" >&2
+    code=3
+  elif [ -n "$made_branch" ]; then
+    undo
+    if [ -z "$left" ]; then
+      say "undone: nothing of this run is left"
+      code=2
+    else
+      printf 'release-bump: left, which the undo could not remove:%s\n' "$left" >&2
+      code=3
+    fi
+  fi
   [ -z "$run" ] || rm -rf "$run"
-  if [ "$st" != 0 ] && [ "$done" = false ] && [ -n "$pr_url" ]; then
-    printf 'release-bump: left: the pull request %s is open; close it with its branch: gh pr close %s --delete-branch, then mise run tidy\n' "$pr_url" "$pr_url" >&2
-    exit 3
-  fi
-  if [ "$st" != 0 ] && [ "$done" = false ] && [ -n "$made_wt$made_branch" ]; then
-    printf 'release-bump: left: the work tree %s and the branch %s\n' "$made_wt" "$made_branch" >&2
-    exit 3
-  fi
-  exit "$st"
+  exit "$code"
+}
+on_signal() {
+  say "interrupted by $1"
+  exit 130
 }
 trap on_exit EXIT
+trap 'on_signal INT' INT
+trap 'on_signal TERM' TERM
+trap 'on_signal HUP' HUP
 
 parse "$@"
-: "$answer" "$pushed_sha" "$push_ok" # used by the steps still to come
+: "$answer" # used by the step still to come
 if [ "$in_wt" = true ]; then
   in_worktree
   done=true
