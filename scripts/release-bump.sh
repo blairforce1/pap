@@ -49,12 +49,19 @@ say() { printf 'release-bump: %s (%ss)\n' "$*" "$(elapsed)" >&2; }
 refuse() {
   printf 'release-bump: refused: %s (%ss)\n' "$1" "$(elapsed)" >&2
   [ -z "${2:-}" ] || printf 'release-bump: to clear it: %s\n' "$2" >&2
-  [ -z "$run" ] || rm -rf "$run"
   exit 1
 }
+# fail <message>: a failure after something was made; the exit trap undoes
+# what this run made, or names it.
+fail() {
+  printf 'release-bump: failed: %s\n' "$1" >&2
+  exit 2
+}
+# tail_of <file>...: the last lines of what a step printed, for a message.
+tail_of() { cat "$@" 2>/dev/null | tail -n "${lines:-5}" | sed 's/^/  | /'; }
 
 # with_timeout <seconds> <output file> <command>...: run the command in its
-# own process group, its output to the file. A watchdog sends TERM to the
+# own process group, its output to the file and its errors to <file>.err. A watchdog sends TERM to the
 # whole group (an ssh under a push included) at the limit; the status is
 # then 124.
 child=""
@@ -63,7 +70,7 @@ with_timeout() {
   shift 2
   rm -f "$run/timed-out"
   set -m
-  "$@" >"$wt_out" 2>&1 </dev/null &
+  "$@" >"$wt_out" 2>"$wt_out.err" </dev/null &
   child=$!
   (
     sleep "$wt_secs"
@@ -79,7 +86,7 @@ with_timeout() {
   child=""
   if [ -e "$run/timed-out" ] && [ "$wt_status" != 0 ]; then
     rm -f "$run/timed-out"
-    printf 'timed out after %ss\n' "$wt_secs" >>"$wt_out"
+    printf 'timed out after %ss\n' "$wt_secs" >>"$wt_out.err"
     return 124
   fi
   rm -f "$run/timed-out"
@@ -225,7 +232,7 @@ refusals() {
   wt="$(dirname "$main")/$(basename "$main")-release-$version"
   run="$(mktemp -d)"
   if ! with_timeout 10 "$run/fetch" git fetch -q origin main; then
-    refuse "the fetch of origin/main failed: $(tail -n 3 "$run/fetch" | tr '\n' ' ')"
+    refuse "the fetch of origin/main failed: $(tail -n 3 "$run/fetch.err" | tr '\n' ' ')"
   fi
   base="$(git rev-parse --verify -q origin/main)" || refuse "the fetch of origin/main left no origin/main"
   say "fetched origin/main at $(echo "$base" | cut -c1-7)"
@@ -253,15 +260,171 @@ refusals() {
   fi
   with_timeout "$net_timeout" "$run/ls-remote" git ls-remote --heads origin "refs/heads/$branch_want"
   st=$?
-  [ "$st" = 0 ] || refuse "ls-remote of origin failed: $(tail -n 3 "$run/ls-remote" | tr '\n' ' ')"
+  [ "$st" = 0 ] || refuse "ls-remote of origin failed: $(tail -n 3 "$run/ls-remote.err" | tr '\n' ' ')"
   [ ! -s "$run/ls-remote" ] ||
     refuse "the branch $branch_want exists on origin; close its pull request, or delete it" "gh pr close $branch_want --delete-branch"
   [ ! -e "$wt" ] && [ ! -L "$wt" ] || refuse "a directory is at the work tree's path, $wt" "rm -r $wt"
   say "checked: $current to $version"
 }
 
+# lit_replace <file> <plugin|market|prompt>: replace $current with
+# $version, as text, in the one line that place is on.
+lit_replace() {
+  awk -v mode="$2" -v old="$current" -v new="$version" '
+    function rep(s,   out, i) {
+      out = ""
+      while ((i = index(s, old)) > 0) { out = out substr(s, 1, i - 1) new; s = substr(s, i + length(old)) }
+      return out s
+    }
+    mode == "market" && index($0, "\"name\": \"pap\"") { inpap = 1 }
+    !done && ((mode == "plugin" && index($0, "\"version\": \"" old "\"")) ||
+      (mode == "market" && inpap && index($0, "\"version\": \"" old "\"")) ||
+      (mode == "prompt" && index($0, "github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@" old))) {
+      $0 = rep($0); done = 1
+    }
+    { print }
+    END { exit !done }' "$1" >"$run/edit" && cat "$run/edit" >"$1"
+}
+
+# diff_is <file> <removed lines> <the text each removed line holds>: the
+# staged diff of <file> removes that many lines, each holding the text, and
+# adds each back with the old version replaced by the new, and nothing else.
+diff_is() {
+  git diff --cached -U0 --no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/ -- "$1" >"$run/diff"
+  awk -v want="$2" -v needle="$3" -v old="$current" -v new="$version" -v heading="$heading" '
+    function rep(s,   out, i) {
+      out = ""
+      while ((i = index(s, old)) > 0) { out = out substr(s, 1, i - 1) new; s = substr(s, i + length(old)) }
+      return out s
+    }
+    /^(diff |index |--- a\/|\+\+\+ b\/|@@ )/ { next }
+    /^-/ { r[++nr] = substr($0, 2); next }
+    /^\+/ { a[++na] = substr($0, 2); next }
+    END {
+      if (nr != want) exit 1
+      if (want == 0) {
+        # The changelog: one dated heading and one blank line, added.
+        if (na != 2) exit 1
+        if (!((a[1] == heading && a[2] == "") || (a[1] == "" && a[2] == heading))) exit 1
+        exit 0
+      }
+      if (na != nr) exit 1
+      for (i = 1; i <= nr; i++) if (!index(r[i], needle) || a[i] != rep(r[i])) exit 1
+      exit 0
+    }' "$run/diff"
+}
+
+f_plugin=plugins/pap/.claude-plugin/plugin.json
+f_market=.claude-plugin/marketplace.json
+f_prompt=docs/agent-onboarding.md
+f_log=CHANGELOG.md
+
+edit_places() {
+  date="$(date -u +%F)"
+  heading="### [$version] - $date"
+  lit_replace "$f_plugin" plugin || fail "no '\"version\": \"$current\"' line in $f_plugin"
+  lit_replace "$f_market" market || fail "no pap version line at $current in $f_market"
+  lit_replace "$f_prompt" prompt || fail "no install prompt at $current in $f_prompt"
+  awk -v h="$heading" '
+    /^## / { pap = ($0 == "## pap") }
+    pap && !done && $0 == "### [Unreleased]" { print; print ""; print h; done = 1; next }
+    { print }
+    END { exit !done }' "$f_log" >"$run/edit" || fail "no '### [Unreleased]' heading under '## pap' in $f_log"
+  cat "$run/edit" >"$f_log"
+  git add -- "$f_plugin" "$f_market" "$f_prompt" "$f_log"
+  names="$(git diff --cached --name-only | LC_ALL=C sort | tr '\n' ' ')"
+  want="$(printf '%s\n' "$f_plugin" "$f_market" "$f_prompt" "$f_log" | LC_ALL=C sort | tr '\n' ' ')"
+  [ "$names" = "$want" ] || fail "the staged files are '$names', not '$want'"
+  if ! { diff_is "$f_plugin" 1 "\"version\": \"$current\"" &&
+    diff_is "$f_market" 1 "\"version\": \"$current\"" &&
+    diff_is "$f_prompt" 1 "github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@$current" &&
+    diff_is "$f_log" 0 ""; }; then
+    fail "the staged diff is not exactly the release bump's lines:
+$(git diff --cached --stat)"
+  fi
+  say "edited the version places and dated the unreleased section $date (UTC)"
+}
+
+# local_check <check|test>: mise run <name> on the head; its exit is kept
+# for the body.
+local_check() {
+  mise run "$1" >"$run/$1.out" 2>&1
+  st=$?
+  eval "${1}_exit=\$st"
+  [ "$st" = 0 ] || fail "mise run $1 failed (exit $st) on the bump; its last lines:
+$(lines=15 tail_of "$run/$1.out")"
+  say "mise run $1: exit 0"
+}
+
+commit_bump() {
+  title="chore(release): bump pap to $version"
+  if ! git commit -q -m "$title" \
+    -m "Made by the release-bump command, scripts/release-bump.sh: the four version places move from $current to $version and the unreleased section under \"## pap\" is dated $date (UTC)." \
+    >"$run/commit" 2>&1; then
+    fail "a git hook refused the commit, or the commit failed:
+$(lines=15 tail_of "$run/commit")"
+  fi
+  head_sha="$(git rev-parse HEAD)"
+  sh scripts/release.sh --places-at HEAD "$version" >"$run/places" 2>&1 ||
+    fail "release.sh --places-at refuses the head: $(tail_of "$run/places")"
+  say "committed $(echo "$head_sha" | cut -c1-7); release.sh --places-at passes"
+}
+
+# The run from the work tree's own copy of the script.
+in_worktree() {
+  cd "$wt" || exit 2
+  run="$(mktemp -d)"
+  made_wt="$wt" made_branch="$branch"
+  common="$(git rev-parse --path-format=absolute --git-common-dir)"
+  main="$(dirname "$common")"
+  [ "$(git rev-parse --show-toplevel)" = "$wt" ] &&
+    [ "$(git symbolic-ref --quiet --short HEAD)" = "$branch" ] &&
+    [ "$(git rev-parse HEAD)" = "$base" ] &&
+    [ "$branch" = "change/release-$version" ] ||
+    fail "the work tree $wt is not on $branch at $base, as this run made it"
+  check_inputs
+  check_env
+  check_hooks
+  places "$base"
+  current="$p_plugin"
+  edit_places
+  local_check check
+  local_check test
+  commit_bump
+}
+
+# make_worktree <the arguments>: the work tree from origin/main as fetched,
+# then the rest from its own copy of the script.
+make_worktree() {
+  made_branch="$branch_want" made_wt="$wt"
+  git worktree add -q --no-track -b "$branch_want" "$wt" "$base" >"$run/worktree" 2>&1 ||
+    fail "git worktree add failed: $(tail_of "$run/worktree")"
+  say "made the work tree $wt on $branch_want from $(echo "$base" | cut -c1-7)"
+  [ -f "$wt/scripts/release-bump.sh" ] || fail "origin/main has no scripts/release-bump.sh to run from the work tree"
+  rm -rf "$run"
+  exec sh "$wt/scripts/release-bump.sh" --in-worktree "$wt" "$branch_want" "$base" "$@"
+}
+
+made_wt="" made_branch="" done=false
+on_exit() {
+  st=$?
+  trap - EXIT INT TERM HUP
+  [ -z "$run" ] || rm -rf "$run"
+  if [ "$st" != 0 ] && [ "$done" = false ] && [ -n "$made_wt$made_branch" ]; then
+    printf 'release-bump: left: the work tree %s and the branch %s\n' "$made_wt" "$made_branch" >&2
+    exit 3
+  fi
+  exit "$st"
+}
+trap on_exit EXIT
+
 parse "$@"
+: "$risk_wait" "$answer" # used by the steps still to come
+if [ "$in_wt" = true ]; then
+  in_worktree
+  done=true
+  exit 0
+fi
 cd "$(dirname "$0")/.." || exit 1
 refusals
-: "$risk_wait" "$answer" "$in_wt" "${branch:-}" # used by the steps still to come
-refuse "the bump itself is not built yet"
+make_worktree "$@"

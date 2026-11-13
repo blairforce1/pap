@@ -152,7 +152,7 @@ fixture() {
   git -C "$r" remote add origin "$W/origin.git"
   mkdir -p "$r/scripts" "$r/plugins/pap/.claude-plugin" "$r/.claude-plugin" "$r/docs"
   cp "$here/scripts/release-bump.sh" "$here/scripts/release.sh" "$r/scripts/"
-  [ ! -e "$here/scripts/release-bump-body.md" ] || cp "$here/scripts/release-bump-body.md" "$r/scripts/"
+  [ ! -e "$here/scripts/release-bump-body.txt" ] || cp "$here/scripts/release-bump-body.txt" "$r/scripts/"
   cat >"$r/plugins/pap/.claude-plugin/plugin.json" <<JSON
 {
   "name": "pap",
@@ -354,6 +354,68 @@ fixture
 git -C "$W/pap" config core.hooksPath "$W/other-hooks"
 bump 0.20.0
 refused "release-bump-11: a hooks path other than the repository's own is refused" "not the repository's own hooks"
+
+# A run that goes through. WT is the work tree it makes.
+WT_NAME=pap-release-0.20.0
+fixture
+bump 0.20.0
+WT="$W/$WT_NAME"
+base="$(git -C "$W/pap" rev-parse origin/main)"
+[ "$status" = 0 ] && [ -d "$WT" ]
+result $? "a run for 0.20.0 exits 0 and makes its work tree" "exit $status: $out"
+
+# release-bump-2: exactly the release bump's lines.
+names="$(git -C "$WT" diff --name-only "$base" HEAD | tr '\n' ' ')"
+[ "$names" = ".claude-plugin/marketplace.json CHANGELOG.md docs/agent-onboarding.md plugins/pap/.claude-plugin/plugin.json " ]
+result $? "release-bump-2: the bump changes the four files and no other" "$names"
+git -C "$WT" diff -U0 "$base" HEAD | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' >"$W/lines"
+want_lines() {
+  printf '%s\n' '-      "version": "0.19.1"' '+      "version": "0.20.0"' '-  "version": "0.19.1",' '+  "version": "0.20.0",'
+  # shellcheck disable=SC2016 # the prompt's own backticks
+  printf -- "-Install pap for me: run \`mise use -g 'github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@0.19.1'\`, then \`pap version\`, which must print 0.19.1. Then stop.\n"
+  # shellcheck disable=SC2016
+  printf -- "+Install pap for me: run \`mise use -g 'github:blairforce1/pap[asset_pattern=pap-*.tar.gz]@0.20.0'\`, then \`pap version\`, which must print 0.20.0. Then stop.\n"
+  printf '%s\n' '+### [0.20.0] - 2026-11-13' '+'
+}
+[ "$(want_lines | LC_ALL=C sort)" = "$(LC_ALL=C sort "$W/lines")" ]
+result $? "release-bump-2: the diff is the version places at 0.20.0, the dated heading and one blank line" "$(cat "$W/lines")"
+git -C "$WT" show HEAD:.claude-plugin/marketplace.json | jq -e '.plugins[] | select(.name == "spec-review") | .version == "0.19.1"' >/dev/null &&
+  git -C "$WT" show HEAD:docs/agent-onboarding.md | grep -q 'Pinned at 0.19.1 in another place.'
+result $? "release-bump-2: no other version string has changed"
+
+# release-bump-3: dated in UTC, under "## pap" only.
+section() { git -C "$WT" show "$1:CHANGELOG.md" | awk -v s="$2" '/^## / { p = ($0 == s) } p'; }
+[ "$(section HEAD '## pap')" = "## pap
+
+### [Unreleased]
+
+### [0.20.0] - 2026-11-13
+
+#### Added
+
+- A line for the next release.
+
+### [0.19.1] - 2026-11-11
+
+- The last release." ]
+result $? "release-bump-3: the unreleased section is dated 2026-11-13, the UTC date, under an empty one" "$(section HEAD '## pap')"
+[ "$(section HEAD '## pm-console')" = "$(section "$base" '## pm-console')" ] &&
+  [ "$(section HEAD '## spec-review')" = "$(section "$base" '## spec-review')" ]
+result $? "release-bump-3: the pm-console and spec-review sections are unchanged"
+
+# release-bump-4: the head passes release.sh's four conditions.
+o="$(cd "$WT" && sh scripts/release.sh --places-at HEAD 0.20.0 2>&1)"
+result $? "release-bump-4: release.sh --places-at HEAD 0.20.0 passes in the work tree" "$o"
+
+# release-bump-20: compared number by number.
+for row in 0.19.1:0.19.10 0.19.1:0.100.0 0.19.1:1.0.0 0.9.9:0.10.0; do
+  cur="${row%%:*}" new="${row#*:}"
+  fixture "$cur"
+  bump "$new"
+  o="$(cd "$W/pap-release-$new" 2>/dev/null && sh scripts/release.sh --places-at HEAD "$new" 2>&1)"
+  [ "$status" = 0 ] && [ -n "$o" ] && [ "$(git -C "$W/pap-release-$new" show HEAD:docs/agent-onboarding.md | grep -c "must print $new")" = 1 ]
+  result $? "release-bump-20: from $cur, $new is taken and the version places agree on it" "exit $status: $out $o"
+done
 
 printf '1..%d\n' "$n"
 [ "$failed" = 0 ]

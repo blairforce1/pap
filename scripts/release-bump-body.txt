@@ -1,0 +1,41 @@
+Change: none
+Record: none
+{{ROUTE_LINE}}
+Plan: none
+
+## Summary
+
+Prepares pap {{VERSION}} from {{OLD}}. It does not cut the release: `mise run release {{VERSION}}` runs after the merge.
+
+- `plugins/pap/.claude-plugin/plugin.json` and the pap entry in `.claude-plugin/marketplace.json`: {{OLD}} becomes {{VERSION}}.
+- `docs/agent-onboarding.md`: the install prompt names {{VERSION}}, both places.
+- `CHANGELOG.md`, under `## pap`: the unreleased section becomes `[{{VERSION}}] - {{DATE}}`, with an empty `[Unreleased]` above it. No line was added.
+
+Decisions and tradeoffs to review:
+
+- None. The release-bump command made every line, and checked that the staged diff is the release bump's lines and nothing else.
+
+## Verification
+
+| Run                                               | Result                                                                 |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `mise run check` on {{SHORT}}                     | exit {{CHECK_EXIT}}                                                    |
+| `mise run test` on {{SHORT}}                      | exit {{TEST_EXIT}}: {{TEST_OK}} ok, {{TEST_NOTOK}} not ok              |
+| the staged diff against the release bump's lines  | exactly those lines, in the four files                                 |
+| `scripts/release.sh --places-at HEAD {{VERSION}}` | exit 0: plugin.json, the marketplace entry, the heading and the prompt |
+| the heading's date                                | {{DATE}}, from `date -u`: the date is UTC                              |
+| cold review                                       | cold review skipped: mechanical (decision 0024)                        |
+
+## How to revert
+
+Revert the merge. A release bump that is open, overtaken on main or left by an exit 3 is closed with its branch, as the owner's act (`gh pr close <n> --delete-branch`). Then `mise run tidy`, and run the bump again. A release already cut from a bump stays: ship a later version rather than delete it. Outside git: none.
+
+## Checks
+
+Tick a box only if it is true. An unticked box needs a one-line reason below it, otherwise the PR is not ready.
+
+- [x] Verification run and output shown above
+- [ ] No protected path touched, or the owner has approved the head: `Approved-by: @login <sha>` below, or (risk mode) the `owner-reviewed` label
+Risk: not read within two minutes; the cycle reads it again
+- [x] Generated content carries provenance (model, skill, prompt)
+Provenance: {{PROVENANCE}}

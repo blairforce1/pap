@@ -21,7 +21,7 @@ Feature: One command makes a pap release bump end to end
       And the command exits 0 and prints the pull request's URL
       And the checkout it was run from has the same branch, HEAD and index as before
 
-    @id:release-bump-2 @pending:release-bump
+    @id:release-bump-2
     Scenario: The diff is exactly the release bump's lines
       When the release-bump command is run for 0.20.0
       Then the version places agree on 0.20.0
@@ -36,7 +36,7 @@ Feature: One command makes a pap release bump end to end
       And the pm-console and spec-review sections are unchanged
       And the body's Verification says the date is UTC
 
-    @id:release-bump-4 @pending:release-bump
+    @id:release-bump-4
     Scenario: The head passes the conditions a release checks
       When the release-bump command is run for 0.20.0
       Then at the head plugin.json and the marketplace entry carry 0.20.0, the "## pap" section has "### [0.20.0] - " and a date, and the install prompt names 0.20.0
@@ -134,7 +134,7 @@ Feature: One command makes a pap release bump end to end
         | GIT_CONFIG_PARAMETERS                                            |
         | GIT_DIR                                                          |
 
-    @id:release-bump-20 @pending:release-bump
+    @id:release-bump-20
     Scenario Outline: A version above the current one is taken, compared number by number
       Given origin/main whose version places agree on <current>
       When the release-bump command is run for <version>
