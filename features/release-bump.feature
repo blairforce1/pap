@@ -131,6 +131,8 @@ Feature: One command makes a pap release bump end to end
       Examples:
         | variable                                                         |
         | GIT_CONFIG_COUNT with core.hooksPath                             |
+        | GIT_CONFIG_COUNT with a credential helper that runs a command    |
+        | GIT_CONFIG_COUNT that is not a decimal integer                   |
         | GIT_CONFIG_PARAMETERS                                            |
         | GIT_DIR                                                          |
 

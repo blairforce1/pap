@@ -38,7 +38,7 @@ Every network step has a timeout, and nothing prompts (`GIT_TERMINAL_PROMPT=0`).
 - `change/release-<version>` exists locally or on origin, a work tree for it is open, or a directory is at its path;
 - a route is given without `--by`, or a `--by` value is not `<agent> on <model>` in the characters `A-Z a-z 0-9 space . : _ -` only, or is longer than 100 bytes;
 - a route holds a newline or carriage return, has a first line other than `/change release-<version> chore Record: none` for the version given, or has a second line not of the form `Rule 20.2: ...`;
-- `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_COUNT`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_DIR` or `GIT_WORK_TREE` is set, or the work tree's `core.hooksPath` is not the repository's own.
+- `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_DIR` or `GIT_WORK_TREE` is set; `GIT_CONFIG_COUNT` is set with a count that is not a decimal integer, or with any pair other than those pap claude's agent shell exports (`credential.https://github.com.helper` empty or `!gh auth git-credential`, and `credential.https://github.com.useHttpPath` `true`), keys compared without case; a `GIT_CONFIG_COUNT` holding only those pairs is taken; or the work tree's `core.hooksPath` is not the repository's own.
 
 **Undo.** A failure, or an INT, TERM or HUP, before the pull request opens is undone from the work tree, in this order:
 
