@@ -53,6 +53,7 @@ cat >"$T/bin/date" <<STUB
 case "\$*" in
   '-u +%F') echo 2026-11-13 ;;
   '+%F') echo 2026-11-14 ;;
+  '+%s') if [ -e "\${W:-/nonexistent}/clock" ]; then cat "\$W/clock"; else exec "$real_date" +%s; fi ;;
   *) exec "$real_date" "\$@" ;;
 esac
 STUB
@@ -74,6 +75,7 @@ cat >"$T/bin/gh" <<'STUB'
 S="$W/gh"
 mkdir -p "$S"
 printf '%s\n' "$*" >>"$S/log"
+printf 'gh %s PROMPT=%s\n' "$*" "${GIT_TERMINAL_PROMPT-unset}" >>"$W/net.log"
 env | grep -q '^GH_TOKEN=' && echo "GH_TOKEN set" >>"$S/log"
 url=https://github.com/blairforce1/pap/pull/150
 labels() { cat "$S/labels" 2>/dev/null; cat "$S/risk" 2>/dev/null; }
@@ -129,6 +131,32 @@ STUB
 cat >"$T/hang/git" <<STUB
 #!/bin/sh
 if [ "\$1" = fetch ] && [ -e "\$W/hang-fetch" ]; then echo \$\$ >"\$W/fetch-pid"; exec sleep 60; fi
+exec "$real_git" "\$@"
+STUB
+# sleep logs its seconds. With \$W/clock, a sleep of 5 or less (the risk
+# wait's) moves the fake clock that date +%s reads and returns at once; a
+# longer one, a watchdog's, really sleeps. Past \$W/clock-limit it puts a
+# risk label in place, so a wait that overruns ends at once and shows.
+cat >"$T/bin/sleep" <<STUB
+#!/bin/sh
+[ -z "\${W:-}" ] || printf '%s\\n' "\$*" >>"\$W/sleep.log"
+if [ -e "\${W:-/nonexistent}/clock" ] && [ "\$1" -le 5 ] 2>/dev/null; then
+  now=\$((\$(cat "\$W/clock") + \$1))
+  echo "\$now" >"\$W/clock"
+  [ "\$now" -le "\$(cat "\$W/clock-limit")" ] || printf 'risk:low\\n' >"\$W/gh/risk"
+  exit 0
+fi
+exec "$(command -v sleep)" "\$@"
+STUB
+# git logs each network call and its GIT_TERMINAL_PROMPT when \$W/log-net
+# exists.
+cat >"$T/bin/git" <<STUB
+#!/bin/sh
+if [ -e "\${W:-/nonexistent}/log-net" ]; then
+  a=""
+  for x in "\$@"; do case "\$x" in fetch | ls-remote | push) a="\$x" ;; esac; done
+  [ -z "\$a" ] || printf 'git %s PROMPT=%s\\n' "\$*" "\${GIT_TERMINAL_PROMPT-unset}" >>"\$W/net.log"
+fi
 exec "$real_git" "\$@"
 STUB
 chmod +x "$T/bin/"* "$T/hang/git"
@@ -219,7 +247,7 @@ B=change/release-0.20.0
 # bump [args]: run the command from the checkout, as mise run release-bump
 # does; out holds its output, status its exit.
 bump() {
-  out="$(cd "$W/pap" && RELEASE_BUMP_RISK_WAIT="${RISK_WAIT:-0}" RELEASE_BUMP_NET_TIMEOUT="${NET:-60}" \
+  out="$(cd "$W/pap" && RELEASE_BUMP_RISK_WAIT="${RISK_WAIT:-1}" RELEASE_BUMP_NET_TIMEOUT="${NET:-60}" \
     TMPDIR="$W/tmp" sh scripts/release-bump.sh "$@" 2>&1)"
   status=$?
 }
@@ -345,14 +373,30 @@ out="$(cd "$W/pap" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hookspath GIT_CON
   sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
 refused "release-bump-11: GIT_CONFIG_COUNT with core.hooksPath is refused" "GIT_CONFIG_COUNT"
-# The agent shell's own GIT_CONFIG_COUNT sets credential keys only, and is
-# taken: refusing it would refuse every run from a cycle.
 fixture
-out="$(cd "$W/pap" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=credential.https://github.com.helper GIT_CONFIG_VALUE_0='' \
-  RELEASE_BUMP_RISK_WAIT=0 TMPDIR="$W/tmp" sh scripts/release-bump.sh 0.20.0 2>&1)"
+out="$(cd "$W/pap" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=credential.https://github.com.helper \
+  GIT_CONFIG_VALUE_0="!touch $W/helper-ran" sh scripts/release-bump.sh 0.20.0 2>&1)"
+status=$?
+[ ! -e "$W/helper-ran" ]
+refused "release-bump-11: GIT_CONFIG_COUNT with a credential helper that runs a command is refused" "GIT_CONFIG_COUNT is set with the pair credential.https://github.com.helper=!touch"
+for count in 1x ' 1' -1 +1; do
+  fixture
+  out="$(cd "$W/pap" && GIT_CONFIG_COUNT="$count" GIT_CONFIG_KEY_0=credential.https://github.com.useHttpPath GIT_CONFIG_VALUE_0=true \
+    sh scripts/release-bump.sh 0.20.0 2>&1)"
+  status=$?
+  refused "release-bump-11: GIT_CONFIG_COUNT of '$count', not a decimal integer, is refused" "a count that is not a decimal integer"
+done
+# The agent shell's own three pairs (bin/pap), keys in another case, are
+# taken: refusing them would refuse every run from a cycle.
+fixture
+out="$(cd "$W/pap" && GIT_CONFIG_COUNT=3 \
+  GIT_CONFIG_KEY_0=Credential.https://github.com.Helper GIT_CONFIG_VALUE_0='' \
+  GIT_CONFIG_KEY_1=CREDENTIAL.https://github.com.HELPER GIT_CONFIG_VALUE_1='!gh auth git-credential' \
+  GIT_CONFIG_KEY_2=credential.https://github.com.usehttppath GIT_CONFIG_VALUE_2=true \
+  RELEASE_BUMP_RISK_WAIT=1 TMPDIR="$W/tmp" sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
 [ "$status" = 0 ]
-result $? "release-bump-11: a GIT_CONFIG_COUNT that sets only credential keys is taken" "exit $status: $out"
+result $? "release-bump-11: a GIT_CONFIG_COUNT holding only the agent shell's pairs, keys in any case, is taken" "exit $status: $out"
 fixture
 out="$(cd "$W/pap" && GIT_CONFIG_PARAMETERS="'core.hookspath'='/dev/null'" sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
@@ -361,6 +405,12 @@ fixture
 out="$(cd "$W/pap" && GIT_DIR="$W/pap/.git" sh scripts/release-bump.sh 0.20.0 2>&1)"
 status=$?
 refused "release-bump-11: GIT_DIR is refused" "GIT_DIR"
+for v in GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM GIT_WORK_TREE; do
+  fixture
+  out="$(cd "$W/pap" && env "$v=$W/pap" sh scripts/release-bump.sh 0.20.0 2>&1)"
+  status=$?
+  refused "release-bump-11: $v is refused" "$v is set"
+done
 fixture
 git -C "$W/pap" config core.hooksPath "$W/other-hooks"
 bump 0.20.0
@@ -393,6 +443,13 @@ result $? "release-bump-1: it carries exactly one class label, class:chore" "$(c
 result $? "release-bump-1: the caller's checkout keeps its branch, HEAD and index" "$(caller_state)"
 grep -q "^run check in $WT\$" "$W/mise.log" && grep -q "^run test in $WT\$" "$W/mise.log"
 result $? "the local checks ran in the work tree" "$(cat "$W/mise.log")"
+# One timed stderr line per step, in order, each once.
+steps="fetched origin/main at|checked: 0.19.1 to 0.20.0|made the work tree|edited the version places|mise run check: exit 0|mise run test: exit 0|committed|pushed $B|opened the draft|the risk label is|done"
+got="$(printf '%s\n' "$out" | sed -n 's/^release-bump: \(.*\) ([0-9][0-9]*s)$/\1/p')"
+printf '%s\n' "$got" | awk -v steps="$steps" 'BEGIN { n = split(steps, s, "|") }
+  { if (i >= n || index($0, s[i + 1]) != 1) bad = 1; i++ }
+  END { exit (bad || i != n) }'
+result $? "a full run prints one timed stderr line per step, in order" "$out"
 
 # release-bump-5: the body with a route.
 body="$G/body"
@@ -601,13 +658,33 @@ sleep 1
   ! kill -0 "$(cat "$W/gh/create-pid")" 2>/dev/null
 result $? "a gh pr create that hangs past the timeout exits 2, nothing left and no live process" "exit $status: $out"
 
+# The waits are taken only from 1 to their default: a value that is not a
+# decimal integer, or one above the default, gives the default.
+for v in abc 99999; do
+  fixture
+  printf 'risk:low\n' >"$W/gh/risk"
+  NET="$v" bump 0.20.0
+  dogs="$(sort -u "$W/sleep.log" | tr '\n' ' ')"
+  [ "$status" = 0 ] && [ "$dogs" = "10 60 " ]
+  result $? "RELEASE_BUMP_NET_TIMEOUT=$v falls back to 60" "exit $status, sleeps: $dogs"
+  fixture
+  start_s="$("$real_date" +%s)"
+  echo "$start_s" >"$W/clock"
+  echo $((start_s + 125)) >"$W/clock-limit"
+  RISK_WAIT="$v" bump 0.20.0
+  waited=$(($(cat "$W/clock") - start_s))
+  rm -f "$W/clock" "$W/clock-limit"
+  [ "$status" = 0 ] && [ "$waited" = 120 ] && [ "$(box_reads "$W/gh/body" | tail -n 1)" = "Risk: not read within two minutes; the cycle reads it again" ]
+  result $? "RELEASE_BUMP_RISK_WAIT=$v falls back to 120" "exit $status after $waited fake seconds: $out"
+done
+
 # release-bump-16: an interrupted run is undone.
 for sig in TERM INT HUP; do
   undo_fixture
   : >"$W/gh/create-hang"
   mkfifo "$W/gh/fifo"
   set -m
-  (cd "$W/pap" && RELEASE_BUMP_RISK_WAIT=0 TMPDIR="$W/tmp" exec sh scripts/release-bump.sh 0.20.0 >"$W/out" 2>&1) &
+  (cd "$W/pap" && RELEASE_BUMP_RISK_WAIT=1 TMPDIR="$W/tmp" exec sh scripts/release-bump.sh 0.20.0 >"$W/out" 2>&1) &
   pid=$!
   set +m
   i=0
@@ -665,8 +742,25 @@ result $? "release-bump-17: with no risk label still it exits 0 and the box stil
 fixture
 printf 'risk:high\n' >"$W/gh/risk"
 main_before="$(git -C "$W/origin.git" rev-parse main)"
+: >"$W/log-net"
+: >"$W/net.log"
 bump 0.20.0 --route "$ROUTE1" "$ROUTE2" --by "$BY"
+cp "$W/net.log" "$W/net-bump.log"
 answer
+rm -f "$W/log-net"
+# Every network call saw GIT_TERMINAL_PROMPT=0; the bump forced nothing and
+# made each push and gh call once (no label re-add here: the label stuck).
+# The labels are read twice, by two steps: the class read-back and the risk
+# read, each once.
+nets="$(cat "$W/net.log")"
+[ -n "$nets" ] && ! grep -qv ' PROMPT=0$' "$W/net.log" &&
+  grep -q '^git .*fetch' "$W/net.log" && grep -q '^git .*ls-remote' "$W/net.log" && grep -q '^git .*push' "$W/net.log"
+result $? "release-bump-18: every network call ran with GIT_TERMINAL_PROMPT=0" "$nets"
+! grep -Eq -- '--force|--force-with-lease|--mirror|--delete| -f( |$)| \+' "$W/net.log" &&
+  [ "$(sed -nE 's/^(git [a-z-]+ [a-z-]+|gh [a-z]+ [a-z]+) .*/\1/p' "$W/net-bump.log" | tr '\n' ',')" = \
+    "git fetch -q,git ls-remote --heads,git push -q,gh pr create,gh pr view,gh pr view,gh pr edit," ] &&
+  [ "$(grep -c -- '--json labels PROMPT' "$W/net-bump.log")" = 2 ] && grep -q '^gh pr edit .* --body-file ' "$W/net-bump.log"
+result $? "release-bump-18: no force of any kind, and each push and gh call made once" "$(cat "$W/net-bump.log")"
 [ "$status" = 0 ] && ! grep -Eq 'pr merge|pr ready|owner-reviewed|release create|GH_TOKEN set' "$W/gh/log" &&
   [ -z "$(git -C "$W/origin.git" tag)" ] && [ "$(git -C "$W/origin.git" rev-parse main)" = "$main_before" ] &&
   ! grep -q '^Approved-by:' "$W/gh/body" && [ -e "$W/gh/draft" ] &&

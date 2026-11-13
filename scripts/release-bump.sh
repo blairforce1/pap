@@ -31,8 +31,9 @@
 #
 # The environment: RELEASE_BUMP_NET_TIMEOUT (seconds, default 60) bounds
 # ls-remote, the push and each gh call; the fetch has 10. RELEASE_BUMP_RISK_WAIT
-# (seconds, default 120) bounds the wait for the risk label. Requires git,
-# jq, gh and mise. POSIX sh.
+# (seconds, default 120) bounds the wait for the risk label. Each is taken
+# only as a decimal integer from 1 to its default, else the default.
+# Requires git, jq, gh and mise. POSIX sh.
 
 set -u
 
@@ -40,8 +41,16 @@ GIT_TERMINAL_PROMPT=0
 export GIT_TERMINAL_PROMPT
 
 start="$(date +%s)"
-net_timeout="${RELEASE_BUMP_NET_TIMEOUT:-60}"
-risk_wait="${RELEASE_BUMP_RISK_WAIT:-120}"
+# bounded <value> <default>: the value if it is a decimal integer from 1 to
+# the default, else the default; a test can shorten a wait, nothing
+# lengthens one.
+bounded() {
+  case "$1" in "" | *[!0-9]*) echo "$2"; return ;; esac
+  v="${1#"${1%%[!0]*}"}" # no leading zero for $(( ))
+  if [ -n "$v" ] && [ "${#v}" -le "${#2}" ] && [ "$v" -ge 1 ] && [ "$v" -le "$2" ]; then echo "$v"; else echo "$2"; fi
+}
+net_timeout="$(bounded "${RELEASE_BUMP_NET_TIMEOUT:-}" 60)"
+risk_wait="$(bounded "${RELEASE_BUMP_RISK_WAIT:-}" 120)"
 run=""
 
 elapsed() { echo $(($(date +%s) - start)); }
@@ -174,7 +183,9 @@ check_inputs() {
 }
 
 # Hooks switched off through the environment (INV-005). A GIT_CONFIG_COUNT
-# that only sets credential keys, as pap claude's agent shell does, stays.
+# that holds only the pairs pap claude's agent shell exports (bin/pap), keys
+# compared without case, stays; any other pair, or a count that is not a
+# decimal integer, is refused.
 check_env() {
   for v in GIT_CONFIG_PARAMETERS GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM GIT_DIR GIT_WORK_TREE; do
     if env | grep -q "^$v="; then
@@ -184,12 +195,14 @@ check_env() {
   if env | grep -q '^GIT_CONFIG_COUNT='; then
     key="$(awk 'BEGIN {
       n = ENVIRON["GIT_CONFIG_COUNT"]
-      if (n !~ /^[0-9]+$/) { print "(not a number)"; exit }
-      for (i = 0; i < n; i++) {
-        k = ENVIRON["GIT_CONFIG_KEY_" i]
-        if (tolower(k) !~ /^credential\./) { print k; exit }
+      if (n !~ /^[0-9]+$/) { print "a count that is not a decimal integer"; exit }
+      for (i = 0; i < n + 0; i++) {
+        k = tolower(ENVIRON["GIT_CONFIG_KEY_" i]); v = ENVIRON["GIT_CONFIG_VALUE_" i]
+        if (k == "credential.https://github.com.helper" && (v == "" || v == "!gh auth git-credential")) continue
+        if (k == "credential.https://github.com.usehttppath" && v == "true") continue
+        print "the pair " ENVIRON["GIT_CONFIG_KEY_" i] "=" v; exit
       } }')"
-    [ -z "$key" ] || refuse "GIT_CONFIG_COUNT is set with '$key', which can change what git runs" "unset GIT_CONFIG_COUNT"
+    [ -z "$key" ] || refuse "GIT_CONFIG_COUNT is set with $key, which can change what git runs" "unset GIT_CONFIG_COUNT"
   fi
 }
 
