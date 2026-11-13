@@ -73,6 +73,10 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **Pin**: the release of pap an adopting repository installs, written in its `.config/mise/conf.d/pap.toml`. States: absent (pap itself, or a repository whose template came from a checkout of pap), at a version. Not the recorded version (INV-011): the pin says which pap runs, the recorded version which template was applied. (spec: pm-sync)
 - **Template sync**: a build that sets an adopting repository's pin to a release and runs `pap sync`, so the recorded version becomes that release. Its slug is `sync-template-<version>`, its class chore, and it is mechanical. (spec: pm-sync)
 - **Sync brief**: the brief of a template sync, written by `/pap:pm sync` from the one template the pap plugin ships, filled with the repository's root, its recorded version and layers, the release and the UTC date. Complete, as a brief is. (spec: pm-sync)
+- **Version places**: the four places that carry pap's current version: the version in `plugins/pap/.claude-plugin/plugin.json`, the pap entry's version in `.claude-plugin/marketplace.json`, and the install prompt's two (the version it installs and the one `pap version` must print). They agree when all four name one version. (spec: release-bump)
+- **Unreleased section**: the `### [Unreleased]` section under `## pap` in `CHANGELOG.md`. Empty when no line follows its heading before the next `###` heading. (spec: release-bump)
+- **Release bump**: a build that moves the version places from the current version to the next one and dates the unreleased section as that version, so a release can be cut after its merge. Its slug is `release-<version>`, its class chore, and it is mechanical. States: refused (nothing made), opened (a draft pull request), undone (what it made is removed), left (a failure it named, with what is left and the command that removes it). (spec: release-bump)
+- **Release-bump command**: the one command that makes a release bump end to end, from a version the owner names: the work tree, the edits, the local checks, the commit, the push and the draft pull request with its class label. (spec: release-bump)
 
 ## Events
 
@@ -116,6 +120,7 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - **A perspective reports**: its sub-agent returns a verdict and a findings table to the main session. (spec: spec-board-keeps-tools)
 - **A spec review returns**: the last perspective reports; moves the spec review from running to returned. (spec: spec-board-keeps-tools)
 - **/pap:pm sync is run**: by a PM session, on the owner's typed command or on the owner's word, for a release or for the latest; it writes a sync brief, logs a restate event whose text starts `sync: `, commits the tracker and gives the launch line, or is refused. It leaves no launch record. (spec: pm-sync)
+- **The release-bump command is run**: for a version, by a cycle or from a shell; moves the release bump to opened, or to refused, or to undone when a later part fails. (spec: release-bump)
 
 ## Rules
 
@@ -152,3 +157,6 @@ The words every spec and scenario uses. A term is defined once; a state and an e
 - The spec review register is written in the turn the spec review returns, before the owner is asked for a disposition. (spec: spec-board-keeps-tools)
 - `/pap:pm sync` writes only the tracker: it changes no file of the adopting repository and launches no cycle. A refused sync leaves the tracker unchanged. (spec: pm-sync)
 - A sync brief names the release by its version, never as "latest", and that release is one pap has and is newer than the recorded version. (spec: pm-sync)
+- The release-bump command refuses before it makes anything unless the version is x.y.z and above the current one, `origin/main` is fetched, the version places agree, the unreleased section is not empty, and neither the change branch nor its work tree exists. (spec: release-bump)
+- A release bump that fails, or is interrupted, before its pull request opens is undone: no work tree and no local or pushed branch of that run is left. One that fails after the pull request opens leaves it open. Either way, what is left is named with the command that removes it. (spec: release-bump)
+- The release-bump command never merges, never marks a pull request ready, never adds `owner-reviewed`, never pushes `main` and never skips a git hook. (spec: release-bump)
