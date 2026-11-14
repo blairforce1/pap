@@ -21,6 +21,8 @@ jobs:
   tests:
     name: tests
     runs-on: ubuntu-latest
+    # A normal run takes 2 to 3 minutes; a hung suite fails here, not at the 6-hour cancel.
+    timeout-minutes: 10
     env:
       CI: "true"
       MISE_YES: "1"

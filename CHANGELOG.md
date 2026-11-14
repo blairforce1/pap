@@ -188,6 +188,12 @@ not carry.
 
 ### [Unreleased]
 
+#### Changed
+
+- The base template's `tests` job now stops after 10 minutes, so an
+  adopting repository's hung suite fails fast instead of running to the
+  6-hour cancel.
+
 ### [0.20.0] - 2026-11-14
 
 #### Added
