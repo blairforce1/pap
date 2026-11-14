@@ -188,6 +188,8 @@ not carry.
 
 ### [Unreleased]
 
+### [0.20.0] - 2026-11-14
+
 #### Added
 
 - Rules 27.1 and 27.2 (decision 0027). In a project-manager session the
